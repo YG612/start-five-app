@@ -1,0 +1,3 @@
+52ffa822b3c4a08b3a1319abafae8f18dc6618d684cb5870d4a611710e1ecaa0  GAP_P0_01A2_REVIEW5_TEST_SPEC.md
+ab4fecd99ef59f4d9e3d60316f7cf11006fc251790c9477126774996e8f59674  tests/gap-p0-01a2-review5/recordCasAba.contract.test.ts
+c8c4f71c4cf53664e2c3cc3ad325fd4e25af48dac8a7eef0f481b46b6d9805ce  tests/gap-p0-01a2-review5/review5AbaTestKit.ts

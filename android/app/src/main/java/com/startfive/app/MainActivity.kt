@@ -1,0 +1,48 @@
+package com.startfive.app
+
+import android.content.Intent
+import android.os.Bundle
+import com.facebook.react.ReactActivity
+import com.facebook.react.ReactActivityDelegate
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
+import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.startfive.app.backup.BackupFileBroker
+import com.startfive.app.notifications.StartFiveNotificationsModule
+
+class MainActivity : ReactActivity() {
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    StartFiveNotificationsModule.receiveInitialTap(intent)
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    StartFiveNotificationsModule.receiveTap(intent)
+  }
+
+  override fun onDestroy() {
+    if (!isChangingConfigurations) BackupFileBroker.releaseActivity(this)
+    super.onDestroy()
+  }
+
+  @Deprecated("Deprecated in Android")
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    BackupFileBroker.onActivityResult(this, requestCode, resultCode, data)
+  }
+
+  /**
+   * Returns the name of the main component registered from JavaScript. This is used to schedule
+   * rendering of the component.
+   */
+  override fun getMainComponentName(): String = "StartFive"
+
+  /**
+   * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]
+   * which allows you to enable New Architecture with a single boolean flags [fabricEnabled]
+   */
+  override fun createReactActivityDelegate(): ReactActivityDelegate =
+      DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+}

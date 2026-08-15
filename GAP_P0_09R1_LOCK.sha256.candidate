@@ -1,0 +1,3 @@
+be84694a0cffe8672a9490ef9306de3b5930b52e398894164a20ef410afb25d3  GAP_P0_09R1_TEST_SPEC.md
+38d7e264ed6e2ecf9aef9d0cdfc4ecda4957fb69a30817d52ffe7464e711549a  tests/gap-p0-09/dayClosureTestKit.ts
+1e0d2f529581f5b77f3e163583115214090706d38e2febb3beaabc54be05818a  tests/gap-p0-09/dayClosure.contract.test.tsx

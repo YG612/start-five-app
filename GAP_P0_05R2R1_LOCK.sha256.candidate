@@ -1,0 +1,3 @@
+a19c80c3d85825724125ae900f87f18ac4f4acbc9ebbbda526763666b6044775  GAP_P0_05R2R1_TEST_SPEC.md
+f3407afbcc55b8c65e2797e81af51460752ebbadf211d4ea2e27fe75d7e9974f  tests/gap-p0-05r2r1/appRootFocusResilience.contract.test.tsx
+dfd6990746fee39bcdb948d6344eca93689e7ac5ee6633dcb34447e8be82475c  tests/gap-p0-05r2r1/gapP005R2TestKit.ts

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+      android:shortcutId="add_task"
+      android:enabled="true"
+      android:icon="@mipmap/start_five_launcher"
+      android:shortcutShortLabel="@string/shortcut_add_task_short"
+      android:shortcutLongLabel="@string/shortcut_add_task_long">
+        <intent
+          android:action="com.startfive.app.SHORTCUT_ADD"
+          android:targetPackage="com.startfive.app"
+          android:targetClass="com.startfive.app.MainActivity" />
+    </shortcut>
+    <shortcut
+      android:shortcutId="continue_task"
+      android:enabled="true"
+      android:icon="@mipmap/start_five_launcher"
+      android:shortcutShortLabel="@string/shortcut_continue_short"
+      android:shortcutLongLabel="@string/shortcut_continue_long">
+        <intent
+          android:action="com.startfive.app.SHORTCUT_CONTINUE"
+          android:targetPackage="com.startfive.app"
+          android:targetClass="com.startfive.app.MainActivity" />
+    </shortcut>
+    <shortcut
+      android:shortcutId="start_five"
+      android:enabled="true"
+      android:icon="@mipmap/start_five_launcher"
+      android:shortcutShortLabel="@string/shortcut_start_five_short"
+      android:shortcutLongLabel="@string/shortcut_start_five_long">
+        <intent
+          android:action="com.startfive.app.SHORTCUT_START_FIVE"
+          android:targetPackage="com.startfive.app"
+          android:targetClass="com.startfive.app.MainActivity" />
+    </shortcut>
+</shortcuts>

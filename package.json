@@ -1,0 +1,44 @@
+{
+  "name": "start-five",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Start Five mobile app — locked test-first contract",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "test": "node scripts/quality-gate-v2/cli.cjs test",
+    "quality:gate": "node scripts/quality-gate-v2/cli.cjs full",
+    "test:locked": "jest --runInBand tests/locked",
+    "test:locked:ci": "jest --runInBand --ci --coverage=false tests/locked",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "7.29.7",
+    "@react-native-async-storage/async-storage": "3.1.1",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@react-native-community/cli": "20.1.0",
+    "@react-native-community/cli-platform-android": "20.1.0",
+    "@react-native-community/cli-platform-ios": "20.1.0",
+    "@react-native/babel-preset": "0.86.0",
+    "@react-native/codegen": "0.86.0",
+    "@react-native/gradle-plugin": "0.86.0",
+    "@react-native/jest-preset": "0.86.0",
+    "@react-native/metro-config": "0.86.0",
+    "@react-native/typescript-config": "0.86.0",
+    "@testing-library/react-native": "^14.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/react": "^19.2.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "react-test-renderer": "19.2.3",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

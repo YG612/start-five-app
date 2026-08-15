@@ -1,0 +1,450 @@
+import React from 'react';
+import {
+  createCoreAppService,
+  createTaskLifecycleService,
+  type CoreAppService,
+  type NetworkAdapter,
+} from '../application/coreAppService';
+import {createFocusSessionService} from '../application/focusSessionService';
+import {createDayClosureService} from '../application/dayClosureService';
+import {
+  createPostFocusReviewService,
+  type ReceiptHistorySnapshot,
+} from '../application/postFocusReviewService';
+import {startTask} from '../domain/task';
+import {
+  TASK_GROWTH_SCHEMA_VERSION,
+  awardFirstStartReward,
+} from '../domain/growth';
+import {
+  TASK_SUPPORT_SCHEMA_VERSION,
+  nextStartAtForTask,
+} from '../domain/taskSupport';
+import {isTaskInQuadrants} from '../domain/taskOrganization';
+import {createFocusSessionRepository} from '../data/focusSessionRepository';
+import {createDayClosureRepository} from '../data/dayClosureRepository';
+import {createPostFocusReviewRepository} from '../data/postFocusReviewRepository';
+import {createPersistentFocusSessionStorage} from '../data/persistentFocusSessionStorage';
+import {
+  createPersistentTaskStorage,
+  type AsyncKeyValueBackend,
+} from '../data/persistentTaskStorage';
+import {
+  createTaskDurablePresenceProbe,
+  createTaskBackupAdapter,
+  createTaskRepository,
+  type TaskDurablePresenceProbe,
+  type TaskRepository,
+} from '../data/taskRepository';
+import {QuadrantHomeScreen} from '../screens/QuadrantHomeScreen';
+import {PostFocusReviewScreen} from '../screens/PostFocusReviewScreen';
+import {
+  FocusSessionRuntimeProvider,
+  type FocusRuntimeClock,
+} from './focusSessionRuntime';
+import {
+  PostFocusReviewRuntimeProvider,
+} from './postFocusReviewRuntime';
+import {TaskWorkspaceRuntimeProvider} from './taskWorkspaceRuntime';
+import {
+  createTomorrowFirstReminderService,
+  TOMORROW_FIRST_TIME_SEAMS_PARTIAL,
+  type LocalTriggerInput,
+  type TomorrowFirstNotifications,
+} from '../application/tomorrowFirstNotifications';
+import {createFirstActivationService} from '../application/firstActivationService';
+import {
+  createFirstActivationRepository,
+} from '../data/firstActivationRepository';
+import {hasExistingUserData} from '../data/userDataPresence';
+import {FirstActivationReadError} from '../screens/FirstActivationScreen';
+import {createCoordinatedBackend} from '../data/coordinatedBackend';
+import {createQuadrantHomePreferences} from '../data/quadrantHomePreferences';
+import {
+  createLocalBackupService,
+  type LocalBackupService,
+} from '../application/localBackupService';
+import type {BackupFileBridge} from '../screens/LocalBackupScreen';
+import {
+  NoopProductMetricPort,
+  SYSTEM_PRODUCT_METRIC_CLOCK,
+  type ProductMetricClock,
+  type ProductMetricPort,
+} from '../application/productMetrics';
+
+export type StartFiveAppDependencies = {
+  storageBackend: AsyncKeyValueBackend;
+  now(): string;
+  idGenerator(): string;
+  network?: NetworkAdapter;
+  focusRuntimeClock?: FocusRuntimeClock;
+  tomorrowFirstNotifications?: TomorrowFirstNotifications;
+  currentTimeZone?(): string;
+  resolveLocalTrigger?(input: LocalTriggerInput): string;
+  backupFileBridge?: BackupFileBridge;
+  productMetricPort?: ProductMetricPort;
+  productMetricClock?: ProductMetricClock;
+  productMetricSessionId?: string;
+  public?: Readonly<{
+    firstActivation?: Readonly<{
+      enabled: true;
+      taskDurablePresenceProbe?: TaskDurablePresenceProbe;
+    }>;
+  }>;
+};
+
+export type StartFiveAppComposition = {
+  repository: TaskRepository;
+  service: CoreAppService;
+  reviewHistory: Readonly<{
+    listReceiptHistory(): Promise<ReceiptHistorySnapshot>;
+  }>;
+  localBackup: LocalBackupService;
+  AppRoot: React.ComponentType;
+};
+
+function createDefaultFocusRuntimeClock(): FocusRuntimeClock {
+  return {
+    nowMs: Date.now,
+    subscribe(listener) {
+      const interval = setInterval(listener, 1_000);
+      return () => clearInterval(interval);
+    },
+  };
+}
+
+export function createStartFiveApp(
+  dependencies: StartFiveAppDependencies,
+): StartFiveAppComposition {
+  const productMetricPort =
+    dependencies.productMetricPort ?? new NoopProductMetricPort();
+  const productMetricClock =
+    dependencies.productMetricClock ?? SYSTEM_PRODUCT_METRIC_CLOCK;
+  const productMetricSessionId =
+    dependencies.productMetricSessionId ??
+    `local-${productMetricClock.now()}-${Math.round(productMetricClock.monotonicNow())}`;
+  const homeStartedAtMs = productMetricClock.monotonicNow();
+  const hasCurrentTimeZone = dependencies.currentTimeZone !== undefined;
+  const hasLocalTriggerResolver = dependencies.resolveLocalTrigger !== undefined;
+  if (hasCurrentTimeZone !== hasLocalTriggerResolver) {
+    throw new Error(TOMORROW_FIRST_TIME_SEAMS_PARTIAL);
+  }
+  const coordinatedBackend = createCoordinatedBackend(
+    dependencies.storageBackend,
+  );
+  const storage = createPersistentTaskStorage(coordinatedBackend);
+  const quadrantHomePreferences = createQuadrantHomePreferences(
+    coordinatedBackend,
+  );
+  const taskDurablePresenceProbe =
+    dependencies.public?.firstActivation?.taskDurablePresenceProbe ??
+    createTaskDurablePresenceProbe(storage);
+  const repository = createTaskRepository(storage);
+  const service = createCoreAppService({
+    repository,
+    now: dependencies.now,
+    idGenerator: dependencies.idGenerator,
+    ...(dependencies.network === undefined
+      ? {}
+      : {network: dependencies.network}),
+  });
+  const taskLifecycle = createTaskLifecycleService({
+    repository,
+    now: dependencies.now,
+    idGenerator: dependencies.idGenerator,
+  });
+  const selectedStartInFlight = new Map<string, Readonly<{
+    taskId: string;
+    promise: Promise<import('../domain/task').Task>;
+  }>>();
+
+  function startSelectedTask(
+    taskId: string,
+    operationId: string,
+  ): Promise<import('../domain/task').Task> {
+    const existing = selectedStartInFlight.get(operationId);
+    if (existing !== undefined) {
+      if (existing.taskId !== taskId) {
+        return Promise.reject(new Error('OPERATION_ID_REUSED'));
+      }
+      return existing.promise;
+    }
+    const promise = repository.transaction(async transaction => {
+      const task = await transaction.getById(taskId);
+      if (task === null) {
+        throw new Error('TASK_NOT_FOUND');
+      }
+      if (
+        task.deletedAt !== null ||
+        task.status === 'completed' ||
+        task.status === 'cancelled'
+      ) {
+        throw new Error('TERMINAL_TASK');
+      }
+      if (!isTaskInQuadrants(task)) {
+        throw new Error('TASK_REQUIRES_PLACEMENT');
+      }
+      const observedAt = dependencies.now();
+      const started = startTask(task, observedAt);
+      const reward = awardFirstStartReward(started, observedAt);
+      const pendingNextStart = nextStartAtForTask(task);
+      if (started === task && reward.points === 0 && pendingNextStart === null) {
+        return task;
+      }
+      const {id, ...basePatch} = reward.task;
+      void id;
+      const patch = basePatch as typeof basePatch & {
+        supportSchemaVersion?: typeof TASK_SUPPORT_SCHEMA_VERSION;
+        nextStartAt?: string | null;
+        growthSchemaVersion?: typeof TASK_GROWTH_SCHEMA_VERSION;
+      };
+      if (pendingNextStart !== null) {
+        patch.supportSchemaVersion = TASK_SUPPORT_SCHEMA_VERSION;
+        patch.nextStartAt = null;
+      }
+      return transaction.update(taskId, patch);
+    });
+    selectedStartInFlight.set(operationId, {taskId, promise});
+    void promise.finally(() => {
+      const current = selectedStartInFlight.get(operationId);
+      if (current?.promise === promise) {
+        selectedStartInFlight.delete(operationId);
+      }
+    }).catch(() => undefined);
+    return promise;
+  }
+  let lastFocusNow: string | null = null;
+  const focusNow = (): string => {
+    const value = dependencies.now();
+    lastFocusNow = value;
+    return value;
+  };
+  let focusWriteTail = Promise.resolve();
+  const enqueueFocusWrite = (work: () => Promise<void>): Promise<void> => {
+    const result = focusWriteTail.then(work);
+    focusWriteTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  };
+  const createFocusBackend = (
+    writeIsCurrent: () => boolean,
+  ): AsyncKeyValueBackend => {
+    const backend = coordinatedBackend;
+    return {
+      getItem: key => backend.getItem(key),
+      setItem: (key, value) =>
+        enqueueFocusWrite(() => {
+          if (!writeIsCurrent()) {
+            throw new Error('FOCUS_SESSION_RESTORE_STALE');
+          }
+          return backend.setItem(key, value);
+        }),
+      removeItem: key =>
+        enqueueFocusWrite(() => {
+          if (!writeIsCurrent()) {
+            throw new Error('FOCUS_SESSION_RESTORE_STALE');
+          }
+          return backend.removeItem(key);
+        }),
+    };
+  };
+  const createFocusService = (backend: AsyncKeyValueBackend) =>
+    createFocusSessionService({
+      repository: createFocusSessionRepository(
+        createPersistentFocusSessionStorage(backend),
+      ),
+      now: focusNow,
+      idGenerator: dependencies.idGenerator,
+    });
+  const focusService = createFocusService(createFocusBackend(() => true));
+  const firstActivationService = createFirstActivationService({
+    repository: createFirstActivationRepository(coordinatedBackend),
+    tasks: taskLifecycle,
+    focus: focusService,
+    startSelectedTask,
+    idGenerator: dependencies.idGenerator,
+  });
+  const postFocusReviewService = createPostFocusReviewService({
+    repository: createPostFocusReviewRepository(coordinatedBackend),
+    focusService,
+    taskLifecycle,
+    now: dependencies.now,
+  });
+  const reviewHistory = {
+    listReceiptHistory: () => postFocusReviewService.listReceiptHistory(),
+  };
+  const dayClosureService = createDayClosureService({
+    repository: createDayClosureRepository(coordinatedBackend),
+    tasks: taskLifecycle,
+    focus: focusService,
+    history: reviewHistory,
+    now: dependencies.now,
+    startSelectedTask,
+  });
+  const focusRuntimeClock =
+    dependencies.focusRuntimeClock ?? createDefaultFocusRuntimeClock();
+  const tomorrowFirstReminder =
+    dependencies.tomorrowFirstNotifications === undefined
+      ? undefined
+      : createTomorrowFirstReminderService({
+          backend: coordinatedBackend,
+          notifications: dependencies.tomorrowFirstNotifications,
+          now: dependencies.now,
+          settingsEnabled: hasCurrentTimeZone && hasLocalTriggerResolver,
+          ...(dependencies.currentTimeZone === undefined
+            ? {}
+            : {currentTimeZone: dependencies.currentTimeZone}),
+          ...(dependencies.resolveLocalTrigger === undefined
+            ? {}
+            : {resolveLocalTrigger: dependencies.resolveLocalTrigger}),
+        });
+  const localBackup = createLocalBackupService({
+    backend: coordinatedBackend,
+    tasks: createTaskBackupAdapter(coordinatedBackend.raw),
+    async reconcileNotifications() {
+      if (tomorrowFirstReminder !== undefined) {
+        await tomorrowFirstReminder.reconcile(await dayClosureService.load());
+      }
+    },
+    now: dependencies.now,
+  });
+
+  function createRestoreService(writeIsCurrent: () => boolean) {
+    return createFocusService(createFocusBackend(writeIsCurrent));
+  }
+
+  function ProductRoot(): React.JSX.Element {
+    return (
+      <PostFocusReviewRuntimeProvider service={postFocusReviewService}>
+        <FocusSessionRuntimeProvider
+          clock={focusRuntimeClock}
+          createRestoreService={createRestoreService}
+          lastObservedNow={() => lastFocusNow}
+          reviewService={postFocusReviewService}
+          service={focusService}>
+          <TaskWorkspaceRuntimeProvider
+            lifecycle={taskLifecycle}
+            reconcileReminders={async () => {
+              if (tomorrowFirstReminder !== undefined) {
+                await tomorrowFirstReminder.reconcile(
+                  await dayClosureService.load(),
+                );
+              }
+            }}
+            reloadProjection={repository.reload}
+            restoreCompletedReview={postFocusReviewService.restore}
+            service={service}
+            startSelectedTask={startSelectedTask}>
+            <AppContent />
+          </TaskWorkspaceRuntimeProvider>
+        </FocusSessionRuntimeProvider>
+      </PostFocusReviewRuntimeProvider>
+    );
+  }
+
+  type BootState = 'checking' | 'existing' | 'error';
+  function AppRoot(): React.JSX.Element {
+    const activationEnabled = dependencies.public?.firstActivation?.enabled === true;
+    const [boot, setBoot] = React.useState<BootState>('checking');
+    const [bootGeneration, setBootGeneration] = React.useState(0);
+
+    React.useEffect(() => {
+      let current = true;
+      void (async () => {
+        try {
+          await localBackup.recoverPendingRestore();
+          if (!activationEnabled) {
+            if (current) setBoot('existing');
+            return;
+          }
+          const activation = await firstActivationService.read();
+          if (activation !== null) {
+            if (activation.state === 'creating' || activation.state === 'created') {
+              await firstActivationService.activate(activation.title ?? '');
+            }
+            if (current) {
+              setBoot('existing');
+            }
+            return;
+          }
+          if ((await taskDurablePresenceProbe.probe()) === 'present') {
+            if (current) {
+              setBoot('existing');
+            }
+            return;
+          }
+          if (await hasExistingUserData(coordinatedBackend)) {
+            if (current) {
+              setBoot('existing');
+            }
+            return;
+          }
+          await firstActivationService.skip();
+          if (current) setBoot('existing');
+        } catch {
+          if (current) {
+            setBoot('error');
+          }
+        }
+      })();
+      return () => {
+        current = false;
+      };
+    }, [activationEnabled, bootGeneration]);
+
+    if (boot === 'checking') {
+      return <></>;
+    }
+    if (boot === 'error') {
+      return (
+        <FirstActivationReadError
+          onRetry={() => {
+            setBoot('checking');
+            setBootGeneration(generation => generation + 1);
+          }}
+        />
+      );
+    }
+    return <ProductRoot />;
+  }
+
+  function AppContent(): React.JSX.Element {
+    return (
+      <QuadrantHomeScreen
+        dayClosure={dayClosureService}
+        homeStartedAtMs={homeStartedAtMs}
+        metricClock={productMetricClock}
+        metricPort={productMetricPort}
+        metricSessionId={productMetricSessionId}
+        focusHistory={focusService}
+        now={dependencies.now}
+        preferences={quadrantHomePreferences}
+        {...(dependencies.currentTimeZone === undefined
+          ? {}
+          : {currentTimeZone: dependencies.currentTimeZone})}
+        {...(dependencies.resolveLocalTrigger === undefined
+          ? {}
+          : {resolveLocalTrigger: dependencies.resolveLocalTrigger})}
+        reviewHistory={reviewHistory}
+        service={service}
+        {...(tomorrowFirstReminder === undefined
+          ? {}
+          : {tomorrowFirstReminder})}
+        renderReviewSheet={onReturned => (
+          <PostFocusReviewScreen onReturned={onReturned} />
+        )}
+        {...(dependencies.tomorrowFirstNotifications === undefined
+          ? {}
+          : {notifications: dependencies.tomorrowFirstNotifications})}
+        localBackup={localBackup}
+        {...(dependencies.backupFileBridge === undefined
+          ? {}
+          : {backupFileBridge: dependencies.backupFileBridge})}
+      />
+    );
+  }
+
+  return {repository, service, reviewHistory, localBackup, AppRoot};
+}

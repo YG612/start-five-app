@@ -1,0 +1,3 @@
+157cd1ecec15d240b648eefb84b57da9421ff24fcc62d8b23b900379f367666c  GAP_P0_11_TEST_SPEC.md
+78db432b2330ac945965da6d96d7811c455e18580ed8e87df1bc3eb5d2afd441  tests/gap-p0-11/gapP011TestKit.ts
+a7d95825f45520af94f89463cc6ec534faae7847855afaaca687aabba2aa8f2d  tests/gap-p0-11/firstActivation.contract.test.tsx

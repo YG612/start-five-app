@@ -1,0 +1,899 @@
+Start Five Quality Gate V2
+runId: 42519f1b-5528-408b-bc3b-e331da9c48ce
+mode: test
+status: failed
+result: FAILED
+projectRoot: D:\CodexData\Workspaces\Codex\2026-07-20\android-ios-app-readme-md-prd\outputs\start-five
+formal-tests: failed
+lock-manifests: skipped
+stageId: formal-tests
+exitCode: 1
+signal: null
+timedOut: false
+timeoutSource: null
+stdout: 
+stderr: PASS tests/quality-gate-v2/manifestValidation.contract.test.ts (5.111 s)
+PASS tests/quality-gate-v2/realCliChild.contract.test.ts (18.475 s)
+PASS tests/gap-p0-02b/repositoryPersistence.contract.test.ts
+PASS tests/review4/repeatSession.screen.regression.test.tsx (10.474 s)
+PASS tests/quality-gate-v2/cliAndEntry.contract.test.ts
+PASS tests/review2/startLifecycle.regression.test.tsx
+PASS tests/gap-p0-02b/serviceTerminal.contract.test.ts
+PASS tests/gap-p0-02b/snapshotValidation.contract.test.ts
+PASS tests/native-scaffold/androidScaffold.contract.test.ts
+PASS tests/review1/CoreFlowTimer.integration.test.tsx
+PASS tests/gap-p0-02b/serviceStart.contract.test.ts
+PASS tests/review3/startSingleFlight.regression.test.tsx
+PASS tests/review1/operationRegistry.regression.test.ts
+PASS tests/phase4-review/snapshotSemanticValidation.regression.test.ts
+FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts (6.423 s)
+  ● GAP-P0-02A legacy compatibility controls › keeps CoreAppService and CoreFlow controller/screen public types exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 210 |[39m     )[33m;[39m
+     [90m 211 |[39m
+    [31m[1m>[22m[39m[90m 212 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 213 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 214 |[39m   })[33m;[39m
+     [90m 215 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/legacyCompatibility.control.test.ts:212:43)
+
+  ● GAP-P0-02A legacy compatibility controls › keeps the legacy createCoreAppService own seven-method object exact
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      Array [
+        "addFirstStep",
+        "chooseRecommended",
+    +   "completeFirstStep",
+        "createTask",
+        "finishStep",
+        "finishTask",
+        "getState",
+        "startRecommended",
+    +   "undoFirstStep",
+      ]
+
+    [0m [90m 357 |[39m     })[33m;[39m
+     [90m 358 |[39m
+    [31m[1m>[22m[39m[90m 359 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_LEGACY_CORE_METHODS[39m)[33m;[39m
+     [90m     |[39m                                         [31m[1m^[22m[39m
+     [90m 360 |[39m   })[33m;[39m
+     [90m 361 |[39m })[33m;[39m
+     [90m 362 |[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02a/legacyCompatibility.control.test.ts:359:41)
+
+FAIL tests/phase4/persistentTaskStorage.contract.test.ts
+  ● P4-PERSIST versioned local task persistence contract › maps backend write failures and preserves both durable and already-visible state atomically
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"atomic-task\",\"title\":\"Phase 4 task atomic-task\",\"description\":\"Durable description for atomic-task\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":\"2026-08-05T09:00:00.000Z\",\"dueAt\":\"2026-08-08T18:00:00.000Z\",\"createdAt\":\"2026-08-04T10:00:00.000Z\",\"updatedAt\":\"2026-08-04T10:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"atomic-task\",\"title\":\"Phase 4 task atomic-task\",\"description\":\"Durable description for atomic-task\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":\"2026-08-05T09:00:00.000Z\",\"dueAt\":\"2026-08-08T18:00:00.000Z\",\"createdAt\":\"2026-08-04T10:00:00.000Z\",\"updatedAt\":\"2026-08-04T10:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 215 |[39m
+     [90m 216 |[39m     expect(backend[33m.[39mraw([33mPHASE4_STORAGE_KEY[39m))[33m.[39mtoBe(durableBeforeFailure)[33m;[39m
+    [31m[1m>[22m[39m[90m 217 |[39m     expect(backend[33m.[39mcommittedSetCalls)[33m.[39mtoHaveLength(commitsBeforeFailure)[33m;[39m
+     [90m     |[39m                                       [31m[1m^[22m[39m
+     [90m 218 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength(commitsBeforeFailure [33m+[39m [35m1[39m)[33m;[39m
+     [90m 219 |[39m     expect(backend[33m.[39msetAttempts[33m.[39mat([33m-[39m[35m1[39m)[33m?[39m[33m.[39mkey)[33m.[39mtoBe([33mPHASE4_STORAGE_KEY[39m)[33m;[39m
+     [90m 220 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m[0m
+
+      at Object.toHaveLength (tests/phase4/persistentTaskStorage.contract.test.ts:217:39)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/native-scaffold/isolationAndPreservation.contract.test.ts
+  ● NS-005 isolated-project and accepted-asset preservation contract › scans source/config/native YAML, locks, C/C++, and podspecs without scanning tests or generated vendors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 18
+
+    - Array []
+    + Array [
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cache-v2-5aa0806b52682965b186.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-f0126f5a6017d1c7535e.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-c3773668a06428667c4a.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/directory-AsyncStorageSpec_autolinked_build-RelWithDebInfo-26b04d5fbbe6314abe33.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/index-2026-08-13T08-07-57-0263.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-appmodules-RelWithDebInfo-74e83ccdccc74af813c9.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_AsyncStorageSpec-RelWithDebInfo-88f029ae2992eb96a52a.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.ninja_log",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build_mini.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/.ninja_deps",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/compile_commands.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/prefab_config.json",
+    +   "android/.cxx-short/tools/internal/arm64-v8a/compile_commands.json",
+    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/build_model.json",
+    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/metadata_generation_record.json",
+    + ]
+
+    [0m [90m 252 |[39m     }
+     [90m 253 |[39m
+    [31m[1m>[22m[39m[90m 254 |[39m     expect(findings)[33m.[39mtoEqual([])[33m;[39m
+     [90m     |[39m                      [31m[1m^[22m[39m
+     [90m 255 |[39m   })[33m;[39m
+     [90m 256 |[39m
+     [90m 257 |[39m   it([32m'exempts only the two exact root POSIX quality-gate reports without creating a scan blind spot'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.toEqual (tests/native-scaffold/isolationAndPreservation.contract.test.ts:254:22)
+
+PASS tests/phase4-review3/externalQueueAndCrossFacade.regression.test.ts
+PASS tests/gap-p0-02a/publicFoundation.contract.test.ts
+FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
+  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
+
+    Found multiple elements with text: /Hydrated Phase 4 task/
+
+    [0m [90m 59 |[39m
+     [90m 60 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 61 |[39m     [36mawait[39m waitFor(() [33m=>[39m
+     [90m    |[39m                  [31m[1m^[22m[39m
+     [90m 62 |[39m       expect(screen[33m.[39mgetByText([35m/Hydrated Phase 4 task/[39m))[33m.[39mtoBeTruthy()[33m,[39m
+     [90m 63 |[39m     )[33m;[39m
+     [90m 64 |[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:61:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › uses the exact shared service and repository for every root render without duplicate hydration state
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 4
+
+      Array [
+        "start-five.tasks.v1",
+    +   "start-five.local-backup.restore-journal.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+      ]
+
+    [0m [90m 79 |[39m     [36mconst[39m firstRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+     [90m 80 |[39m     [36mawait[39m waitFor(() [33m=>[39m expect(getState)[33m.[39mtoHaveBeenCalledTimes([35m1[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 81 |[39m     expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m;[39m
+     [90m    |[39m                              [31m[1m^[22m[39m
+     [90m 82 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m
+     [90m 83 |[39m
+     [90m 84 |[39m     [36mconst[39m secondRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m[0m
+
+      at Object.toEqual (tests/phase4/startFiveApp.contract.test.tsx:81:30)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › keeps service mutations, the exposed repository, the root, and a later app instance on one durable state
+
+    Found multiple elements with text: /One shared durable state/
+
+    [0m [90m 112 |[39m       [33mReact[39m[33m.[39mcreateElement(firstComposition[33m.[39m[33mAppRoot[39m)[33m,[39m
+     [90m 113 |[39m     )[33m;[39m
+    [31m[1m>[22m[39m[90m 114 |[39m     [36mawait[39m waitFor(() [33m=>[39m
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 115 |[39m       expect(firstRoot[33m.[39mgetByText([35m/One shared durable state/[39m))[33m.[39mtoBeTruthy()[33m,[39m
+     [90m 116 |[39m     )[33m;[39m
+     [90m 117 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:114:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › boots and hydrates locally without invoking an injected network adapter or global fetch
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 4
+
+      Array [
+    +   "start-five.local-backup.restore-journal.v1",
+        "start-five.tasks.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+      ]
+
+    [0m [90m 181 |[39m       })[33m;[39m
+     [90m 182 |[39m       [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 183 |[39m       [36mawait[39m waitFor(() [33m=>[39m
+     [90m     |[39m                    [31m[1m^[22m[39m
+     [90m 184 |[39m         expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m,[39m
+     [90m 185 |[39m       )[33m;[39m
+     [90m 186 |[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:183:20)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › surfaces corrupt hydration as a stable service failure and never invents a task
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 6
+    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.day-closure.v1", "start-five.post-focus-review.v1"]
+
+    [0m [90m 211 |[39m
+     [90m 212 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 213 |[39m     [36mawait[39m waitFor(() [33m=>[39m expect(backend[33m.[39mgetCalls)[33m.[39mtoHaveLength([35m2[39m))[33m;[39m
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 214 |[39m     expect(screen[33m.[39mqueryByText([35m/Phase 4 task/[39m))[33m.[39mtoBeNull()[33m;[39m
+     [90m 215 |[39m     [36mawait[39m screen[33m.[39munmount()[33m;[39m
+     [90m 216 |[39m   })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:213:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+PASS tests/quality-gate-v2/orchestratorExecution.contract.test.ts
+PASS tests/gap-p0-02b/serviceQueryRestart.contract.test.ts
+PASS tests/gap-p0-02b/sharedPersistenceConcurrency.contract.test.ts
+PASS tests/quality-gate-v2/reportWriter.contract.test.ts
+PASS tests/native-scaffold/toolchainConfig.contract.test.ts
+PASS tests/quality-gate-v2/processRunner.contract.test.ts (11.286 s)
+PASS tests/quality-gate-v2/orchestratorPlan.contract.test.ts
+PASS tests/native-scaffold/iosScaffold.contract.test.ts
+PASS tests/phase4-review3/transactionSurfaceLifetime.regression.test.ts
+PASS tests/native-review/fixtures/xcodeTargetGraph.invariant.test.ts
+PASS tests/review3/timerBoundaryAlignment.regression.test.ts
+PASS tests/native-scaffold/fixtures/nativeProject.invariant.test.ts
+PASS tests/phase4-review2/lifecycleInvariantMatrix.regression.test.ts
+PASS tests/quality-gate-v2/publicSurface.contract.test.ts
+FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
+  ● GAP-P0-02B persistent public TypeScript and runtime surface › owns exact runtime namespaces and constructs both adapters with synchronous and deferred zero backend I/O
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "DEFAULT_FOCUS_SESSION_STORAGE_KEY",
+        "createFocusSessionRepository",
+    +   "validateFocusSessionBackup",
+      ]
+
+    [0m [90m 123 |[39m     [36mconst[39m storageModule [33m=[39m loadStorageModule()[33m;[39m
+     [90m 124 |[39m
+    [31m[1m>[22m[39m[90m 125 |[39m     expect([33mObject[39m[33m.[39mkeys(repositoryModule)[33m.[39msort())[33m.[39mtoEqual([
+     [90m     |[39m                                                  [31m[1m^[22m[39m
+     [90m 126 |[39m       [32m'DEFAULT_FOCUS_SESSION_STORAGE_KEY'[39m[33m,[39m
+     [90m 127 |[39m       [32m'createFocusSessionRepository'[39m[33m,[39m
+     [90m 128 |[39m     ])[33m;[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/persistentPublicSurface.contract.test.ts:125:50)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+PASS tests/review2/defaultTimerCadence.regression.test.tsx
+PASS tests/phase4-review2/directSnapshotBoundary.regression.test.ts
+PASS tests/phase4-review2/transactionReentrancy.regression.test.ts
+PASS tests/gap-p0-02b/timerBoundary.control.test.ts
+PASS tests/phase4-review2/plainDataMutationAtomicity.regression.test.ts
+PASS tests/phase4-review3/parentSubtaskTemporalBounds.regression.test.ts
+FAIL tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts
+  ● P4-HARDENING-4 narrow error mapping and legal input controls › preserves TASK_STORAGE_WRITE_FAILED for a backend write exception without cache divergence and then recovers
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"backend-write-baseline\",\"title\":\"Failed backend write must not publish\",\"description\":\"Plain durable task backend-write-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T02:00:00.000Z\",\"updatedAt\":\"2026-08-05T02:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"backend-write-baseline\",\"title\":\"Phase 4 review 4 task backend-write-baseline\",\"description\":\"Plain durable task backend-write-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T02:00:00.000Z\",\"updatedAt\":\"2026-08-05T02:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 75 |[39m     })[33m;[39m
+     [90m 76 |[39m     expect(backend[33m.[39mraw([33mPHASE4_REVIEW4_STORAGE_KEY[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 77 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 78 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 79 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 80 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts:77:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/phase4-review/sharedCompositionConcurrency.regression.test.ts
+  ● P4-REVIEW shared-backend composition concurrency › preserves sequential mutations from two live compositions hydrated from the same empty snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+    -   "sequential-a-1",
+        "sequential-b-1",
+      ]
+
+    [0m [90m 66 |[39m     expect(
+     [90m 67 |[39m       [36mawait[39m durableIds(backend[33m,[39m [32m'sequential-fresh'[39m)[33m,[39m
+    [31m[1m>[22m[39m[90m 68 |[39m     )[33m.[39mtoEqual([firstCreated[33m.[39mid[33m,[39m secondCreated[33m.[39mid][33m.[39msort())[33m;[39m
+     [90m    |[39m       [31m[1m^[22m[39m
+     [90m 69 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m
+     [90m 70 |[39m   })[33m;[39m
+     [90m 71 |[39m[0m
+
+      at Object.toEqual (tests/phase4-review/sharedCompositionConcurrency.regression.test.ts:68:7)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-REVIEW shared-backend composition concurrency › preserves both mutations under a controlled overlapping commit after both compositions hydrate one legal snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+        "overlap-a-1",
+    -   "overlap-b-1",
+        "preexisting-durable-task",
+      ]
+
+    [0m [90m 108 |[39m     expect(
+     [90m 109 |[39m       [36mawait[39m durableIds(backend[33m,[39m [32m'overlap-fresh'[39m)[33m,[39m
+    [31m[1m>[22m[39m[90m 110 |[39m     )[33m.[39mtoEqual([baseline[33m.[39mid[33m,[39m firstCreated[33m.[39mid[33m,[39m secondCreated[33m.[39mid][33m.[39msort())[33m;[39m
+     [90m     |[39m       [31m[1m^[22m[39m
+     [90m 111 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m
+     [90m 112 |[39m   })[33m;[39m
+     [90m 113 |[39m[0m
+
+      at Object.toEqual (tests/phase4-review/sharedCompositionConcurrency.regression.test.ts:110:7)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+PASS tests/phase4-review4/facadeMaterialization.regression.test.ts
+PASS tests/phase4-review5/resourceBudgets.regression.test.ts
+PASS tests/phase4-review4/transactionMaterialization.regression.test.ts
+FAIL tests/native-scaffold/rootRegistration.contract.test.tsx
+  ● NS-001 JavaScript registration and durable composition root › reuses createStartFiveApp once and injects the explicit React Native durable backend seam
+
+    TypeError: Cannot read properties of undefined (reading 'StartFiveNotifications')
+
+    [0m [90m 23 |[39m }[33m>[39m[33m;[39m
+     [90m 24 |[39m
+    [31m[1m>[22m[39m[90m 25 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
+     [90m    |[39m                                    [31m[1m^[22m[39m
+     [90m 26 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
+     [90m 27 |[39m   [33m|[39m undefined[33m;[39m
+     [90m 28 |[39m[0m
+
+      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:25:36)
+      at Object.require (App.tsx:5:1)
+      at requireActual (tests/native-scaffold/rootRegistration.contract.test.tsx:101:24)
+      at Object.isolateModules (tests/native-scaffold/rootRegistration.contract.test.tsx:92:10)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+PASS tests/native-review/iosSchemeTargetGraph.contract.test.ts
+PASS tests/review1/terminalFirstStep.regression.test.tsx
+PASS tests/phase4-review3/adversarialPlainData.regression.test.ts
+PASS tests/phase4-review5/helperInvariant.contract.test.ts
+PASS tests/phase4-review5/sharedDagTransactionAndCycle.regression.test.ts
+PASS tests/phase4-review5/sharedDagFacade.regression.test.ts
+PASS tests/phase4-review3/scorelessCompletionBoundary.regression.test.ts
+PASS tests/gap-p0-02a/runtimeSurface.contract.test.ts
+PASS tests/review4/repeatSession.timerLifecycle.regression.test.ts
+PASS tests/quality-gate-v2/iosStaticAudit.contract.test.ts
+PASS tests/gap-p0-02b/servicePersistentFaults.contract.test.ts
+PASS tests/gap-p0-02b/helperInvariant.control.test.ts
+PASS tests/phase4-review/nonFiniteScoreAtomicity.regression.test.ts
+PASS tests/phase4/phase4Fixtures.invariant.test.ts
+FAIL tests/phase4-review5/storageBoundary.control.test.ts
+  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+PASS tests/gap-p0-02a/inMemoryTypecheck.invariant.test.ts
+PASS tests/phase4-review4/proxyFixture.invariant.test.ts
+PASS tests/gap-p0-02b/inMemoryTypecheck.invariant.test.ts
+FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts (5.114 s)
+  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 164 |[39m     )[33m;[39m
+     [90m 165 |[39m
+    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 168 |[39m   })[33m;[39m
+     [90m 169 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
+
+PASS tests/gap-p0-01a/inMemoryTypecheck.invariant.test.ts
+PASS tests/locked/application/CoreFlowScreen.test.tsx
+PASS tests/locked/services/fiveMinuteTimer.test.ts
+PASS tests/locked/data/taskRepository.test.ts
+PASS tests/locked/domain/task.test.ts
+PASS tests/locked/application/coreAppService.test.ts
+PASS tests/locked/domain/nextStep.test.ts
+PASS tests/locked/domain/quadrant.test.ts
+FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
+  ● GAP-P0-01A-A1 runtime export surface › keeps the legacy createCoreAppService own method surface exact
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      Array [
+        "addFirstStep",
+        "chooseRecommended",
+    +   "completeFirstStep",
+        "createTask",
+        "finishStep",
+        "finishTask",
+        "getState",
+        "startRecommended",
+    +   "undoFirstStep",
+      ]
+
+    [0m [90m 110 |[39m     })[33m;[39m
+     [90m 111 |[39m
+    [31m[1m>[22m[39m[90m 112 |[39m     expect([33mObject[39m[33m.[39mkeys(legacyService)[33m.[39msort())[33m.[39mtoEqual(
+     [90m     |[39m                                               [31m[1m^[22m[39m
+     [90m 113 |[39m       [33mEXPECTED_LEGACY_CORE_METHODS[39m[33m,[39m
+     [90m 114 |[39m     )[33m;[39m
+     [90m 115 |[39m   })[33m;[39m[0m
+
+      at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:112:47)
+
+PASS tests/locked/domain/scoring.test.ts
+PASS tests/locked/domain/recommendation.test.ts
+
+Summary of all failing tests
+FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts (6.423 s)
+  ● GAP-P0-02A legacy compatibility controls › keeps CoreAppService and CoreFlow controller/screen public types exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 210 |[39m     )[33m;[39m
+     [90m 211 |[39m
+    [31m[1m>[22m[39m[90m 212 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 213 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 214 |[39m   })[33m;[39m
+     [90m 215 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/legacyCompatibility.control.test.ts:212:43)
+
+  ● GAP-P0-02A legacy compatibility controls › keeps the legacy createCoreAppService own seven-method object exact
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      Array [
+        "addFirstStep",
+        "chooseRecommended",
+    +   "completeFirstStep",
+        "createTask",
+        "finishStep",
+        "finishTask",
+        "getState",
+        "startRecommended",
+    +   "undoFirstStep",
+      ]
+
+    [0m [90m 357 |[39m     })[33m;[39m
+     [90m 358 |[39m
+    [31m[1m>[22m[39m[90m 359 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_LEGACY_CORE_METHODS[39m)[33m;[39m
+     [90m     |[39m                                         [31m[1m^[22m[39m
+     [90m 360 |[39m   })[33m;[39m
+     [90m 361 |[39m })[33m;[39m
+     [90m 362 |[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02a/legacyCompatibility.control.test.ts:359:41)
+
+FAIL tests/phase4/persistentTaskStorage.contract.test.ts
+  ● P4-PERSIST versioned local task persistence contract › maps backend write failures and preserves both durable and already-visible state atomically
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"atomic-task\",\"title\":\"Phase 4 task atomic-task\",\"description\":\"Durable description for atomic-task\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":\"2026-08-05T09:00:00.000Z\",\"dueAt\":\"2026-08-08T18:00:00.000Z\",\"createdAt\":\"2026-08-04T10:00:00.000Z\",\"updatedAt\":\"2026-08-04T10:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"atomic-task\",\"title\":\"Phase 4 task atomic-task\",\"description\":\"Durable description for atomic-task\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":\"2026-08-05T09:00:00.000Z\",\"dueAt\":\"2026-08-08T18:00:00.000Z\",\"createdAt\":\"2026-08-04T10:00:00.000Z\",\"updatedAt\":\"2026-08-04T10:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 215 |[39m
+     [90m 216 |[39m     expect(backend[33m.[39mraw([33mPHASE4_STORAGE_KEY[39m))[33m.[39mtoBe(durableBeforeFailure)[33m;[39m
+    [31m[1m>[22m[39m[90m 217 |[39m     expect(backend[33m.[39mcommittedSetCalls)[33m.[39mtoHaveLength(commitsBeforeFailure)[33m;[39m
+     [90m     |[39m                                       [31m[1m^[22m[39m
+     [90m 218 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength(commitsBeforeFailure [33m+[39m [35m1[39m)[33m;[39m
+     [90m 219 |[39m     expect(backend[33m.[39msetAttempts[33m.[39mat([33m-[39m[35m1[39m)[33m?[39m[33m.[39mkey)[33m.[39mtoBe([33mPHASE4_STORAGE_KEY[39m)[33m;[39m
+     [90m 220 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m[0m
+
+      at Object.toHaveLength (tests/phase4/persistentTaskStorage.contract.test.ts:217:39)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/native-scaffold/isolationAndPreservation.contract.test.ts
+  ● NS-005 isolated-project and accepted-asset preservation contract › scans source/config/native YAML, locks, C/C++, and podspecs without scanning tests or generated vendors
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  1
+    + Received  + 18
+
+    - Array []
+    + Array [
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cache-v2-5aa0806b52682965b186.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-f0126f5a6017d1c7535e.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-c3773668a06428667c4a.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/directory-AsyncStorageSpec_autolinked_build-RelWithDebInfo-26b04d5fbbe6314abe33.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/index-2026-08-13T08-07-57-0263.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-appmodules-RelWithDebInfo-74e83ccdccc74af813c9.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_AsyncStorageSpec-RelWithDebInfo-88f029ae2992eb96a52a.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.ninja_log",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build_mini.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/.ninja_deps",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/compile_commands.json",
+    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/prefab_config.json",
+    +   "android/.cxx-short/tools/internal/arm64-v8a/compile_commands.json",
+    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/build_model.json",
+    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/metadata_generation_record.json",
+    + ]
+
+    [0m [90m 252 |[39m     }
+     [90m 253 |[39m
+    [31m[1m>[22m[39m[90m 254 |[39m     expect(findings)[33m.[39mtoEqual([])[33m;[39m
+     [90m     |[39m                      [31m[1m^[22m[39m
+     [90m 255 |[39m   })[33m;[39m
+     [90m 256 |[39m
+     [90m 257 |[39m   it([32m'exempts only the two exact root POSIX quality-gate reports without creating a scan blind spot'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.toEqual (tests/native-scaffold/isolationAndPreservation.contract.test.ts:254:22)
+
+FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
+  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
+
+    Found multiple elements with text: /Hydrated Phase 4 task/
+
+    [0m [90m 59 |[39m
+     [90m 60 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 61 |[39m     [36mawait[39m waitFor(() [33m=>[39m
+     [90m    |[39m                  [31m[1m^[22m[39m
+     [90m 62 |[39m       expect(screen[33m.[39mgetByText([35m/Hydrated Phase 4 task/[39m))[33m.[39mtoBeTruthy()[33m,[39m
+     [90m 63 |[39m     )[33m;[39m
+     [90m 64 |[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:61:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › uses the exact shared service and repository for every root render without duplicate hydration state
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 4
+
+      Array [
+        "start-five.tasks.v1",
+    +   "start-five.local-backup.restore-journal.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+      ]
+
+    [0m [90m 79 |[39m     [36mconst[39m firstRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+     [90m 80 |[39m     [36mawait[39m waitFor(() [33m=>[39m expect(getState)[33m.[39mtoHaveBeenCalledTimes([35m1[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 81 |[39m     expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m;[39m
+     [90m    |[39m                              [31m[1m^[22m[39m
+     [90m 82 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m
+     [90m 83 |[39m
+     [90m 84 |[39m     [36mconst[39m secondRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m[0m
+
+      at Object.toEqual (tests/phase4/startFiveApp.contract.test.tsx:81:30)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › keeps service mutations, the exposed repository, the root, and a later app instance on one durable state
+
+    Found multiple elements with text: /One shared durable state/
+
+    [0m [90m 112 |[39m       [33mReact[39m[33m.[39mcreateElement(firstComposition[33m.[39m[33mAppRoot[39m)[33m,[39m
+     [90m 113 |[39m     )[33m;[39m
+    [31m[1m>[22m[39m[90m 114 |[39m     [36mawait[39m waitFor(() [33m=>[39m
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 115 |[39m       expect(firstRoot[33m.[39mgetByText([35m/One shared durable state/[39m))[33m.[39mtoBeTruthy()[33m,[39m
+     [90m 116 |[39m     )[33m;[39m
+     [90m 117 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:114:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › boots and hydrates locally without invoking an injected network adapter or global fetch
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 4
+
+      Array [
+    +   "start-five.local-backup.restore-journal.v1",
+        "start-five.tasks.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+      ]
+
+    [0m [90m 181 |[39m       })[33m;[39m
+     [90m 182 |[39m       [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 183 |[39m       [36mawait[39m waitFor(() [33m=>[39m
+     [90m     |[39m                    [31m[1m^[22m[39m
+     [90m 184 |[39m         expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m,[39m
+     [90m 185 |[39m       )[33m;[39m
+     [90m 186 |[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:183:20)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-BOOT application composition and hydration contract › surfaces corrupt hydration as a stable service failure and never invents a task
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 2
+    Received length: 6
+    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.day-closure.v1", "start-five.post-focus-review.v1"]
+
+    [0m [90m 211 |[39m
+     [90m 212 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
+    [31m[1m>[22m[39m[90m 213 |[39m     [36mawait[39m waitFor(() [33m=>[39m expect(backend[33m.[39mgetCalls)[33m.[39mtoHaveLength([35m2[39m))[33m;[39m
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 214 |[39m     expect(screen[33m.[39mqueryByText([35m/Phase 4 task/[39m))[33m.[39mtoBeNull()[33m;[39m
+     [90m 215 |[39m     [36mawait[39m screen[33m.[39munmount()[33m;[39m
+     [90m 216 |[39m   })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:213:18)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
+  ● GAP-P0-02B persistent public TypeScript and runtime surface › owns exact runtime namespaces and constructs both adapters with synchronous and deferred zero backend I/O
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+      Array [
+        "DEFAULT_FOCUS_SESSION_STORAGE_KEY",
+        "createFocusSessionRepository",
+    +   "validateFocusSessionBackup",
+      ]
+
+    [0m [90m 123 |[39m     [36mconst[39m storageModule [33m=[39m loadStorageModule()[33m;[39m
+     [90m 124 |[39m
+    [31m[1m>[22m[39m[90m 125 |[39m     expect([33mObject[39m[33m.[39mkeys(repositoryModule)[33m.[39msort())[33m.[39mtoEqual([
+     [90m     |[39m                                                  [31m[1m^[22m[39m
+     [90m 126 |[39m       [32m'DEFAULT_FOCUS_SESSION_STORAGE_KEY'[39m[33m,[39m
+     [90m 127 |[39m       [32m'createFocusSessionRepository'[39m[33m,[39m
+     [90m 128 |[39m     ])[33m;[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/persistentPublicSurface.contract.test.ts:125:50)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+FAIL tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts
+  ● P4-HARDENING-4 narrow error mapping and legal input controls › preserves TASK_STORAGE_WRITE_FAILED for a backend write exception without cache divergence and then recovers
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"backend-write-baseline\",\"title\":\"Failed backend write must not publish\",\"description\":\"Plain durable task backend-write-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T02:00:00.000Z\",\"updatedAt\":\"2026-08-05T02:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"backend-write-baseline\",\"title\":\"Phase 4 review 4 task backend-write-baseline\",\"description\":\"Plain durable task backend-write-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T02:00:00.000Z\",\"updatedAt\":\"2026-08-05T02:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 75 |[39m     })[33m;[39m
+     [90m 76 |[39m     expect(backend[33m.[39mraw([33mPHASE4_REVIEW4_STORAGE_KEY[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 77 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 78 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 79 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 80 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts:77:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/phase4-review/sharedCompositionConcurrency.regression.test.ts
+  ● P4-REVIEW shared-backend composition concurrency › preserves sequential mutations from two live compositions hydrated from the same empty snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+    -   "sequential-a-1",
+        "sequential-b-1",
+      ]
+
+    [0m [90m 66 |[39m     expect(
+     [90m 67 |[39m       [36mawait[39m durableIds(backend[33m,[39m [32m'sequential-fresh'[39m)[33m,[39m
+    [31m[1m>[22m[39m[90m 68 |[39m     )[33m.[39mtoEqual([firstCreated[33m.[39mid[33m,[39m secondCreated[33m.[39mid][33m.[39msort())[33m;[39m
+     [90m    |[39m       [31m[1m^[22m[39m
+     [90m 69 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m
+     [90m 70 |[39m   })[33m;[39m
+     [90m 71 |[39m[0m
+
+      at Object.toEqual (tests/phase4-review/sharedCompositionConcurrency.regression.test.ts:68:7)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● P4-REVIEW shared-backend composition concurrency › preserves both mutations under a controlled overlapping commit after both compositions hydrate one legal snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+        "overlap-a-1",
+    -   "overlap-b-1",
+        "preexisting-durable-task",
+      ]
+
+    [0m [90m 108 |[39m     expect(
+     [90m 109 |[39m       [36mawait[39m durableIds(backend[33m,[39m [32m'overlap-fresh'[39m)[33m,[39m
+    [31m[1m>[22m[39m[90m 110 |[39m     )[33m.[39mtoEqual([baseline[33m.[39mid[33m,[39m firstCreated[33m.[39mid[33m,[39m secondCreated[33m.[39mid][33m.[39msort())[33m;[39m
+     [90m     |[39m       [31m[1m^[22m[39m
+     [90m 111 |[39m     expect(backend[33m.[39mremoveCalls)[33m.[39mtoEqual([])[33m;[39m
+     [90m 112 |[39m   })[33m;[39m
+     [90m 113 |[39m[0m
+
+      at Object.toEqual (tests/phase4-review/sharedCompositionConcurrency.regression.test.ts:110:7)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/native-scaffold/rootRegistration.contract.test.tsx
+  ● NS-001 JavaScript registration and durable composition root › reuses createStartFiveApp once and injects the explicit React Native durable backend seam
+
+    TypeError: Cannot read properties of undefined (reading 'StartFiveNotifications')
+
+    [0m [90m 23 |[39m }[33m>[39m[33m;[39m
+     [90m 24 |[39m
+    [31m[1m>[22m[39m[90m 25 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
+     [90m    |[39m                                    [31m[1m^[22m[39m
+     [90m 26 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
+     [90m 27 |[39m   [33m|[39m undefined[33m;[39m
+     [90m 28 |[39m[0m
+
+      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:25:36)
+      at Object.require (App.tsx:5:1)
+      at requireActual (tests/native-scaffold/rootRegistration.contract.test.tsx:101:24)
+      at Object.isolateModules (tests/native-scaffold/rootRegistration.contract.test.tsx:92:10)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+FAIL tests/phase4-review5/storageBoundary.control.test.ts
+  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts (5.114 s)
+  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 164 |[39m     )[33m;[39m
+     [90m 165 |[39m
+    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 168 |[39m   })[33m;[39m
+     [90m 169 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
+
+FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
+  ● GAP-P0-01A-A1 runtime export surface › keeps the legacy createCoreAppService own method surface exact
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      Array [
+        "addFirstStep",
+        "chooseRecommended",
+    +   "completeFirstStep",
+        "createTask",
+        "finishStep",
+        "finishTask",
+        "getState",
+        "startRecommended",
+    +   "undoFirstStep",
+      ]
+
+    [0m [90m 110 |[39m     })[33m;[39m
+     [90m 111 |[39m
+    [31m[1m>[22m[39m[90m 112 |[39m     expect([33mObject[39m[33m.[39mkeys(legacyService)[33m.[39msort())[33m.[39mtoEqual(
+     [90m     |[39m                                               [31m[1m^[22m[39m
+     [90m 113 |[39m       [33mEXPECTED_LEGACY_CORE_METHODS[39m[33m,[39m
+     [90m 114 |[39m     )[33m;[39m
+     [90m 115 |[39m   })[33m;[39m[0m
+
+      at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:112:47)
+
+
+Test Suites: 11 failed, 66 passed, 77 total
+Tests:       17 failed, 822 passed, 839 total
+Snapshots:   0 total
+Time:        96.785 s
+Ran all test suites.
+

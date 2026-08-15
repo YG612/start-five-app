@@ -1,0 +1,3 @@
+ead57b50a9b7c9ff7881e98a516badad430298ce4b03eafd839ce4384eb474b6  GAP_P0_06R2R1_TEST_SPEC.md
+3082844a65a883addca8da89f2820c4783c94a39d2448b20c73d23119b28c517  tests/gap-p0-06r2r1/taskWorkspaceProjection.contract.test.tsx
+3f7dd397164f03c8533845d3eb48342549c53f068a7a4e54bfc3d496528a6654  tests/gap-p0-06r2r1/gapP006R2TestKit.ts

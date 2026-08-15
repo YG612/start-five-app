@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">先做5分钟</string>
+    <string name="shortcut_add_task_short">添加任务</string>
+    <string name="shortcut_add_task_long">快速添加任务</string>
+    <string name="shortcut_continue_short">继续任务</string>
+    <string name="shortcut_continue_long">继续当前任务</string>
+    <string name="shortcut_start_five_short">先做5分钟</string>
+    <string name="shortcut_start_five_long">开始推荐任务5分钟</string>
+</resources>

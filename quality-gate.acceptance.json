@@ -1,0 +1,168 @@
+{
+  "schema": "start-five.quality-lock-registry",
+  "version": 1,
+  "locks": [
+    {
+      "manifest": "GAP_P0_01A_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "GAP_P0_01A_TEST_SPEC.md",
+      "inventoryRoots": ["GAP_P0_01A_TEST_SPEC.md", "tests/gap-p0-01a"],
+      "testRoots": ["tests/gap-p0-01a"],
+      "expectedSelfSha256": "ea5ff6b8012defb53a25310bf07c225171b12641bed42f9569278069def8be90"
+    },
+    {
+      "manifest": "GAP_P0_02A_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "GAP_P0_02A_TEST_SPEC.md",
+      "inventoryRoots": ["GAP_P0_02A_TEST_SPEC.md", "tests/gap-p0-02a"],
+      "testRoots": ["tests/gap-p0-02a"],
+      "expectedSelfSha256": "a6576289ac7488aa001a5313e688ef4725849778c1ea497ceb4d581c9f935a28"
+    },
+    {
+      "manifest": "GAP_P0_02B_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "GAP_P0_02B_TEST_SPEC.md",
+      "inventoryRoots": ["GAP_P0_02B_TEST_SPEC.md", "tests/gap-p0-02b"],
+      "testRoots": ["tests/gap-p0-02b"],
+      "expectedSelfSha256": "9389a01da6f468227de0edf5673c101fc3ea412ba3b24fddaff10a7cb0ab8bd8"
+    },
+    {
+      "manifest": "NATIVE_REVIEW_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "NATIVE_REVIEW_TEST_SPEC.md",
+      "inventoryRoots": ["NATIVE_REVIEW_TEST_SPEC.md", "tests/native-review"],
+      "testRoots": ["tests/native-review"],
+      "expectedSelfSha256": "807db85e71bdbf4d32f19eb45d931976f2c60fec8e35f361c6c4c24e8e71131f"
+    },
+    {
+      "manifest": "NATIVE_SCAFFOLD_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "NATIVE_SCAFFOLD_TEST_SPEC.md",
+      "inventoryRoots": ["NATIVE_SCAFFOLD_TEST_SPEC.md", "tests/native-scaffold"],
+      "testRoots": ["tests/native-scaffold"],
+      "expectedSelfSha256": "12958a547ebb739bb0d4dafe7029e3dc6274f9bfef763994afd892b249bb23db"
+    },
+    {
+      "manifest": "PHASE4_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_TEST_SPEC.md", "tests/phase4"],
+      "testRoots": ["tests/phase4"],
+      "expectedSelfSha256": "f407914c3aedf3f04d0bdb826d11379c27b283bbf4e1d3e8c7ee2075481a30dd"
+    },
+    {
+      "manifest": "PHASE4_REVIEW_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_REVIEW_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_REVIEW_TEST_SPEC.md", "tests/phase4-review"],
+      "testRoots": ["tests/phase4-review"],
+      "expectedSelfSha256": "b19863c03008600e5d85658c878ef2d3c8473b01a8c27653df4c9521abdbef4a"
+    },
+    {
+      "manifest": "PHASE4_REVIEW2_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_REVIEW2_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_REVIEW2_TEST_SPEC.md", "tests/phase4-review2"],
+      "testRoots": ["tests/phase4-review2"],
+      "expectedSelfSha256": "e73b7e1d9a0de3d8c85ed936028abf3d7b984d682e531e476d0f173247161ebb"
+    },
+    {
+      "manifest": "PHASE4_REVIEW3_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_REVIEW3_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_REVIEW3_TEST_SPEC.md", "tests/phase4-review3"],
+      "testRoots": ["tests/phase4-review3"],
+      "expectedSelfSha256": "d0179438fd5d6eed4b9ce7bfd64d1557c7f7d96e75b32cf52fc0345b0d733167"
+    },
+    {
+      "manifest": "PHASE4_REVIEW4_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_REVIEW4_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_REVIEW4_TEST_SPEC.md", "tests/phase4-review4"],
+      "testRoots": ["tests/phase4-review4"],
+      "expectedSelfSha256": "fb49be0dc8e6ed61372f4aafb4457a264370635449bf7494b9aa8fa5335828e8"
+    },
+    {
+      "manifest": "PHASE4_REVIEW5_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "PHASE4_REVIEW5_TEST_SPEC.md",
+      "inventoryRoots": ["PHASE4_REVIEW5_TEST_SPEC.md", "tests/phase4-review5"],
+      "testRoots": ["tests/phase4-review5"],
+      "expectedSelfSha256": "73abc781c962f6c4ae7edfd66b93ebd86df5dd7dc180203da3cfc2c5b3df2d59"
+    },
+    {
+      "manifest": "QUALITY_GATE_V2_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "QUALITY_GATE_V2_TEST_SPEC.md",
+      "inventoryRoots": ["QUALITY_GATE_V2_TEST_SPEC.md", "tests/quality-gate-v2"],
+      "testRoots": ["tests/quality-gate-v2"],
+      "expectedSelfSha256": "3436439e37e461dc5a1141f61613e67e9eb5566538585bc0a956e2256e44d664"
+    },
+    {
+      "manifest": "REVIEW1_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "REVIEW1_TEST_SPEC.md",
+      "inventoryRoots": ["REVIEW1_TEST_SPEC.md", "tests/review1"],
+      "testRoots": ["tests/review1"],
+      "expectedSelfSha256": "5261ee58167e31dd1677f533eaee570b8dd1ef1d8c1ccf21eb7581f8ee7f7a43"
+    },
+    {
+      "manifest": "REVIEW2_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "REVIEW2_TEST_SPEC.md",
+      "inventoryRoots": ["REVIEW2_TEST_SPEC.md", "tests/review2"],
+      "testRoots": ["tests/review2"],
+      "expectedSelfSha256": "3f955e92d533566247b076187f79a7bbf5f3ad8359e2eb780a64e4e66aa8fd1b"
+    },
+    {
+      "manifest": "REVIEW3_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "REVIEW3_TEST_SPEC.md",
+      "inventoryRoots": ["REVIEW3_TEST_SPEC.md", "tests/review3"],
+      "testRoots": ["tests/review3"],
+      "expectedSelfSha256": "e0611feac1b3da1c1813bab2928aba1196fb2399003e52fec8434dde60f79349"
+    },
+    {
+      "manifest": "REVIEW4_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "REVIEW4_TEST_SPEC.md",
+      "inventoryRoots": ["REVIEW4_TEST_SPEC.md", "tests/review4"],
+      "testRoots": ["tests/review4"],
+      "expectedSelfSha256": "99e7f7566d2cff0c10e595d1952f361ab428c13b5014a98a65feebb73eb50040"
+    },
+    {
+      "manifest": "TEST_LOCK.sha256",
+      "status": "accepted",
+      "ordering": "spec-first-posix",
+      "specPath": "TEST_SPEC.md",
+      "inventoryRoots": ["TEST_SPEC.md", "tests/locked"],
+      "testRoots": ["tests/locked"],
+      "expectedSelfSha256": "9cce965ce8632b5c9acdca84a3c8ea02d4fac1b923bfd9fb8822fb221b4403ca"
+    },
+    {
+      "manifest": "QUALITY_GATE_LOCK.sha256",
+      "status": "rejected",
+      "ordering": "spec-first-posix",
+      "specPath": "QUALITY_GATE_TEST_SPEC.md",
+      "inventoryRoots": ["QUALITY_GATE_TEST_SPEC.md", "tests/quality-gate"],
+      "testRoots": ["tests/quality-gate"],
+      "expectedSelfSha256": "5f2dfc85fc0fbabdf1f2e9546fb6536fcc353fc3437a14233ea2be33571189a0"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+1cbef55947822597ed14456f97187a0f41ce5f7a438093e18a544ea970bd79e0  GAP_P0_03A_TEST_SPEC.md
+030bdbb596a4436ce8c40437ec764e75569180d63019d0497e758d59057f005b  tests/gap-p0-03a/delayDiagnosis.contract.test.ts
+ffe3ea4269736f8678b05fc65bd104432d6bd4b3299718cf7147a7bbabd15d21  tests/gap-p0-03a/helperInvariant.control.test.ts
+9c5ee697bb314ac9e381b1ec123b37e37d3e462026889ba91e813c45db179b65  tests/gap-p0-03a/publicSurface.contract.test.ts
+ac7f692d2d5155f9c599cfb23e958974fee2e74ba22c422df7f694f3b0e2db63  tests/gap-p0-03a/reminderCoordination.contract.test.ts
+7d2a16ae68663f5235aef759b44d46f3f934e842d6225d5cdf14d0eec654a1ea  tests/gap-p0-03a/reminderPolicy.contract.test.ts
+d9c174313fa334cc0909dfaee0a0855b883116effda07e9d799ab2c10c43c1a5  tests/gap-p0-03a/testKit.ts

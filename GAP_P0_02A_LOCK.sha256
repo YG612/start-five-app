@@ -1,0 +1,6 @@
+e9523ab1ac331f10a635d332f74a5110bde1d56bb9411bcf9a1010536ec1f6ed  GAP_P0_02A_TEST_SPEC.md
+74409e3410bb3201c43bb55f8b7fa228a643bab3fd44695b8181cd92a773d7d6  tests/gap-p0-02a/inMemoryTypecheck.invariant.test.ts
+07e6bf65dc7365087166bed8caf2834d6a57724fea1cf214e3c3043f4dc8a9fe  tests/gap-p0-02a/inMemoryTypecheck.ts
+4663d715ff45064f40d573f63fc40481680726d2ceb9284e606bc6703f70221d  tests/gap-p0-02a/legacyCompatibility.control.test.ts
+5e0c6df23f5fabd46af63b14282391716679103cf81792eb03e63093d7766ae7  tests/gap-p0-02a/publicFoundation.contract.test.ts
+a8fa7c593c29c2dce3f6d50a959d9ee14b64bd4a0500cf829d63bd812df46c2c  tests/gap-p0-02a/runtimeSurface.contract.test.ts

@@ -1,0 +1,3 @@
+d1f3cd17b3ba3a04ffe269f4a49f02424c7f79dd0b6f82a9107fd7659a47b7f2  GAP_P0_05R1_TEST_SPEC.md
+660971b713eb18b10a3ff3d976328f7cf771b80bc25816ddea1e2ce25d629520  tests/gap-p0-05r1/appRootFocusSession.contract.test.tsx
+a3f02b0ad44d260c5cd3cf68fd0faf368f42432603770fda91ecfa197239b9aa  tests/gap-p0-05r1/gapP005TestKit.ts

@@ -1,0 +1,11 @@
+# Native Review Test Lock Changelog
+
+## 2026-08-05T02:59:52+08:00 — PHASE4 direct identity-chain synchronization
+
+- Source fact: the independently controlled PHASE4 fixture correction changed the `PHASE4_LOCK.sha256` file SHA-256 from `60039810988c00ebf34ead63c4c42a3bf47374a966dfa1acdd207d3aa9d6d21d` to `f407914c3aedf3f04d0bdb826d11379c27b283bbf4e1d3e8c7ee2075481a30dd`.
+- Authorized direct reference only: the one PHASE4 identity in `NATIVE_REVIEW_TEST_SPEC.md` was replaced. All `tests/native-review/**` test, fixture, assertion, and helper bytes remain unchanged. No production/native project, configuration/package, dependency, other test, other lock generation, or bookkeeping project content changed.
+- `NATIVE_REVIEW_TEST_SPEC.md` SHA-256 changed from `59690196aa50e9b4dcc412bb6912c5b303ced1b154095fd2d25c4ac386aca9ab` to `9fa8f99a83cb46fc41012085ebf64b0ad576bd099abfe29bd5019407518961f3`.
+- `NATIVE_REVIEW_LOCK.sha256` file SHA-256 changed from predecessor candidate `6666aa0c4d9c50d905cd38ad41a33883b43ec88ef2e1b9ed1ce626878b15d021` to candidate `807db85e71bdbf4d32f19eb45d931976f2c60fec8e35f361c6c4c24e8e71131f`.
+- Manifest invariants: the exact four-entry path list, POSIX ordering, 462-byte size, LF encoding, and exclusion of this changelog remain unchanged. In-memory reversal of only the updated specification entry hash reconstructs the predecessor manifest byte-for-byte (`6666aa0c4d9c50d905cd38ad41a33883b43ec88ef2e1b9ed1ce626878b15d021`). Reversing the PHASE4 identity in the specification reconstructs its recorded predecessor SHA-256 exactly.
+- Pre-fix validation remains intentionally red: native-review **2 suites / 12 tests = 1 failed + 11 passed**. The sole failure remains `UNKNOWN_BLUEPRINT_IDENTIFIER` for dangling TestAction `BlueprintIdentifier` `00E356ED1AD99517003FC87E`; there was no open-handle warning. The formal data set **28 suites / 253 tests passed**, PHASE4_REVIEW3 **5 suites / 18 tests passed**, and TypeScript `tsc --noEmit` passed. Every entry in all 13 currently present `*LOCK.sha256` manifests (**73 entries**) re-hashed with zero drift.
+- Candidate status: this direct identity-chain candidate remains pending a completely fresh independent audit before any freeze or production repair dispatch.
