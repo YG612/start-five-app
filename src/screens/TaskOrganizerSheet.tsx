@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   SectionList,
@@ -12,6 +11,7 @@ import {
 import type {TaskLifecycleTaskPatch} from '../application/coreAppService';
 import type {ReceiptHistorySnapshot} from '../application/postFocusReviewService';
 import {useTaskWorkspaceRuntime} from '../app/taskWorkspaceRuntime';
+import {AppBottomSheet} from '../components/AppBottomSheet';
 import type {Task} from '../domain/task';
 import {effectiveQuadrantForTask} from '../domain/taskPriority';
 import {
@@ -274,13 +274,13 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
   };
 
   return (
-    <Modal animationType="slide" onRequestClose={props.onClose} transparent visible>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text accessibilityRole="header" style={styles.title}>{MODE_TITLE[mode]}</Text>
-            <Button label="关闭" onPress={props.onClose} quiet />
-          </View>
+    <AppBottomSheet
+      onDismissAttempt={() => {
+        props.onClose();
+        return true;
+      }}
+      title={MODE_TITLE[mode]}>
+      <View style={styles.organizerBody}>
           <View style={styles.tabs}>
             {(['capture', 'search', 'triage', 'completed', 'backlog'] as const).map(item => (
               <Pressable key={item} onPress={() => setMode(item)} style={styles.tab}>
@@ -457,17 +457,13 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
             ) : null}
           </ScrollView>
           )}
-        </View>
       </View>
-    </Modal>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {backgroundColor: 'rgba(15,23,42,0.45)', flex: 1, justifyContent: 'flex-end'},
-  sheet: {backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', minHeight: '60%', paddingTop: 16},
-  header: {alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20},
-  title: {color: '#0F172A', fontSize: 22, fontWeight: '800'},
+  organizerBody: {minHeight: '60%'},
   tabs: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12},
   tab: {backgroundColor: '#E2E8F0', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7},
   tabText: {color: '#475569', fontSize: 12},

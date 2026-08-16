@@ -43,7 +43,7 @@ describe('P14 visible accessibility experience', () => {
         const node = screen.getByRole('button', {name: `成长区任务：${task.title}`});
         expect(node.props.accessibilityValue.text).toContain('打开检查清单');
         expect(node.props.accessibilityValue.text).toContain('进度');
-        expect(node.props.accessibilityHint).toContain('移动可在任务面板操作');
+        expect(node.props.accessibilityHint).toContain('长按约 0.3 秒后可直接拖到其他象限');
       });
     } finally {
       await screen.unmount();

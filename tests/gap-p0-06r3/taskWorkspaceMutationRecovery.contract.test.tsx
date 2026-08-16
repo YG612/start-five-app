@@ -20,6 +20,7 @@ type Screen = Awaited<ReturnType<typeof render>>;
 
 const CARD = {
   Q1: (title: string) => `救火区任务：${title}`,
+  Q2: (title: string) => `成长区任务：${title}`,
   Q3: (title: string) => `干扰区任务：${title}`,
   Q4: (title: string) => `清理区任务：${title}`,
 } as const;
@@ -35,7 +36,7 @@ async function renderApp(harness: WorkspaceHarness): Promise<Screen> {
     React.createElement(harness.composition.AppRoot),
   );
   await waitFor(() =>
-    expect(screen.getByText('任务工作台')).toBeTruthy(),
+    expect(screen.getByRole('button', {name: '添加任务'})).toBeTruthy(),
   );
   return screen;
 }
@@ -58,7 +59,7 @@ function taskInput(
 }
 
 describe('GAP-P0-06R3 task workspace mutation recovery', () => {
-  it('catches synchronous TITLE_REQUIRED, releases pending, and lets the same form create one valid task', async () => {
+  it('blocks an empty title without mutation and lets the same draft create one valid task', async () => {
     const backend = new WorkspaceBackend();
     const ids = new WorkspaceIds(['p006r3-valid-after-title-error']);
     const harness = createWorkspaceHarness(
@@ -72,34 +73,26 @@ describe('GAP-P0-06R3 task workspace mutation recovery', () => {
 
     try {
       await fireEvent.press(
-        screen.getByRole('button', {name: '新建任务'}),
+        screen.getByRole('button', {name: '添加任务'}),
       );
-      await fireEvent.changeText(screen.getByLabelText('任务名称'), '   ');
-
-      await expect(
-        fireEvent.press(screen.getByRole('button', {name: '保存任务'})),
-      ).resolves.toBeUndefined();
-      await flushUi();
-      await waitFor(() =>
-        expect(screen.getByText('TITLE_REQUIRED')).toBeTruthy(),
-      );
+      await fireEvent.changeText(screen.getByLabelText('任务标题'), '   ');
       expect(
-        screen.getByRole('button', {name: '保存任务'}).props
+        screen.getByRole('button', {name: '添加任务'}).props
           .accessibilityState,
-      ).toMatchObject({disabled: false});
+      ).toMatchObject({disabled: true});
       expect(backend.stableByteSnapshot()).toBe(baselineBytes);
       expect(ids.calls).toBe(0);
 
       await fireEvent.changeText(
-        screen.getByLabelText('任务名称'),
+        screen.getByLabelText('任务标题'),
         validTitle,
       );
       await fireEvent.press(
-        screen.getByRole('button', {name: '保存任务'}),
+        screen.getByRole('button', {name: '添加任务'}),
       );
       await waitFor(() =>
         expect(
-          screen.getAllByRole('button', {name: CARD.Q4(validTitle)}),
+          screen.getAllByRole('button', {name: CARD.Q2(validTitle)}),
         ).toHaveLength(1),
       );
       const query = await harness.lifecycle.getQueryResult();
@@ -136,45 +129,43 @@ describe('GAP-P0-06R3 task workspace mutation recovery', () => {
         screen.getByRole('button', {name: CARD.Q1(original.title)}),
       );
       await waitFor(() =>
-        expect(screen.getByText(`任务：${original.title}`)).toBeTruthy(),
+        expect(screen.getByRole('header', {name: original.title})).toBeTruthy(),
       );
 
       await fireEvent.press(
-        screen.getByRole('button', {name: '编辑任务'}),
+        screen.getByRole('button', {name: '编辑更多'}),
       );
       await fireEvent.changeText(
-        screen.getByLabelText('编辑任务名称'),
+        screen.getByLabelText('任务标题'),
         revisedTitle,
       );
       await fireEvent.press(
-        screen.getByRole('checkbox', {name: '编辑重要'}),
+        screen.getByRole('radio', {name: '选择干扰区'}),
       );
       await fireEvent.press(
         screen.getByRole('button', {name: '保存修改'}),
       );
 
       await waitFor(() =>
-        expect(screen.getByText(`任务详情：${revisedTitle}`)).toBeTruthy(),
-      );
-      expect(
         screen.getByRole('button', {name: CARD.Q3(revisedTitle)}),
-      ).toBeTruthy();
-      await waitFor(() =>
-        expect(screen.getByText(`任务：${revisedTitle}`)).toBeTruthy(),
       );
-      expect(screen.queryByText(`任务详情：${original.title}`)).toBeNull();
-      expect(screen.queryByText(`任务：${original.title}`)).toBeNull();
       expect(
         screen.queryByRole('button', {name: CARD.Q1(original.title)}),
       ).toBeNull();
 
       await fireEvent.press(
-        screen.getByRole('button', {name: '推荐下一项'}),
+        screen.getByRole('button', {name: CARD.Q3(revisedTitle)}),
       );
       await waitFor(() =>
-        expect(screen.getByText(`推荐：${revisedTitle}`)).toBeTruthy(),
+        expect(screen.getByRole('header', {name: revisedTitle})).toBeTruthy(),
       );
-      expect(screen.queryByText(`推荐：${original.title}`)).toBeNull();
+      expect(screen.queryByRole('header', {name: original.title})).toBeNull();
+      await expect(ui.composition.repository.getById(original.id)).resolves.toMatchObject({
+        id: original.id,
+        title: revisedTitle,
+        important: false,
+        urgent: true,
+      });
     } finally {
       await screen.unmount();
     }

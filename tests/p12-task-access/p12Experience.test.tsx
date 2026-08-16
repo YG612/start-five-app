@@ -21,10 +21,10 @@ describe('P12 direct task access experience', () => {
     );
     const screen = await render(React.createElement(harness.composition.AppRoot));
     try {
-      await waitFor(() => expect(screen.getByRole('button', {name: '先记下'})).toBeTruthy());
-      await fireEvent.press(screen.getByRole('button', {name: '先记下'}));
-      await fireEvent.changeText(screen.getByLabelText('快速记录任务名称'), '给客户回复方案');
-      await fireEvent.press(screen.getByRole('button', {name: '保存到待判断'}));
+      await waitFor(() => expect(screen.getByRole('button', {name: '添加任务'})).toBeTruthy());
+      await fireEvent.press(screen.getByRole('button', {name: '添加任务'}));
+      await fireEvent.changeText(screen.getByLabelText('任务标题'), '给客户回复方案');
+      await fireEvent.press(screen.getByRole('button', {name: '关闭'}));
 
       await waitFor(async () => {
         const items = await harness.lifecycle.list();

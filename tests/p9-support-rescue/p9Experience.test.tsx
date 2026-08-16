@@ -42,7 +42,7 @@ describe('P9 direct product experience', () => {
     try {
       await waitFor(() => expect(screen.getByRole('button', {name: `救火区任务：${task.title}`})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: `救火区任务：${task.title}`}));
-      await fireEvent.press(screen.getByRole('button', {name: '我卡住了'}));
+      await fireEvent.press(screen.getByRole('button', {name: '需要帮助'}));
       await fireEvent.press(screen.getByRole('button', {name: '任务太大'}));
       await fireEvent.changeText(screen.getByLabelText('2到10分钟动作'), '先写三条结论');
       await fireEvent.press(screen.getByRole('button', {name: '保存并先做5分钟'}));

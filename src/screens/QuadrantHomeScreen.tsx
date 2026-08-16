@@ -2,7 +2,6 @@ import React from 'react';
 import {
   AccessibilityInfo,
   AppState,
-  findNodeHandle,
   PanResponder,
   Pressable,
   ScrollView,
@@ -52,6 +51,10 @@ import type {
   TomorrowFirstReminderService,
 } from '../application/tomorrowFirstNotifications';
 import {BrandMark} from '../components/BrandMark';
+import {
+  AppBottomSheet,
+  type SheetDismissReason,
+} from '../components/AppBottomSheet';
 import {selectHomeContinuation} from '../domain/homeContinuation';
 import {
   homePrimaryActionKey,
@@ -71,9 +74,9 @@ import {
   effectiveUrgencyForTask,
   legacyPriorityCoordinates,
   priorityCoordinatesForTask,
-  priorityExplanation,
   resolveMapNodeCollisions,
   scoresForMapDrop,
+  isPointInsideMapBounds,
   TASK_PRIORITY_SCHEMA_VERSION,
   type RepeatRule,
   type TaskWithPriority,
@@ -140,6 +143,10 @@ import {
   type FocusDurationRecommendation,
 } from '../domain/focusDurationRecommendation';
 import type {FocusSession} from '../domain/focusSession';
+import {
+  compactTaskLabelConfig,
+  getCompactTaskLabel,
+} from '../domain/taskDisplay';
 
 type MainTab = 'quadrants' | 'focus' | 'growth' | 'mine';
 type ViewMode = QuadrantHomeViewMode;
@@ -149,7 +156,7 @@ type FocusContinuationContext = Readonly<{
   focusSessionId: string;
   plannedSessionId?: string;
 }>;
-type TaskPanelLayer = 'action' | 'details' | 'reschedule' | 'stuck' | 'rescue';
+type TaskPanelLayer = 'action' | 'details' | 'reschedule' | 'stuck' | 'rescue' | 'more';
 
 const DarkThemeContext = React.createContext(false);
 
@@ -200,6 +207,13 @@ type TaskDraft = Readonly<{
   repeatRule: RepeatRule | null;
   confidence: number;
 }>;
+
+type CreateDraftContext = {
+  draftId: string;
+  sourceQuadrant: Quadrant | null;
+  quadrantTouched: boolean;
+  persistedTaskId: string | null;
+};
 
 type RewardFeedback = Readonly<{
   kicker: string;
@@ -257,7 +271,7 @@ const EMPTY_DRAFT: TaskDraft = {
   confidence: 0,
 };
 
-const TASK_PROGRESS_VALUES: readonly TaskProgress[] = [0, 25, 50, 75, 100];
+const TASK_PROGRESS_VALUES: readonly TaskProgress[] = [0, 25, 50, 75];
 
 function dueAtForShortcut(shortcut: DueShortcut, now: string): string | null {
   if (shortcut === 'none') {
@@ -413,10 +427,10 @@ function MapTaskNode(props: Readonly<{
   reduceMotion: boolean;
   selected: boolean;
   largeText: boolean;
+  quadrantTaskCount: number;
   slot: number;
   nowInput: string;
   onPress(): void;
-  onLongPress(): void;
   onDragMove(x: number, y: number): void;
   onDragEnd(): void;
   onDrop(x: number, y: number): void;
@@ -431,7 +445,7 @@ function MapTaskNode(props: Readonly<{
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_event, gesture) =>
         !props.disabled &&
-        Date.now() - touchStartedAt.current >= 350 &&
+        Date.now() - touchStartedAt.current >= 320 &&
         Math.abs(gesture.dx) + Math.abs(gesture.dy) >= 8,
       onPanResponderGrant: () => {
         didDragRef.current = true;
@@ -483,12 +497,10 @@ function MapTaskNode(props: Readonly<{
       accessibilityValue={{
         text: `${props.task.title}，${meta.title}，${dueLabel}，${firstStepLabel}，进度 ${point.progress}%`,
       }}
-      accessibilityHint="双击打开；移动可在任务面板操作"
+      accessibilityHint="双击打开；长按约 0.3 秒后可直接拖到其他象限"
       accessibilityRole="button"
       accessibilityState={{disabled: props.disabled, selected: props.selected}}
       disabled={props.disabled}
-      delayLongPress={650}
-      onLongPress={props.onLongPress}
       onPress={() => {
         if (!didDragRef.current) {
           props.onPress();
@@ -525,9 +537,34 @@ function MapTaskNode(props: Readonly<{
         },
       ]}>
       <View style={[styles.nodeDot, {backgroundColor: point.hasDeadline ? '#D97706' : meta.accent}]} />
-      <Text numberOfLines={2} style={[styles.nodeTitle, dark && styles.textDark]}>
-        {props.largeText ? props.task.title.slice(0, 12) : props.task.title}
+      <Text
+        numberOfLines={compactTaskLabelConfig(
+          props.quadrantTaskCount,
+          props.selected || props.recommended,
+        ).numberOfLines}
+        style={[
+          styles.nodeTitle,
+          dark && styles.textDark,
+          {maxWidth: compactTaskLabelConfig(
+            props.quadrantTaskCount,
+            props.selected || props.recommended,
+          ).maxWidth},
+        ]}>
+        {getCompactTaskLabel(
+          props.task.title,
+          props.largeText
+            ? 14
+            : compactTaskLabelConfig(
+                props.quadrantTaskCount,
+                props.selected || props.recommended,
+              ).maxEquivalentChars,
+        )}
       </Text>
+      {dragging ? (
+        <Text numberOfLines={2} style={[styles.dragCallout, dark && styles.textDark]}>
+          {props.task.title}
+        </Text>
+      ) : null}
       {point.hasDeadline ? <Text style={styles.deadlineClock}>◷</Text> : null}
     </Pressable>
   );
@@ -543,7 +580,6 @@ function MapView(props: Readonly<{
   nowInput: string;
   onAdd(quadrant: Quadrant): void;
   onTask(taskId: string): void;
-  onTaskLongPress(taskId: string): void;
   onTaskDrop(
     taskId: string,
     scores: Readonly<{importanceScore: number; manualUrgencyScore: number}>,
@@ -578,11 +614,13 @@ function MapView(props: Readonly<{
   function dropTask(taskId: string, x: number, y: number): void {
     const bounds = gridBoundsRef.current;
     setDragTarget(null);
-    if (bounds !== null && bounds.width > 0 && bounds.height > 0) {
+    if (bounds !== null && isPointInsideMapBounds(x, y, bounds)) {
       props.onTaskDrop(taskId, scoresForMapDrop(x, y, bounds));
       return;
     }
+    if (bounds !== null) return;
     gridRef.current?.measureInWindow((left, top, width, height) => {
+      if (!isPointInsideMapBounds(x, y, {left, top, width, height})) return;
       props.onTaskDrop(
         taskId,
         scoresForMapDrop(x, y, {left, top, width, height}),
@@ -632,7 +670,7 @@ function MapView(props: Readonly<{
                       onDragEnd={() => setDragTarget(null)}
                       onDragMove={moveDragTarget}
                       onDrop={(x, y) => dropTask(task.id, x, y)}
-                      onLongPress={() => props.onTaskLongPress(task.id)}
+                      quadrantTaskCount={tasks.length}
                       nowInput={props.nowInput}
                       onPress={() => props.onTask(task.id)}
                       recommended={props.recommendedId === task.id}
@@ -744,7 +782,8 @@ function TaskEditor(props: Readonly<{
   error: string | null;
   nowInput: string;
   onChange(draft: TaskDraft): void;
-  onClose(): void;
+  onDismissAttempt(reason: SheetDismissReason, dirty: boolean): Promise<boolean>;
+  onQuadrantTouched(): void;
   onComplete(): void;
   onFirstStepComplete(nextStep?: string | null): void;
   onFirstStepUndo(): void;
@@ -755,7 +794,7 @@ function TaskEditor(props: Readonly<{
   onReschedule(shortcut: NextStartShortcut, customAt?: string): void;
   onRescue(plan: RescueSubmission): void;
   onRescueDismiss(): void;
-  onSave(): void;
+  onSave(intent?: 'explicit' | 'dismiss'): Promise<boolean>;
   onStart(): void;
   onStopRepeat(): void;
   onStuckOpen(): void;
@@ -767,6 +806,7 @@ function TaskEditor(props: Readonly<{
   rescuePromptVisible: boolean;
   postponeRepairVisible: boolean;
   defaultFocusMinutes: 2 | 5 | 15 | 25 | 45;
+  reduceMotion: boolean;
   onUrgencyMode(mode: UrgencyMode): void;
 }>): React.JSX.Element {
   const dark = React.useContext(DarkThemeContext);
@@ -774,7 +814,6 @@ function TaskEditor(props: Readonly<{
     props.initialLayer ?? (props.mode === 'create' ? 'details' : 'action'),
   );
   const [deleteConfirmation, setDeleteConfirmation] = React.useState(false);
-  const [closeConfirmation, setCloseConfirmation] = React.useState(false);
   const [draftDirty, setDraftDirty] = React.useState(false);
   const [stuckReason, setStuckReason] = React.useState<StuckReason | null>(null);
   const [stuckPrimary, setStuckPrimary] = React.useState('');
@@ -789,16 +828,6 @@ function TaskEditor(props: Readonly<{
   const [rescuePromptDismissed, setRescuePromptDismissed] = React.useState(false);
   const [postponeRepairVisible] = React.useState(props.postponeRepairVisible);
   const postponeSeenRef = React.useRef(false);
-  const headingRef = React.useRef<Text>(null);
-
-  React.useEffect(() => {
-    const handle = setTimeout(() => {
-      const node = findNodeHandle(headingRef.current);
-      if (node !== null) AccessibilityInfo.setAccessibilityFocus(node);
-    }, 0);
-    return () => clearTimeout(handle);
-  }, []);
-
   React.useEffect(() => {
     if (postponeRepairVisible && !postponeSeenRef.current) {
       postponeSeenRef.current = true;
@@ -811,54 +840,72 @@ function TaskEditor(props: Readonly<{
     props.onChange(next);
   }
 
-  function requestClose(): void {
-    if (layer === 'details' && draftDirty) {
-      setCloseConfirmation(true);
-      return;
+  function requestClose(reason: SheetDismissReason): Promise<boolean> {
+    if (props.mode === 'edit' && layer !== 'action' && layer !== 'details') {
+      setLayer('action');
+      return Promise.resolve(false);
     }
-    props.onClose();
+    return props.onDismissAttempt(reason, draftDirty);
   }
 
   const quadrant = QUADRANT_HOME_META[props.draft.quadrant];
   const taskProgress = props.task === null ? 0 : progressForTask(props.task);
-  const taskPriority = props.task === null
-    ? null
-    : priorityCoordinatesForTask(props.task);
+  const taskPriority = props.task === null ? null : priorityCoordinatesForTask(props.task);
+  const sheetTitle = props.mode === 'create'
+    ? '快速添加任务'
+    : layer === 'action'
+      ? props.task?.title ?? '快速编辑任务'
+      : layer === 'details'
+        ? '编辑更多'
+        : layer === 'reschedule'
+          ? '重新安排'
+          : layer === 'stuck'
+            ? '需要帮助'
+            : layer === 'more'
+              ? '更多操作'
+              : '先做能交的版本';
+  const sheetSubtitle = props.mode === 'create'
+    ? '先写下任务，其他信息可以稍后补'
+    : layer === 'action'
+      ? `${quadrant.title} · ${props.task === null ? '未设置截止时间' : dueLabel(props.task.dueAt)}`
+      : layer === 'details'
+        ? '修改任务内容和所在象限'
+        : layer === 'reschedule'
+          ? '选择下一次开始时间，不修改最终截止日期'
+          : layer === 'stuck'
+            ? '选择现在最需要的帮助'
+            : layer === 'more'
+              ? '低频操作集中在这里'
+              : '四个字段内确定最低版本，然后直接开始';
   return (
-    <View accessibilityViewIsModal style={styles.sheetBackdrop}>
-      <View style={[styles.sheet, dark && styles.surfaceDark]}>
-        <View style={styles.sheetHandle} />
-        <View style={styles.sheetHeadingRow}>
-          <View style={styles.sheetHeadingCopy}>
-            <Text ref={headingRef} accessibilityRole="header" style={[styles.sheetTitle, dark && styles.textDark]}>
-              {props.mode === 'create'
-                ? '快速添加任务'
-                : layer === 'action'
-                  ? '快速编辑任务'
-                  : layer === 'details'
-                    ? '编辑更多'
-                    : layer === 'reschedule'
-                      ? '重新安排'
-                      : layer === 'stuck'
-                        ? '先把下一步变小'
-                      : '先做能交的版本'}
-            </Text>
-            <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>
-              {props.mode === 'create'
-                ? '先记下任务和第一小步'
-                : layer === 'action'
-                  ? '选一个动作，马上继续'
-                  : layer === 'details'
-                    ? '修改任务内容和所在象限'
-                    : layer === 'reschedule'
-                      ? '选择下一次开始时间，不修改最终截止日期'
-                      : layer === 'stuck'
-                        ? '不用解释全部情况，先选择一个可执行动作'
-                        : '四个字段内确定最低版本，然后直接开始'}
-            </Text>
+    <AppBottomSheet
+      dark={dark}
+      footer={
+        layer === 'action' || layer === 'details' ? (
+          <View style={styles.stickyActions}>
+            {layer === 'details' ? (
+              <Action
+                disabled={props.pending || props.draft.title.trim() === ''}
+                label={props.mode === 'create' ? '添加任务' : '保存修改'}
+                onPress={() => void props.onSave('explicit')}
+              />
+            ) : null}
+            {props.mode === 'edit' && layer === 'details' ? (
+              <Action label="返回常用操作" onPress={() => setLayer('action')} secondary />
+            ) : null}
+            {props.mode === 'edit' && layer === 'action' ? (
+              <>
+                <Action label="编辑更多" onPress={() => setLayer('details')} secondary />
+                <Action disabled={props.pending} label={`先做 ${props.defaultFocusMinutes} 分钟`} onPress={props.onStart} />
+              </>
+            ) : null}
           </View>
-          <Action compact label="关闭任务面板" onPress={requestClose} secondary />
-        </View>
+        ) : undefined
+      }
+      onDismissAttempt={requestClose}
+      reduceMotion={props.reduceMotion}
+      subtitle={sheetSubtitle}
+      title={sheetTitle}>
         <ScrollView
           contentContainerStyle={styles.sheetScroll}
           keyboardShouldPersistTaps="handled">
@@ -870,33 +917,37 @@ function TaskEditor(props: Readonly<{
             <Text style={[styles.actionTaskMeta, dark && styles.textMutedDark]}>
               {quadrant.title} · {dueLabel(props.task.dueAt)}
             </Text>
-            <View style={[styles.priorityExplanation, dark && styles.surfaceRaisedDark]}>
-              <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>
-                {priorityExplanation(props.task, props.nowInput)}
-              </Text>
-              <Action
-                compact
-                label={
-                  taskPriority?.urgencyMode === 'hybrid'
-                        ? '保持我设置的位置'
-                    : '开启截止时间联动'
-                }
-                onPress={() => props.onUrgencyMode(
-                  taskPriority?.urgencyMode === 'hybrid'
-                    ? 'manual'
-                    : 'hybrid',
-                )}
-                secondary
-              />
-            </View>
             <View style={[styles.firstStepCard, dark && styles.surfaceRaisedDark]}>
-              <Text style={[styles.fieldLabel, dark && styles.textDark]}>第一小步</Text>
-              <Text numberOfLines={2} style={[styles.firstStepText, dark && styles.textDark]}>
+              <Text style={[styles.fieldLabel, dark && styles.textDark]}>
                 {props.task.firstStep == null || props.task.firstStep.trim() === ''
-                  ? '还没有第一小步，可以在“编辑更多”里补上。'
-                  : props.task.firstStep}
+                  ? '这 5 分钟先做什么？'
+                  : '第一小步'}
               </Text>
-              {(props.task as TaskWithGrowth).firstStepCompletion == null ? (
+              {props.task.firstStep == null || props.task.firstStep.trim() === '' ? (
+                <>
+                  <TextInput
+                    accessibilityLabel="第一小步"
+                    onChangeText={firstStep => changeDraft({...props.draft, firstStep})}
+                    placeholder="写下一个能立刻开始的小动作"
+                    placeholderTextColor="#74827F"
+                    style={[styles.input, dark && styles.inputDark]}
+                    value={props.draft.firstStep}
+                  />
+                  <Action
+                    disabled={props.pending || props.draft.firstStep.trim() === ''}
+                    label="添加第一小步"
+                    onPress={() => void props.onSave('explicit')}
+                    secondary
+                  />
+                </>
+              ) : (
+                <Text numberOfLines={2} style={[styles.firstStepText, dark && styles.textDark]}>
+                  {props.task.firstStep}
+                </Text>
+              )}
+              {props.task.firstStep != null &&
+              props.task.firstStep.trim() !== '' &&
+              (props.task as TaskWithGrowth).firstStepCompletion == null ? (
                 <>
                   <TextInput
                     accessibilityLabel="完成后下一步"
@@ -912,14 +963,14 @@ function TaskEditor(props: Readonly<{
                       props.task.firstStep == null ||
                       props.task.firstStep.trim() === ''
                     }
-                    label="第一小步完成"
+                    label="完成这一步"
                     onPress={() => props.onFirstStepComplete(
                       nextStepAfterCompletion.trim() || null,
                     )}
                     secondary
                   />
                 </>
-              ) : (
+              ) : (props.task as TaskWithGrowth).firstStepCompletion == null ? null : (
                 <View style={styles.segmentedRow}>
                   <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>
                     已记录第一小步完成，整项任务仍保持进行中。
@@ -1007,27 +1058,7 @@ function TaskEditor(props: Readonly<{
               />
               <Action
                 disabled={props.pending}
-                label="时间不够"
-                onPress={() => setLayer('rescue')}
-                secondary
-              />
-              <Action
-                disabled={props.pending}
-                label="复制为新任务"
-                onPress={props.onCopy}
-                secondary
-              />
-              {(props.task as TaskWithPriority).repeatRule == null ? null : (
-                <Action
-                  disabled={props.pending}
-                  label="停止重复"
-                  onPress={props.onStopRepeat}
-                  secondary
-                />
-              )}
-              <Action
-                disabled={props.pending}
-                label="我卡住了"
+                label="需要帮助"
                 onPress={() => {
                   props.onStuckOpen();
                   setLayer('stuck');
@@ -1036,11 +1067,49 @@ function TaskEditor(props: Readonly<{
               />
               <Action
                 disabled={props.pending}
-                label="长期任务计划"
-                onPress={props.onLongTermPlan}
+                label="更多"
+                onPress={() => setLayer('more')}
                 secondary
               />
             </View>
+          </View>
+        ) : null}
+
+        {props.mode === 'edit' && layer === 'more' && props.task !== null ? (
+          <View style={styles.actionLayer}>
+            <Action disabled={props.pending} label="复制任务" onPress={props.onCopy} secondary />
+            <Action disabled={props.pending} label="长期任务计划" onPress={props.onLongTermPlan} secondary />
+            {(props.task as TaskWithPriority).repeatRule == null ? null : (
+              <Action disabled={props.pending} label="停止重复" onPress={props.onStopRepeat} secondary />
+            )}
+            <Text style={[styles.fieldLabel, dark && styles.textDark]}>移动到其他象限</Text>
+            <View style={styles.choiceGrid}>
+              {QUADRANT_LIST_ORDER.map(target => (
+                <Action
+                  compact
+                  disabled={props.pending || props.draft.quadrant === target}
+                  key={target}
+                  label={`移动到${QUADRANT_HOME_META[target].title}`}
+                  onPress={() => props.onMove(target)}
+                  secondary
+                />
+              ))}
+            </View>
+            <Action label="编辑详细信息" onPress={() => setLayer('details')} secondary />
+            {!deleteConfirmation ? (
+              <Action disabled={props.pending} label="删除任务" onPress={() => setDeleteConfirmation(true)} secondary />
+            ) : (
+              <View style={styles.deleteConfirmation}>
+                <Text accessibilityLiveRegion="polite" style={[styles.error, dark && styles.textDark]}>
+                  删除后任务将从四象限移除，确定继续吗？
+                </Text>
+                <View style={styles.segmentedRow}>
+                  <Action label="取消删除" onPress={() => setDeleteConfirmation(false)} secondary />
+                  <Action disabled={props.pending} label="确认删除" onPress={props.onDelete} />
+                </View>
+              </View>
+            )}
+            <Action label="返回常用操作" onPress={() => setLayer('action')} secondary />
           </View>
         ) : null}
 
@@ -1306,12 +1375,17 @@ function TaskEditor(props: Readonly<{
                 accessibilityRole="radio"
                 accessibilityState={{selected}}
                 key={quadrant}
-                onPress={() => changeDraft({...props.draft, quadrant})}
+                onPress={() => {
+                  props.onQuadrantTouched();
+                  changeDraft({...props.draft, quadrant});
+                }}
                 style={[
                   styles.choice,
                   dark && styles.surfaceRaisedDark,
                   {borderColor: meta.accent},
-                  selected && {backgroundColor: meta.tint},
+                  selected && (dark
+                    ? styles.choiceSelectedDark
+                    : {backgroundColor: meta.tint}),
                 ]}>
                 <Text style={[styles.choiceTitle, {color: meta.accent}]}>{meta.title}</Text>
                 <Text style={[styles.choiceDescription, dark && styles.textMutedDark]}>{meta.description}</Text>
@@ -1335,108 +1409,25 @@ function TaskEditor(props: Readonly<{
           ))}
         </View>
         {props.mode === 'edit' ? (
-          <View style={styles.moveInline}>
-            <Text style={[styles.fieldLabel, dark && styles.textDark]}>立即移动（可在 5 秒内撤销）</Text>
-            <View style={styles.segmentedRow}>
-              {QUADRANT_LIST_ORDER.map(quadrant => (
-                <Pressable
-                  accessibilityLabel={`移动任务到${QUADRANT_HOME_META[quadrant].title}`}
-                  accessibilityRole="button"
-                  disabled={props.pending || props.draft.quadrant === quadrant}
-                  key={quadrant}
-                  onPress={() => props.onMove(quadrant)}
-                  style={[
-                    styles.moveChoice,
-                    dark && styles.surfaceRaisedDark,
-                    props.draft.quadrant === quadrant && styles.moveChoiceSelected,
-                  ]}>
-                  <Text style={[styles.moveChoiceText, dark && styles.textDark]}>{QUADRANT_HOME_META[quadrant].title}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <Action
+            label={
+              taskPriority?.urgencyMode === 'hybrid'
+                ? '关闭临近截止时自动提高紧急度'
+                : '临近截止时自动提高紧急度'
+            }
+            onPress={() => props.onUrgencyMode(
+              taskPriority?.urgencyMode === 'hybrid' ? 'manual' : 'hybrid',
+            )}
+            secondary
+          />
         ) : null}
-        <View style={styles.sheetActions}>
-          {props.mode === 'edit' && !deleteConfirmation ? (
-            <Action
-              disabled={props.pending}
-              label="删除任务"
-              onPress={() => setDeleteConfirmation(true)}
-              secondary
-            />
-          ) : null}
-          {props.mode === 'edit' && deleteConfirmation ? (
-            <View style={styles.deleteConfirmation}>
-              <Text accessibilityLiveRegion="polite" style={[styles.error, dark && styles.textDark]}>
-                删除后任务将从四象限移除，确定继续吗？
-              </Text>
-              <View style={styles.segmentedRow}>
-                <Action
-                  disabled={props.pending}
-                  label="取消删除"
-                  onPress={() => setDeleteConfirmation(false)}
-                  secondary
-                />
-                <Action
-                  disabled={props.pending}
-                  label="确认删除"
-                  onPress={props.onDelete}
-                />
-              </View>
-            </View>
-          ) : null}
-        </View>
         </>
         ) : null}
         {props.error === null ? null : (
           <Text accessibilityLiveRegion="assertive" style={styles.error}>{props.error}</Text>
         )}
-        {closeConfirmation ? (
-          <View style={styles.deleteConfirmation}>
-            <Text accessibilityLiveRegion="polite" style={[styles.firstStepText, dark && styles.textDark]}>
-              还有未保存的修改。内容仍在这里，请选择下一步。
-            </Text>
-            <Action
-              disabled={props.pending || props.draft.title.trim() === ''}
-              label="保存修改"
-              onPress={props.onSave}
-            />
-            <Action
-              label="放弃修改"
-              onPress={props.onClose}
-              secondary
-            />
-            <Action
-              label="继续编辑"
-              onPress={() => setCloseConfirmation(false)}
-              secondary
-            />
-          </View>
-        ) : null}
         </ScrollView>
-        {!closeConfirmation && (layer === 'action' || layer === 'details') ? (
-          <View style={[styles.stickyActions, dark && styles.surfaceDark]}>
-            {layer === 'details' ? (
-              <Action
-                disabled={props.pending || props.draft.title.trim() === ''}
-                label={props.mode === 'create' ? '保存任务' : '保存修改'}
-                onPress={props.onSave}
-                secondary
-              />
-            ) : null}
-            {props.mode === 'edit' && layer === 'details' ? (
-              <Action label="返回常用操作" onPress={() => setLayer('action')} secondary />
-            ) : null}
-            {props.mode === 'edit' && layer === 'action' ? (
-              <Action label="编辑更多" onPress={() => setLayer('details')} secondary />
-            ) : null}
-            {props.mode === 'edit' ? (
-              <Action disabled={props.pending} label={`先做${props.defaultFocusMinutes}分钟`} onPress={props.onStart} />
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-    </View>
+    </AppBottomSheet>
   );
 }
 
@@ -1452,6 +1443,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const [editorMode, setEditorMode] = React.useState<'create' | 'edit' | null>(null);
   const [editorInitialLayer, setEditorInitialLayer] = React.useState<TaskPanelLayer | undefined>(undefined);
   const [draft, setDraft] = React.useState<TaskDraft>(EMPTY_DRAFT);
+  const createDraftRef = React.useRef<CreateDraftContext>({
+    draftId: 'draft:initial',
+    sourceQuadrant: null,
+    quadrantTouched: false,
+    persistedTaskId: null,
+  });
+  const draftSaveInFlightRef = React.useRef<Promise<boolean> | null>(null);
   const [actionPending, setActionPending] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [reward, setReward] = React.useState<RewardFeedback | null>(null);
@@ -1481,7 +1479,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const [lowEnergySheetOpen, setLowEnergySheetOpen] = React.useState(false);
   const [moveUndo, setMoveUndo] = React.useState<MoveUndo | null>(null);
   const [completionUndo, setCompletionUndo] = React.useState<CompletionUndo | null>(null);
-  const [dragTaskId, setDragTaskId] = React.useState<string | null>(null);
   const [settings, setSettings] = React.useState<QuadrantHomeSettings>({
     viewMode: 'map',
     theme: 'system',
@@ -2092,7 +2089,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         }).finally(() => setActionPending(false));
         return;
       }
-      openCreate('Q2', 'share_text');
+      openCreate(undefined, 'share_text');
       setDraft({
         ...EMPTY_DRAFT,
         quickInput: entry.text,
@@ -2219,7 +2216,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       : snapshot.tasks.find(task => task.id === progressTaskId) ?? null;
   const dark = settings.theme === 'dark' ||
     (settings.theme === 'system' && systemScheme === 'dark');
-  function openCreate(quadrant: Quadrant = 'Q2', source = 'quadrant'): void {
+  function openCreate(quadrant?: Quadrant, source = 'quadrant'): void {
     pendingSheetMetricRef.current = {
       name: 'task_create_open',
       source,
@@ -2227,7 +2224,15 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     };
     runtime.clearError();
     runtime.closeTask();
-    setDraft({...EMPTY_DRAFT, quadrant});
+    const initialQuadrant = quadrant ?? 'Q2';
+    createDraftRef.current = {
+      draftId: `task-draft:${props.metricSessionId}:${Math.round(props.metricClock.monotonicNow())}`,
+      sourceQuadrant: quadrant ?? null,
+      quadrantTouched: quadrant !== undefined,
+      persistedTaskId: null,
+    };
+    draftSaveInFlightRef.current = null;
+    setDraft({...EMPTY_DRAFT, quadrant: initialQuadrant});
     setActionError(null);
     setEditorInitialLayer('details');
     setEditorMode('create');
@@ -2273,10 +2278,15 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     currentSheetOpenedAtRef.current = null;
   }
 
-  function saveDraft(): void {
-    if (actionPending) {
-      return;
+  function saveDraft(intent: 'explicit' | 'dismiss' = 'explicit'): Promise<boolean> {
+    const existing = draftSaveInFlightRef.current;
+    if (existing !== null) return existing;
+    if (draft.title.trim() === '') return Promise.resolve(false);
+    if (editorMode === 'create' && createDraftRef.current.persistedTaskId !== null) {
+      closeEditor();
+      return Promise.resolve(true);
     }
+    if (actionPending) return Promise.resolve(false);
     const flags = flagsForQuadrant(draft.quadrant);
     const selectedCoordinates = selectedTask === null
       ? null
@@ -2293,6 +2303,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       selectedCoordinates !== null && selectedQuadrant === draft.quadrant
         ? selectedCoordinates.urgencyMode
         : dueAt === null ? 'manual' : 'hybrid';
+    const saveAsUnsorted =
+      editorMode === 'create' &&
+      intent === 'dismiss' &&
+      createDraftRef.current.sourceQuadrant === null &&
+      !createDraftRef.current.quadrantTouched;
     setActionPending(true);
     setActionError(null);
     const createExtended = runtime.createTask as unknown as (
@@ -2302,7 +2317,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         manualUrgencyScore: number;
         urgencyMode: UrgencyMode;
         repeatRule: RepeatRule | null;
+        placementState?: 'QUADRANT' | 'UNSORTED';
       },
+      idempotencyKey?: string,
     ) => Promise<Task>;
     const updateExtended = runtime.updateTask as unknown as (
       taskId: string,
@@ -2316,10 +2333,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     ) => Promise<Task>;
     const command = editorMode === 'create'
       ? createExtended({
-          title: draft.title,
+          title: draft.title.trim(),
           description: '',
-          important: flags.important,
-          urgent: flags.urgent,
+          important: saveAsUnsorted ? false : flags.important,
+          urgent: saveAsUnsorted ? false : flags.urgent,
+          placementState: saveAsUnsorted ? 'UNSORTED' : 'QUADRANT',
           scheduledStartAt: null,
           dueAt,
           estimatedMinutes: draft.estimatedMinutes ?? 5,
@@ -2329,11 +2347,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           manualUrgencyScore: coordinates.manualUrgencyScore,
           urgencyMode,
           repeatRule: draft.repeatRule,
-        })
+        }, `p15r:${createDraftRef.current.draftId}`)
       : selectedTask === null
         ? Promise.reject(new Error('TASK_NOT_SELECTED'))
         : updateExtended(selectedTask.id, {
-            title: draft.title,
+            title: draft.title.trim(),
             important: flags.important,
             urgent: flags.urgent,
             dueAt,
@@ -2345,7 +2363,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             urgencyMode,
             repeatRule: draft.repeatRule,
           });
-    void command
+    let pending: Promise<boolean>;
+    pending = command
       .then(task => {
         if (editorMode === 'create') {
           recordMetric('task_create_saved', {
@@ -2361,16 +2380,53 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             success: true,
             taskRef: task.id,
           });
+          if (saveAsUnsorted) {
+            recordMetric('quick_capture_saved', {
+              source: 'task_sheet',
+              taskRef: task.id,
+            });
+          }
         }
         if (editorMode === 'create') {
-          runtime.selectTask(task.id);
+          createDraftRef.current.persistedTaskId = task.id;
+          if (!saveAsUnsorted) runtime.selectTask(task.id);
+          setSystemNotice(
+            saveAsUnsorted
+              ? '已先记下，稍后判断优先级 · 可在待判断中撤销'
+              : `已添加到${QUADRANT_HOME_META[draft.quadrant].title}`,
+          );
         }
-        setEditorMode(null);
+        closeEditor();
+        return true;
       })
       .catch(reason => {
         setActionError(userFacingError(reason, USER_COPY.taskSaveFailed));
+        return false;
       })
-      .finally(() => setActionPending(false));
+      .finally(() => {
+        setActionPending(false);
+        if (draftSaveInFlightRef.current === pending) {
+          draftSaveInFlightRef.current = null;
+        }
+      });
+    draftSaveInFlightRef.current = pending;
+    return pending;
+  }
+
+  function dismissEditor(
+    _reason: SheetDismissReason,
+    dirty: boolean,
+  ): Promise<boolean> {
+    if (editorMode === 'create') {
+      if (draft.title.trim() === '') {
+        closeEditor();
+        return Promise.resolve(true);
+      }
+      return saveDraft('dismiss');
+    }
+    if (dirty) return saveDraft('dismiss');
+    closeEditor();
+    return Promise.resolve(true);
   }
 
   function startFiveMinutes(
@@ -3026,12 +3082,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       .finally(() => setActionPending(false));
   }
 
-  function beginLongPressMove(taskId: string): void {
-    runtime.selectTask(taskId);
-    setDragTaskId(taskId);
-    setActionError(null);
-  }
-
   function dropTaskOnQuadrant(
     taskId: string,
     scores: Readonly<{importanceScore: number; manualUrgencyScore: number}>,
@@ -3045,7 +3095,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       scores.importanceScore,
       scores.manualUrgencyScore,
     );
-    setDragTaskId(null);
     setActionPending(true);
     setActionError(null);
     const flags = flagsForQuadrant(to);
@@ -3078,36 +3127,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       })
       .catch(reason => {
         setActionError(userFacingError(reason, USER_COPY.taskMoveFailed));
-      })
-      .finally(() => setActionPending(false));
-  }
-
-  function commitLongPressMove(to: Quadrant): void {
-    const task = snapshot.tasks.find(candidate => candidate.id === dragTaskId);
-    if (task === undefined) {
-      setDragTaskId(null);
-      return;
-    }
-    const from = effectiveQuadrantForTask(task, priorityNow);
-    if (from === to) {
-      setDragTaskId(null);
-      return;
-    }
-    setActionPending(true);
-    void runtime.updateTask(task.id, priorityPatchForQuadrant(to))
-      .then(updated => {
-        recordMetric('task_move_committed', {
-          source: 'long_press_fallback',
-          success: true,
-          taskRef: updated.id,
-        });
-        rememberMove({taskId: updated.id, taskTitle: updated.title, from, to});
-        setDragTaskId(null);
-        runtime.closeTask();
-      })
-      .catch(reason => {
-        setActionError(userFacingError(reason, USER_COPY.taskMoveFailed));
-        setDragTaskId(null);
       })
       .finally(() => setActionPending(false));
   }
@@ -3319,7 +3338,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         }
         return;
       case 'CAPTURE_FIRST_TASK':
-        openCreate('Q2', 'home_primary');
+        openCreate(undefined, 'home_primary');
         return;
       case 'NONE':
         return;
@@ -3341,7 +3360,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <View style={styles.headerCopy}>
                 <Text style={[styles.eyebrow, dark && styles.textMutedDark]}>{props.now().slice(0, 10)}</Text>
                 <Text accessibilityRole="header" style={[styles.title, dark && styles.textDark]}>今天先推进一小步</Text>
-                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>横轴重要，纵轴紧急；点任务就能修改。</Text>
+                {tipsVisible ? (
+                  <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                    横轴重要，纵轴紧急；点任务就能修改。
+                  </Text>
+                ) : null}
               </View>
               <View style={styles.headerActions}>
                 <Pressable
@@ -3351,21 +3374,14 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   style={styles.headerUtility}>
                   <Text style={styles.headerUtilityText}>查找</Text>
                 </Pressable>
-                <Pressable
-                  accessibilityLabel="先记下"
-                  accessibilityRole="button"
-                  onPress={() => openOrganizer('capture')}
-                  style={styles.headerUtility}>
-                  <Text style={styles.headerUtilityText}>先记下</Text>
-                </Pressable>
               </View>
-              <Pressable
+              {editorMode === null ? <Pressable
                 accessibilityLabel="添加任务"
                 accessibilityRole="button"
                 onPress={() => openCreate()}
                 style={styles.floatingAdd}>
                 <Text style={styles.floatingAddText}>＋</Text>
-              </Pressable>
+              </Pressable> : null}
             </View>
             {unsortedTasks.length === 0 ? null : (
               <Pressable
@@ -3582,7 +3598,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 onAdd={openCreate}
                 onShowList={showQuadrantList}
                 onTaskDrop={dropTaskOnQuadrant}
-                onTaskLongPress={beginLongPressMove}
                 onTask={openTask}
                  nowInput={priorityNow}
                 recommendedId={snapshot.recommendation?.id ?? null}
@@ -3825,7 +3840,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </View>
         ) : null}
 
-        {snapshot.errorText === null ? null : (
+        {snapshot.errorText === null || editorMode !== null ? null : (
           <Text accessibilityLiveRegion="assertive" style={styles.error}>{USER_COPY.taskSaveFailed}</Text>
         )}
         {editorMode !== null || actionError === null ? null : (
@@ -3854,6 +3869,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         )}
       </ScrollView>
 
+      {editorMode === null && progressTask === null && organizerMode === null && !lowEnergySheetOpen ? (
       <View accessibilityLabel="底部导航" style={[styles.bottomNav, dark && styles.surfaceDark]}>
         {([
           ['quadrants', '象限'],
@@ -3880,6 +3896,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </Pressable>
         ))}
       </View>
+      ) : null}
 
       {editorMode === null ? null : (
         <TaskEditor
@@ -3892,13 +3909,16 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           error={actionError}
           mode={editorMode}
           onChange={setDraft}
-          onClose={closeEditor}
+          onDismissAttempt={dismissEditor}
           onComplete={completeSelectedTask}
           onFirstStepComplete={completeSelectedFirstStep}
           onFirstStepUndo={undoSelectedFirstStep}
           onCopy={copySelectedTask}
           onDelete={deleteSelectedTask}
           onMove={moveSelectedTask}
+          onQuadrantTouched={() => {
+            createDraftRef.current.quadrantTouched = true;
+          }}
           nowInput={priorityNow}
           onProgress={updateSelectedTaskProgress}
           onReschedule={rescheduleSelectedTask}
@@ -3944,6 +3964,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           }
           onUrgencyMode={updateSelectedUrgencyMode}
           pending={actionPending}
+          reduceMotion={settings.reduceMotion}
           task={selectedTask}
         />
       )}
@@ -3999,26 +4020,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             style={styles.undoAction}>
             <Text style={styles.undoActionText}>撤销</Text>
           </Pressable>
-        </View>
-      )}
-
-      {dragTaskId === null ? null : (
-        <View accessibilityViewIsModal style={styles.sheetBackdrop}>
-          <View style={[styles.dragSheet, dark && styles.surfaceDark]}>
-            <Text accessibilityRole="header" style={[styles.sheetTitle, dark && styles.textDark]}>移动到哪个象限？</Text>
-            <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>长按并拖动，松手即保存。</Text>
-            <View style={styles.choiceGrid}>
-              {QUADRANT_LIST_ORDER.map(quadrant => (
-                <Action
-                  key={quadrant}
-                  label={`拖动任务到${QUADRANT_HOME_META[quadrant].title}`}
-                  onPress={() => commitLongPressMove(quadrant)}
-                  secondary
-                />
-              ))}
-            </View>
-            <Action label="取消拖动" onPress={() => setDragTaskId(null)} secondary />
-          </View>
         </View>
       )}
 
@@ -4182,6 +4183,7 @@ const styles = StyleSheet.create({
   dragTargetText: {color: '#244D46', fontSize: 13, fontWeight: '900', textAlign: 'center'},
   nodeDot: {width: 8, height: 8, borderRadius: 4, marginTop: 4},
   nodeTitle: {flex: 1, color: '#203F3A', fontSize: 10, lineHeight: 13, fontWeight: '800'},
+  dragCallout: {position: 'absolute', left: 0, bottom: '100%', minWidth: 120, maxWidth: 220, borderRadius: 10, backgroundColor: '#FFFFFF', color: '#203F3A', fontSize: 13, lineHeight: 18, padding: 8, elevation: 15},
   deadlineClock: {color: '#D97706', fontSize: 12, fontWeight: '900'},
   overflowBadge: {position: 'absolute', right: 8, bottom: 8, borderRadius: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 5},
   overflowText: {color: '#35534E', fontSize: 11, fontWeight: '800'},
@@ -4269,6 +4271,7 @@ const styles = StyleSheet.create({
   quickActionGrid: {gap: 8},
   choiceGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
   choice: {width: '48%', minHeight: 58, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8},
+  choiceSelectedDark: {backgroundColor: '#31554D'},
   choiceTitle: {fontSize: 14, fontWeight: '900'},
   choiceDescription: {color: '#697975', fontSize: 11, marginTop: 2},
   sheetActions: {gap: 9},

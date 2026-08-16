@@ -217,6 +217,19 @@ export function scoresForMapDrop(
   };
 }
 
+export function isPointInsideMapBounds(
+  x: number,
+  y: number,
+  bounds: Readonly<{left: number; top: number; width: number; height: number}>,
+): boolean {
+  return bounds.width > 0 &&
+    bounds.height > 0 &&
+    x >= bounds.left &&
+    x <= bounds.left + bounds.width &&
+    y >= bounds.top &&
+    y <= bounds.top + bounds.height;
+}
+
 function normalizeWeekdays(value: unknown): readonly number[] | null {
   if (!Array.isArray(value)) return null;
   const days = Array.from(

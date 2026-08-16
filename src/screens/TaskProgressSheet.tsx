@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import {AppBottomSheet} from '../components/AppBottomSheet';
 import type {
   DeliveryRiskDismissedBand,
   PlannedWorkSession,
@@ -294,15 +295,13 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
   }
 
   return (
-    <View accessibilityViewIsModal style={styles.backdrop}>
-      <View style={styles.sheet}>
-        <View style={styles.heading}>
-          <View style={styles.flex}>
-            <Text accessibilityRole="header" style={styles.title}>长期任务计划</Text>
-            <Text style={styles.subtitle}>{props.task.title}</Text>
-          </View>
-          <Button label="关闭" onPress={props.onClose} secondary />
-        </View>
+    <AppBottomSheet
+      onDismissAttempt={() => {
+        props.onClose();
+        return true;
+      }}
+      subtitle={props.task.title}
+      title="长期任务计划">
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Text style={styles.label}>做到这里就算完成</Text>
@@ -487,33 +486,12 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
             <Text accessibilityLiveRegion="assertive" style={styles.error}>保存失败，请重试；当前草稿仍保留。</Text>
           )}
         </ScrollView>
-      </View>
-    </View>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(12, 25, 23, 0.52)',
-    justifyContent: 'flex-end',
-    zIndex: 50,
-  },
-  sheet: {
-    maxHeight: '94%',
-    backgroundColor: '#F8FBFA',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 16,
-  },
-  heading: {flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18},
   content: {padding: 18, gap: 14, paddingBottom: 36},
-  title: {fontSize: 22, fontWeight: '900', color: '#153D36'},
-  subtitle: {fontSize: 14, color: '#63736F', marginTop: 3},
   card: {backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, gap: 10},
   riskCard: {backgroundColor: '#FFF4E5', borderRadius: 16, padding: 14, gap: 10},
   label: {fontSize: 15, fontWeight: '800', color: '#173F3A'},

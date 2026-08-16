@@ -1,0 +1,71 @@
+# CODEX P15R–P18 Progress
+
+更新时间：2026-08-16（Asia/Shanghai）
+
+## 基线
+
+- 项目：`D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five`
+- 规格：`docs/CODEX_P15R_P18_UNIFIED_INTERACTION_AND_PAGE_EXPERIENCE_SPEC.md`
+- 截图：`references/current_quick_add.jpg`、`references/current_quick_edit.jpg`
+- Task Repository envelope：version `1`
+- priority/support/growth schema：version `1`
+- backup schema：version `1`
+- P0–P14：40 suites、247/247 tests PASS
+- P14 APK SHA-256：`cd720dd410bfede498d6f9fdaf9f67fcb2b714b87e69577911575797e627270d`
+
+## 阶段状态
+
+| ID | 状态 | 真实实现路径 | 备注 |
+| --- | --- | --- | --- |
+| P15R-00 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 有限映射完成 |
+| P15R-01 | DONE | `src/components/AppBottomSheet.tsx`、`src/screens/QuadrantHomeScreen.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 公共 Sheet、统一退出、拖动阈值、导航遮挡 |
+| P15R-02 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/app/taskWorkspaceRuntime.tsx` | 固定主按钮、安全退出保存、稳定 draft 幂等键 |
+| P15R-03 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 编辑主次、状态修正、低频动作收纳 |
+| P15R-04 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/taskPriority.ts` | 长按直接拖动与越界取消；DEVICE 待测 |
+| P15R-05 | DONE | `src/domain/taskDisplay.ts`、`src/screens/QuadrantHomeScreen.tsx` | 紧凑语义标签与拖动态完整标题 |
+| P15R-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 重复入口和顶部密度收口 |
+| P15R-07 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/components/AppBottomSheet.tsx` | 深色选中面与用户语言收口；DEVICE 待测 |
+| P15R-08 | DONE | `src/components/AppBottomSheet.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 同类 Sheet 迁移完成 |
+| P15R-09 SOURCE_GATE | DONE | `tests/p15r-core-interaction`、`tests/gap-p0-06r3/taskWorkspaceMutationRecovery.contract.test.tsx` | 自动化、TypeScript、Android lint/build 通过 |
+| P15R-09 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；UTEST 未执行 |
+| P15 | NOT_STARTED | — | SOURCE_GATE 后续阶段，尚未开始 |
+| P16 | NOT_STARTED | — | 尚未开始 |
+| P17 | NOT_STARTED | — | 尚未开始 |
+| P18 | NOT_STARTED | — | 尚未开始 |
+
+## 数据变化
+
+- 持久化任务模型：无字段变化。
+- 数据迁移：无新增迁移。
+- 备份版本：保持 version `1` / schemaVersion `1`。
+- 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
+- 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
+
+## 测试
+
+- P15R 定点：2 suites、7/7 tests PASS。
+- 原 P0–P14：40 suites、247/247 tests PASS；历史恢复契约入口已迁移到当前四象限 UI，业务断言保留。
+- 当前合并回归：42 suites、254/254 tests PASS。
+- TypeScript：`tsc --noEmit` PASS。
+- Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
+- Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
+- JavaScript lint：`package.json` 无 lint script，未声称通过。
+- Android DEVICE / UTEST：`PENDING_EXTERNAL`；`adb devices -l` 返回设备数 `0`。
+- iOS build / DEVICE：`PENDING_MACOS_XCODE`。
+
+## 构建产物
+
+- APK：`android/app/build/outputs/apk/internal/app-internal.apk`
+- size：`20,094,719` bytes
+- SHA-256：`b1ea9b9782db276892803fe8ace9f8986241bf15bb0e8e77738f1cbcae05eab6`
+- applicationId：`com.startfive.app`
+- versionCode：`1`
+- versionName：`1.0`
+- 签名：debug key，仅供 internal 测试。
+
+## 未完成与风险
+
+- Android 真机拖动、键盘、系统返回、TalkBack、最大字体和首次用户 UTEST 尚无设备执行。
+- iOS 编译、VoiceOver 和真机验证需要 macOS/Xcode。
+- Gradle 9.3.1 报告 deprecated features；当前 lint/build 通过，Gradle 10 升级兼容性未处理。
+- P14-02B 仍为 `BLOCKED_SPEC_GUARD`，本阶段未改动备份合并语义。

@@ -31,6 +31,7 @@ describe('P13 visible long-task flow', () => {
     try {
       await waitFor(() => expect(screen.getAllByText(task.title).length).toBeGreaterThan(0));
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
+      await fireEvent.press(screen.getByRole('button', {name: '更多'}));
       await waitFor(() =>
         expect(screen.getByRole('button', {name: '长期任务计划'})).toBeTruthy(),
       );

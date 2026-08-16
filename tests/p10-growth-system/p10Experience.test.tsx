@@ -146,7 +146,7 @@ describe('P10 direct product experience', () => {
       await flushUi();
       await waitFor(() => expect(screen.getByLabelText('完成后下一步')).toBeTruthy());
       await fireEvent.changeText(screen.getByLabelText('完成后下一步'), '整理成一页');
-      await fireEvent.press(screen.getByRole('button', {name: '第一小步完成'}));
+      await fireEvent.press(screen.getByRole('button', {name: '完成这一步'}));
       await flushUi();
       await waitFor(() => expect(screen.getByRole('button', {name: '撤销第一小步完成'})).toBeTruthy());
       const completed = await harness.composition.repository.getById(task.id) as TaskWithGrowth;
@@ -162,7 +162,7 @@ describe('P10 direct product experience', () => {
 
       await fireEvent.press(screen.getByRole('button', {name: '撤销第一小步完成'}));
       await flushUi();
-      await waitFor(() => expect(screen.getByRole('button', {name: '第一小步完成'})).toBeTruthy());
+      await waitFor(() => expect(screen.getByRole('button', {name: '完成这一步'})).toBeTruthy());
       expect(await harness.composition.repository.getById(task.id)).toMatchObject({
         status: 'pending',
         firstStep: '写三条结论',

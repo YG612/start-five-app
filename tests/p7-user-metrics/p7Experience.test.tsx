@@ -46,12 +46,12 @@ describe('P7 direct product experience', () => {
     try {
       await waitFor(() => expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
-      expect(screen.getByText('快速编辑任务')).toBeTruthy();
+      expect(screen.getByRole('header', {name: task.title})).toBeTruthy();
       expect(screen.queryByLabelText('任务标题')).toBeNull();
-      expect(screen.getByRole('button', {name: '先做5分钟'})).toBeTruthy();
+      expect(screen.getByRole('button', {name: '先做 5 分钟'})).toBeTruthy();
       expect(screen.getByRole('button', {name: '完成任务'})).toBeTruthy();
       expect(screen.getByRole('button', {name: '重新安排'})).toBeTruthy();
-      expect(screen.getByRole('button', {name: '我卡住了'})).toBeTruthy();
+      expect(screen.getByRole('button', {name: '需要帮助'})).toBeTruthy();
 
       await fireEvent.press(screen.getByRole('radio', {name: '更新进度为 50%'}));
       await waitFor(() =>
@@ -64,7 +64,7 @@ describe('P7 direct product experience', () => {
       await fireEvent.press(screen.getByRole('radio', {name: '更新进度为 75%'}));
       await waitFor(() => expect(screen.getByText('进度没有保存成功，原来的进度仍然保留，请重试。')).toBeTruthy());
       await expect(harness.composition.repository.getById(task.id)).resolves.toMatchObject({progress: 50});
-      expect(screen.getByText('快速编辑任务')).toBeTruthy();
+      expect(screen.getByRole('header', {name: task.title})).toBeTruthy();
     } finally {
       await screen.unmount();
     }
@@ -93,7 +93,7 @@ describe('P7 direct product experience', () => {
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
       await waitFor(() => expect(port.snapshot().some(event => event.name === 'task_sheet_open')).toBe(true));
       monotonic = 80;
-      await fireEvent.press(screen.getByRole('button', {name: '先做5分钟'}));
+      await fireEvent.press(screen.getByRole('button', {name: '先做 5 分钟'}));
       await flushUi();
       await waitFor(() => expect(port.snapshot().some(event => event.name === 'focus_started')).toBe(true));
 
@@ -131,7 +131,7 @@ describe('P7 direct product experience', () => {
       await waitFor(() => expect(screen.getByRole('button', {name: '在成长区添加任务'})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: '在成长区添加任务'}));
       await fireEvent.changeText(screen.getByLabelText('任务标题'), '指标失败也能保存');
-      await fireEvent.press(screen.getByRole('button', {name: '保存任务'}));
+      await fireEvent.press(screen.getByRole('button', {name: '添加任务'}));
       await waitFor(() => expect(screen.getByRole('button', {name: '成长区任务：指标失败也能保存'})).toBeTruthy());
     } finally {
       await screen.unmount();

@@ -39,13 +39,13 @@ describe('quadrant home vertical slice', () => {
       expect(screen.getByRole('radio', {name: '选择成长区'}).props.accessibilityState).toMatchObject({
         selected: true,
       });
-      await fireEvent.press(screen.getByRole('button', {name: '保存任务'}));
+      await fireEvent.press(screen.getByRole('button', {name: '添加任务'}));
       await waitFor(() =>
         expect(screen.getByRole('button', {name: '成长区任务：准备下周答辩'})).toBeTruthy(),
       );
 
       await fireEvent.press(screen.getByRole('button', {name: '成长区任务：准备下周答辩'}));
-      await waitFor(() => expect(screen.getByText('快速编辑任务')).toBeTruthy());
+      await waitFor(() => expect(screen.getByRole('header', {name: '准备下周答辩'})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: '编辑更多'}));
       await fireEvent.changeText(screen.getByLabelText('任务标题'), '准备周五答辩');
       await fireEvent.press(screen.getByRole('button', {name: '保存修改'}));
@@ -54,7 +54,7 @@ describe('quadrant home vertical slice', () => {
       );
 
       await fireEvent.press(screen.getByRole('button', {name: '成长区任务：准备周五答辩'}));
-      await fireEvent.press(screen.getByRole('button', {name: '先做5分钟'}));
+      await fireEvent.press(screen.getByRole('button', {name: '先做 5 分钟'}));
       await flushUi();
       await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
       expect(screen.getByText('准备周五答辩')).toBeTruthy();
@@ -187,8 +187,8 @@ describe('quadrant home vertical slice', () => {
         expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy(),
       );
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
-      await fireEvent.press(screen.getByRole('button', {name: '编辑更多'}));
-      await fireEvent.press(screen.getByRole('button', {name: '移动任务到救火区'}));
+      await fireEvent.press(screen.getByRole('button', {name: '更多'}));
+      await fireEvent.press(screen.getByRole('button', {name: '移动到救火区'}));
       await waitFor(() => expect(screen.getByRole('button', {name: '撤销移动'})).toBeTruthy());
       await expect(harness.composition.repository.getById(task.id)).resolves.toMatchObject({
         important: true,
@@ -227,7 +227,7 @@ describe('quadrant home vertical slice', () => {
     }
   });
 
-  it('supports long-press move and completion undo through durable lifecycle operations', async () => {
+  it('supports explicit move and completion undo through durable lifecycle operations', async () => {
     const backend = new WorkspaceBackend();
     const harness = createWorkspaceHarness(
       backend,
@@ -253,9 +253,9 @@ describe('quadrant home vertical slice', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy(),
       );
-      fireEvent(screen.getByRole('button', {name: `成长区任务：${task.title}`}), 'longPress');
-      await waitFor(() => expect(screen.getByText('移动到哪个象限？')).toBeTruthy());
-      await fireEvent.press(screen.getByRole('button', {name: '拖动任务到救火区'}));
+      await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
+      await fireEvent.press(screen.getByRole('button', {name: '更多'}));
+      await fireEvent.press(screen.getByRole('button', {name: '移动到救火区'}));
       await waitFor(() =>
         expect(screen.getByRole('button', {name: `救火区任务：${task.title}`})).toBeTruthy(),
       );
@@ -356,7 +356,7 @@ describe('quadrant home vertical slice', () => {
         expect(screen.getByRole('button', {name: `清理区任务：${task.title}`})).toBeTruthy(),
       );
       await fireEvent.press(screen.getByRole('button', {name: `清理区任务：${task.title}`}));
-      await fireEvent.press(screen.getByRole('button', {name: '编辑更多'}));
+      await fireEvent.press(screen.getByRole('button', {name: '更多'}));
       await fireEvent.press(screen.getByRole('button', {name: '删除任务'}));
       expect(screen.getByRole('button', {name: '确认删除'})).toBeTruthy();
       expect(screen.getByRole('button', {name: '取消删除'})).toBeTruthy();

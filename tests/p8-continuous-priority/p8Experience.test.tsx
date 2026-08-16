@@ -34,7 +34,7 @@ describe('P8 direct product experience', () => {
       );
       expect(screen.getByText('预计 30 分钟')).toBeTruthy();
       expect(screen.getByText('每天重复')).toBeTruthy();
-      await fireEvent.press(screen.getByRole('button', {name: '保存任务'}));
+      await fireEvent.press(screen.getByRole('button', {name: '添加任务'}));
       await flushUi();
       await waitFor(async () => {
         const tasks = await harness.lifecycle.list();

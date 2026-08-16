@@ -44,7 +44,7 @@ export type TaskWorkspaceRuntime = Readonly<{
   refreshProjection(): Promise<void>;
   refreshAfterDurableCommit(): Promise<void>;
   startSelectedTask(taskId: string): Promise<Task>;
-  createTask(input: TaskLifecycleTaskInput): Promise<Task>;
+  createTask(input: TaskLifecycleTaskInput, idempotencyKey?: string): Promise<Task>;
   updateTask(taskId: string, patch: TaskLifecycleTaskPatch): Promise<Task>;
   completeTask(taskId: string): Promise<TaskCompletionResult>;
   completeFirstStep(
@@ -341,8 +341,10 @@ export function TaskWorkspaceRuntimeProvider({
         startSelectedTaskDurably(taskId, operationId),
       );
     },
-    createTask(input) {
-      const key = `create:${JSON.stringify(input)}`;
+    createTask(input, idempotencyKey) {
+      const key = idempotencyKey === undefined
+        ? `create:${JSON.stringify(input)}`
+        : `create:${idempotencyKey}`;
       return runMutation(key, 'create', operationId =>
         lifecycle.create(input, {
           operationId,
