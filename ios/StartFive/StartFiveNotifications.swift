@@ -1,5 +1,7 @@
 import Foundation
+import AudioToolbox
 import React
+import UIKit
 import UserNotifications
 
 private enum NotificationKeys {
@@ -394,6 +396,36 @@ final class StartFiveNotifications: RCTEventEmitter, NotificationTapSink {
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     resolve(NotificationTapBroker.shared.takeInitial()?.dictionary)
+  }
+
+  @objc(setKeepScreenAwake:resolver:rejecter:)
+  func setKeepScreenAwake(
+    _ enabled: Bool,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    DispatchQueue.main.async {
+      UIApplication.shared.isIdleTimerDisabled = enabled
+      resolve(nil)
+    }
+  }
+
+  @objc(playFocusCompletionFeedback:sound:resolver:rejecter:)
+  func playFocusCompletionFeedback(
+    _ haptic: Bool,
+    sound: Bool,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    DispatchQueue.main.async {
+      if haptic {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+      }
+      if sound {
+        AudioServicesPlaySystemSound(1057)
+      }
+      resolve(nil)
+    }
   }
 
   private func permission(_ status: UNAuthorizationStatus) -> String {

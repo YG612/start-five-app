@@ -89,7 +89,7 @@ describe('P17 single actionable insight and growth copy', () => {
     const raw = JSON.parse((await backend.getItem(QUADRANT_HOME_PREFERENCES_KEY))!) as {
       version: number;
     };
-    expect(raw.version).toBe(6);
+    expect(raw.version).toBe(7);
   });
 
   it('keeps reward writes idempotent and user-facing copy consistently says growth value', () => {

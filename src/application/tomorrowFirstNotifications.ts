@@ -67,6 +67,11 @@ export type TomorrowFirstNotifications = ReminderScheduler & Readonly<{
     plannedEndAt: string;
   }>): Promise<void>;
   stopFocusOngoing?(sessionId: string): Promise<void>;
+  setKeepScreenAwake?(enabled: boolean): Promise<void>;
+  playFocusCompletionFeedback?(input: Readonly<{
+    haptic: boolean;
+    sound: boolean;
+  }>): Promise<void>;
 }>;
 
 type ReminderReason = 'idle' | 'denied';

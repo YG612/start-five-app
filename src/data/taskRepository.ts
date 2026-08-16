@@ -82,6 +82,7 @@ export type TaskBackupAdapter = Readonly<{
   }>>;
   hasDurableData(): Promise<boolean>;
   restoreOpaquePayload(payload: string): Promise<void>;
+  clearOpaqueData(): Promise<void>;
 }>;
 
 class RepositoryError extends Error {
@@ -1732,20 +1733,21 @@ export function createTaskBackupAdapter(
     );
     return {records, graph, taskIds, references};
   }
+  async function exportOpaquePayload(): Promise<string> {
+    const capability = atomicCapabilityFor(backend);
+    if (capability !== null) {
+      await helpPublishedAtomicOperations(backend, capability, primaryKey);
+      await recoverDurableJournalAtomically(backend, capability, primaryKey);
+    } else {
+      await recoverDurableJournal(backend, primaryKey);
+    }
+    return serializeTaskBackup(
+      primaryKey,
+      await readAtomicAuthorityGraph(backend, primaryKey, '__backup_export__'),
+    );
+  }
   return {
-    async exportOpaquePayload() {
-      const capability = atomicCapabilityFor(backend);
-      if (capability !== null) {
-        await helpPublishedAtomicOperations(backend, capability, primaryKey);
-        await recoverDurableJournalAtomically(backend, capability, primaryKey);
-      } else {
-        await recoverDurableJournal(backend, primaryKey);
-      }
-      return serializeTaskBackup(
-        primaryKey,
-        await readAtomicAuthorityGraph(backend, primaryKey, '__backup_export__'),
-      );
-    },
+    exportOpaquePayload,
     async inspectOpaquePayload(payload) {
       const result = await inspect(payload);
       return {
@@ -1793,6 +1795,16 @@ export function createTaskBackupAdapter(
       for (const [key, value] of inspected.records) {
         await durableSet(backend, key, value);
       }
+    },
+    async clearOpaqueData() {
+      const records = parseTaskBackup(primaryKey, await exportOpaquePayload());
+      for (const key of records.keys()) {
+        await durableRemove(backend, key);
+      }
+      await durableRemove(backend, durableJournalKey(primaryKey));
+      await durableRemove(backend, durableAtomicLockKey(primaryKey));
+      await durableRemove(backend, durableAuthorityRootKey(primaryKey));
+      await durableRemove(backend, primaryKey);
     },
   };
 }

@@ -6,7 +6,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.HapticFeedbackConstants
+import android.view.WindowManager
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -181,6 +187,49 @@ class StartFiveNotificationsModule(
     } catch (error: Exception) {
       promise.reject("FOCUS_ONGOING_NOTIFICATION_FAILED", error)
     }
+  }
+
+  @ReactMethod
+  fun setKeepScreenAwake(enabled: Boolean, promise: Promise) {
+    val activity = reactApplicationContext.currentActivity
+    if (activity == null) {
+      promise.reject("FOCUS_ACTIVITY_UNAVAILABLE", "A foreground activity is required")
+      return
+    }
+    activity.runOnUiThread {
+      try {
+        if (enabled) {
+          activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+          activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        promise.resolve(null)
+      } catch (error: Exception) {
+        promise.reject("FOCUS_SCREEN_AWAKE_FAILED", error)
+      }
+    }
+  }
+
+  @ReactMethod
+  fun playFocusCompletionFeedback(haptic: Boolean, sound: Boolean, promise: Promise) {
+    val activity = reactApplicationContext.currentActivity
+    val play = {
+      try {
+        if (haptic) {
+          activity?.window?.decorView
+            ?.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+        }
+        if (sound) {
+          val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 70)
+          tone.startTone(ToneGenerator.TONE_PROP_ACK, 180)
+          Handler(Looper.getMainLooper()).postDelayed({ tone.release() }, 250)
+        }
+        promise.resolve(null)
+      } catch (error: Exception) {
+        promise.reject("FOCUS_COMPLETION_FEEDBACK_FAILED", error)
+      }
+    }
+    if (activity == null) play() else activity.runOnUiThread(play)
   }
 
   @ReactMethod

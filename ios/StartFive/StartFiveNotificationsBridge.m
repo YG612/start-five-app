@@ -21,4 +21,13 @@ RCT_EXTERN_METHOD(replace:(NSDictionary * _Nullable)previous
 RCT_EXTERN_METHOD(getInitialTap:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(setKeepScreenAwake:(BOOL)enabled
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(playFocusCompletionFeedback:(BOOL)haptic
+                  sound:(BOOL)sound
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 @end

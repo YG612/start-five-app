@@ -20,6 +20,8 @@ type StartFiveNotificationsNativeModule = Readonly<{
   getInitialTap(): Promise<TomorrowFirstTap | null>;
   startFocusOngoing?(sessionId: string, title: string, firstStep: string, quietUntilEpochMs: number): Promise<void>;
   stopFocusOngoing?(sessionId: string): Promise<void>;
+  setKeepScreenAwake?(enabled: boolean): Promise<void>;
+  playFocusCompletionFeedback?(haptic: boolean, sound: boolean): Promise<void>;
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }>;
@@ -51,6 +53,13 @@ export function createNativeTomorrowFirstNotifications(): TomorrowFirstNotificat
     }),
     ...(module.stopFocusOngoing === undefined ? {} : {
       stopFocusOngoing: (sessionId: string) => module.stopFocusOngoing!(sessionId),
+    }),
+    ...(module.setKeepScreenAwake === undefined ? {} : {
+      setKeepScreenAwake: (enabled: boolean) => module.setKeepScreenAwake!(enabled),
+    }),
+    ...(module.playFocusCompletionFeedback === undefined ? {} : {
+      playFocusCompletionFeedback: (input: Readonly<{haptic: boolean; sound: boolean}>) =>
+        module.playFocusCompletionFeedback!(input.haptic, input.sound),
     }),
     subscribeTap(listener) {
       const subscription = emitter.addListener(

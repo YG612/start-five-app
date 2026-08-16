@@ -67,6 +67,7 @@ export function LocalBackupScreen(props: Readonly<{
   now(): string;
   onBack(): void;
   onRestored(): Promise<void>;
+  onBackupSaved?(savedAt: string): void;
 }>): React.JSX.Element {
   const [preview, setPreview] = React.useState<Preview | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -84,7 +85,10 @@ export function LocalBackupScreen(props: Readonly<{
         bytes: utf8Decode(artifact.bytes),
       }))
       .then(result => {
-        if (result === 'saved') setMessage('备份已保存');
+        if (result === 'saved') {
+          setMessage('备份已保存');
+          props.onBackupSaved?.(props.now());
+        }
       })
       .catch(() => setMessage('导出失败'))
       .finally(() => setPending(false));

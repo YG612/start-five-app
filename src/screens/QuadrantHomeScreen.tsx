@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AccessibilityInfo,
   AppState,
+  Linking,
   PanResponder,
   Pressable,
   ScrollView,
@@ -14,7 +15,10 @@ import {
 } from 'react-native';
 import type {CoreAppService} from '../application/coreAppService';
 import type {FocusScheduleService} from '../application/focusScheduleService';
-import {postponeTaskTenMinutes} from '../application/reminderScheduling';
+import {
+  postponeTaskTenMinutes,
+  type ReminderPermission,
+} from '../application/reminderScheduling';
 import type {
   DayClosureService,
   DayClosureSnapshot,
@@ -25,6 +29,7 @@ import type {
   QuadrantHomeSettings,
   QuadrantHomeViewMode,
 } from '../data/quadrantHomePreferences';
+import {defaultQuadrantHomeSettings} from '../data/quadrantHomePreferences';
 import {useAppFocusSessionRuntime} from '../app/focusSessionRuntime';
 import {useTaskWorkspaceRuntime} from '../app/taskWorkspaceRuntime';
 import type {Quadrant} from '../domain/quadrant';
@@ -166,7 +171,7 @@ import {
   formatAgendaTime,
   formatPageDate,
   selectFocusAgendaWithMeta,
-  selectGrowthPageSummary,
+  createGrowthPageSummarySelector,
   type FocusAgendaItem,
 } from '../domain/pageExperience';
 
@@ -263,6 +268,41 @@ type CompletionUndo = Readonly<{
   points: number;
   previousStatus: 'pending' | 'in_progress';
 }>;
+type SettingsUndo = Readonly<{
+  message: string;
+  previous: Partial<QuadrantHomeSettings>;
+}>;
+type SettingsSheet =
+  | 'theme'
+  | 'focus-duration'
+  | 'weekdays'
+  | 'start-window'
+  | 'focus-protection'
+  | 'urgency'
+  | 'quick-quadrant'
+  | 'quick-duration'
+  | 'repeat-default'
+  | 'reminder-intensity'
+  | 'reminder-limit'
+  | 'screen-reader'
+  | 'data-overview'
+  | 'permissions'
+  | 'privacy'
+  | 'help'
+  | 'about'
+  | 'delete-data';
+
+function weekdaysLabel(weekdays: readonly number[]): string {
+  const key = weekdays.join(',');
+  if (key === '1,2,3,4,5') return '工作日';
+  if (key === '0,1,2,3,4,5,6') return '每天';
+  if (key === '0,6') return '周末';
+  return weekdays.map(day => `周${'日一二三四五六'[day] ?? '?'}`).join('、');
+}
+
+function startWindowLabel(window: QuadrantHomeSettings['preferredStartWindow']): string {
+  return window === null ? '暂未设置' : `${window.startLocalTime}–${window.endLocalTime}`;
+}
 
 type TaskWithProgress = Task & Readonly<{progress?: TaskProgress}>;
 
@@ -272,7 +312,7 @@ type FocusScheduleEditorDraft = Readonly<{
   timing: FocusScheduleTiming;
   localTime: string;
   weekdays: readonly number[];
-  durationMinutes: 5 | 15 | 25 | 50;
+  durationMinutes: 2 | 5 | 15 | 25 | 50;
   target: FocusScheduleTargetChoice;
   taskId: string | null;
   protectionLevel: FocusProtectionLevel;
@@ -752,7 +792,7 @@ function ListView(props: Readonly<{
   tasks: readonly Task[];
   nowInput: string;
   recommendedId: string | null;
-  defaultFocusMinutes: 2 | 5 | 15 | 25 | 45;
+  defaultFocusMinutes: 2 | 5 | 15 | 25 | 45 | 50;
   onAdd(quadrant: Quadrant): void;
   onStart(task: Task): void;
   onTask(taskId: string): void;
@@ -845,7 +885,7 @@ function TaskEditor(props: Readonly<{
   onLongTermPlan(): void;
   rescuePromptVisible: boolean;
   postponeRepairVisible: boolean;
-  defaultFocusMinutes: 2 | 5 | 15 | 25 | 45;
+  defaultFocusMinutes: 2 | 5 | 15 | 25 | 45 | 50;
   reduceMotion: boolean;
   onUrgencyMode(mode: UrgencyMode): void;
 }>): React.JSX.Element {
@@ -1542,24 +1582,18 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const [phoneExitConfirmOpen, setPhoneExitConfirmOpen] = React.useState(false);
   const [moreDurationsOpen, setMoreDurationsOpen] = React.useState(false);
   const [recentGrowthExpanded, setRecentGrowthExpanded] = React.useState(false);
-  const [settingsSheet, setSettingsSheet] =
-    React.useState<'theme' | 'focus-duration' | null>(null);
+  const [settingsSheet, setSettingsSheet] = React.useState<SettingsSheet | null>(null);
   const [lowEnergySheetOpen, setLowEnergySheetOpen] = React.useState(false);
   const [moveUndo, setMoveUndo] = React.useState<MoveUndo | null>(null);
   const [completionUndo, setCompletionUndo] = React.useState<CompletionUndo | null>(null);
-  const [settings, setSettings] = React.useState<QuadrantHomeSettings>({
-    viewMode: 'map',
-    theme: 'system',
-    reduceMotion: false,
-    tipsSeen: false,
-    lowEnergyMode: DEFAULT_LOW_ENERGY_MODE,
-    insightDismissal: null,
-    insightDismissals: [],
-    viewModeManuallySelected: false,
-    screenReaderListApplied: false,
-    preferredFocusMinutes: 5,
-    focusDurationSuggestionDismissedAt: null,
-  });
+  const [settings, setSettings] = React.useState<QuadrantHomeSettings>(
+    defaultQuadrantHomeSettings,
+  );
+  const [settingsUndo, setSettingsUndo] = React.useState<SettingsUndo | null>(null);
+  const [notificationPermission, setNotificationPermission] =
+    React.useState<ReminderPermission>('not_determined');
+  const [deleteConfirmationText, setDeleteConfirmationText] = React.useState('');
+  const [dataActionPending, setDataActionPending] = React.useState(false);
   const [tipsVisible, setTipsVisible] = React.useState(false);
   const [notificationTaskId, setNotificationTaskId] = React.useState<string | null>(null);
   const [pendingSystemEntry, setPendingSystemEntry] = React.useState<TomorrowFirstTap | null>(null);
@@ -1583,6 +1617,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const focusBackgroundAtRef = React.useRef<number | null>(null);
   const interruptionRecordedRef = React.useRef(new Set<string>());
   const skipAdjustmentPromptedRef = React.useRef(new Set<string>());
+  const growthPageSelector = React.useMemo(createGrowthPageSummarySelector, []);
 
   const recordMetric = React.useCallback((
     name: ProductEventName,
@@ -1719,6 +1754,17 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }, [activeFocusProtection, activeFocusTask?.firstStep, activeFocusTask?.title, focus?.snapshot.activeSession?.id, focus?.snapshot.state, props.notifications]);
 
   React.useEffect(() => {
+    if (props.notifications?.setKeepScreenAwake === undefined) return;
+    const enabled = focus?.snapshot.state === 'running' && settings.keepScreenAwake;
+    void props.notifications.setKeepScreenAwake(enabled).catch(() => undefined);
+    return () => {
+      if (enabled) {
+        void props.notifications?.setKeepScreenAwake?.(false).catch(() => undefined);
+      }
+    };
+  }, [focus?.snapshot.state, props.notifications, settings.keepScreenAwake]);
+
+  React.useEffect(() => {
     if (workspace?.snapshot.loaded === true) {
       setPriorityNow(props.now());
     }
@@ -1732,6 +1778,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       handledFocusSessionsRef.current.has(context.focusSessionId)
     ) return;
     handledFocusSessionsRef.current.add(context.focusSessionId);
+    if (settings.hapticFeedback || settings.focusEndSound) {
+      void props.notifications?.playFocusCompletionFeedback?.({
+        haptic: settings.hapticFeedback,
+        sound: settings.focusEndSound,
+      }).catch(() => undefined);
+    }
     setPostFocusTaskId(context.taskId);
     setActiveFocusProtection('REMINDER_ONLY');
     setFocusReturnNotice(false);
@@ -1767,7 +1819,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         }
       }
     }
-  }, [focus?.snapshot.state, props.now, workspace, workspace?.snapshot.revision]);
+  }, [focus?.snapshot.state, props.notifications, props.now, settings.focusEndSound, settings.hapticFeedback, workspace, workspace?.snapshot.revision]);
 
   React.useEffect(() => {
     if (workspace?.snapshot.loaded !== true) return;
@@ -1880,7 +1932,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         const resolved = {...value, lowEnergyMode};
         setSettings(resolved);
         setViewMode(value.viewMode);
-        setTipsVisible(!value.tipsSeen);
+        // 帮助内容只在用户主动打开时展示，不在首次启动强制打断。
+        setTipsVisible(false);
         setViewPreferenceLoaded(true);
         if (value.lowEnergyMode.enabled && !lowEnergyMode.enabled) {
           void props.preferences.writeSettings({lowEnergyMode});
@@ -1913,8 +1966,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       if (
         !current ||
         !enabled ||
-        settings.viewModeManuallySelected ||
-        settings.screenReaderListApplied
+        settings.screenReaderPreference === 'keep_user' ||
+        (settings.screenReaderPreference === 'auto' &&
+          (settings.viewModeManuallySelected || settings.screenReaderListApplied))
       ) return;
       setViewMode('list');
       setSettings(value => ({
@@ -1940,6 +1994,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     };
   }, [
     props.preferences,
+    settings.screenReaderPreference,
     settings.screenReaderListApplied,
     settings.viewModeManuallySelected,
     viewPreferenceLoaded,
@@ -2015,6 +2070,17 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       current = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    if (tab !== 'mine' || props.notifications === undefined) return;
+    let current = true;
+    void props.notifications.getPermission()
+      .then(permission => {
+        if (current) setNotificationPermission(permission);
+      })
+      .catch(() => undefined);
+    return () => { current = false; };
+  }, [props.notifications, tab]);
 
   React.useEffect(() => {
     const notifications = props.notifications;
@@ -2418,7 +2484,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     };
     runtime.clearError();
     runtime.closeTask();
-    const initialQuadrant = quadrant ?? 'Q2';
+    const initialQuadrant = quadrant ?? settings.quickAddDefaultQuadrant;
+    const repeatRule: RepeatRule | null = settings.defaultRepeatRule === 'daily'
+      ? {frequency: 'daily'}
+      : settings.defaultRepeatRule === 'weekly'
+        ? {frequency: 'weekly', weekdays: settings.preferredWeekdays}
+        : null;
     createDraftRef.current = {
       draftId: `task-draft:${props.metricSessionId}:${Math.round(props.metricClock.monotonicNow())}`,
       sourceQuadrant: quadrant ?? null,
@@ -2426,7 +2497,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       persistedTaskId: null,
     };
     draftSaveInFlightRef.current = null;
-    setDraft({...EMPTY_DRAFT, quadrant: initialQuadrant});
+    setDraft({
+      ...EMPTY_DRAFT,
+      quadrant: initialQuadrant,
+      estimatedMinutes: settings.quickAddDefaultMinutes,
+      repeatRule,
+    });
     setActionError(null);
     setEditorInitialLayer('details');
     setEditorMode('create');
@@ -2496,7 +2572,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     const urgencyMode: UrgencyMode =
       selectedCoordinates !== null && selectedQuadrant === draft.quadrant
         ? selectedCoordinates.urgencyMode
-        : dueAt === null ? 'manual' : 'hybrid';
+        : dueAt === null || settings.automaticUrgency === 'keep_position'
+          ? 'manual'
+          : 'hybrid';
     const saveAsUnsorted =
       editorMode === 'create' &&
       intent === 'dismiss' &&
@@ -2735,20 +2813,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     return homePrimaryTask ?? activeTasks[0] ?? null;
   }
 
-  function defaultScheduleDuration(): 5 | 15 | 25 | 50 {
-    const supported = [25, 5, 15, 50] as const;
-    if (focusHistoryItems.length === 0) return 25;
-    const counts = new Map<number, number>();
-    focusHistoryItems.forEach(item => {
-      if (supported.includes(item.plannedMinutes as 5 | 15 | 25 | 50)) {
-        counts.set(item.plannedMinutes, (counts.get(item.plannedMinutes) ?? 0) + 1);
-      }
-    });
-    return supported.reduce((mostCommon, duration) =>
-      (counts.get(duration) ?? 0) > (counts.get(mostCommon) ?? 0)
-        ? duration
-        : mostCommon,
-    );
+  function defaultScheduleDuration(): 2 | 5 | 15 | 25 | 50 {
+    return settings.preferredFocusMinutes;
   }
 
   function openFocusScheduleEditor(task: Task | null = null): void {
@@ -2756,12 +2822,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     setFocusScheduleError(null);
     setFocusScheduleDraft({
       timing: 'today',
-      localTime: '20:30',
-      weekdays: [1, 2, 3, 4, 5],
+      localTime: settings.preferredStartWindow?.startLocalTime ?? '20:30',
+      weekdays: settings.preferredWeekdays,
       durationMinutes: defaultScheduleDuration(),
       target: task === null ? 'growth' : 'current',
       taskId: task?.id ?? null,
-      protectionLevel: 'REMINDER_ONLY',
+      protectionLevel: settings.defaultProtectionLevel,
     });
     setFocusScheduleEditorOpen(true);
   }
@@ -2781,7 +2847,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         ? formatAgendaTime(recurrence.startsAt)
         : recurrence.localTime,
       weekdays: recurrence.kind === 'WEEKLY' ? recurrence.weekdays : [1, 2, 3, 4, 5],
-      durationMinutes: schedule.durationMinutes === 5 || schedule.durationMinutes === 15 ||
+      durationMinutes: schedule.durationMinutes === 2 || schedule.durationMinutes === 5 || schedule.durationMinutes === 15 ||
         schedule.durationMinutes === 25 || schedule.durationMinutes === 50
         ? schedule.durationMinutes : 25,
       target: schedule.target.kind === 'TASK' ? 'current' : schedule.target.kind === 'AUTO' ? 'auto' : 'growth',
@@ -2871,7 +2937,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     }).finally(() => setFocusSchedulePending(false));
   }
 
-  function startFocusSchedule(occurrence: FocusScheduleOccurrence, minutes?: 5 | 15 | 25 | 50): void {
+  function startFocusSchedule(occurrence: FocusScheduleOccurrence, minutes?: 2 | 5 | 15 | 25 | 50): void {
     void props.focusSchedules.getStartedEvent(occurrence.schedule.id, occurrence.localDateKey)
       .then(existing => {
         if (existing !== null) {
@@ -3687,8 +3753,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         localBackup={props.localBackup}
         now={props.now}
         onBack={() => setBackupOpen(false)}
+        onBackupSaved={savedAt => updateSettings({lastBackupAt: savedAt})}
         onRestored={async () => {
           await runtime.refreshProjection();
+          const restoredSettings = await props.preferences.readSettings();
+          setSettings(restoredSettings);
+          setViewMode(restoredSettings.viewMode);
           setBackupOpen(false);
         }}
       />
@@ -3737,6 +3807,215 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   function updateSettings(patch: Partial<QuadrantHomeSettings>): void {
     setSettings(current => ({...current, ...patch}));
     void props.preferences.writeSettings(patch).catch(() => undefined);
+  }
+
+  function updateSettingWithUndo(
+    patch: Partial<QuadrantHomeSettings>,
+    message: string,
+  ): void {
+    const previousRecord: Record<string, unknown> = {};
+    for (const key of Object.keys(patch) as Array<keyof QuadrantHomeSettings>) {
+      previousRecord[key] = settings[key];
+    }
+    const previous = previousRecord as Partial<QuadrantHomeSettings>;
+    updateSettings(patch);
+    setSettingsUndo({message, previous});
+  }
+
+  function undoLastSetting(): void {
+    if (settingsUndo === null) return;
+    const previous = settingsUndo.previous;
+    setSettingsUndo(null);
+    updateSettings(previous);
+    setSystemNotice('设置已撤销。');
+  }
+
+  function openNotificationPermission(): void {
+    const notifications = props.notifications;
+    if (notifications === undefined) return;
+    if (notificationPermission === 'granted') {
+      setSystemNotice('通知权限已开启。');
+      return;
+    }
+    if (notificationPermission === 'denied') {
+      void Linking.openSettings().catch(() => {
+        setSystemNotice('无法打开系统设置，请在系统设置中找到“先做 5 分钟”。');
+      });
+      return;
+    }
+    void notifications.requestPermission()
+      .then(setNotificationPermission)
+      .catch(() => setSystemNotice('通知权限请求失败，请稍后重试。'));
+  }
+
+  function deleteAllLocalData(): void {
+    if (
+      props.localBackup === undefined ||
+      deleteConfirmationText !== '删除全部数据' ||
+      dataActionPending ||
+      focus?.snapshot.state === 'running'
+    ) return;
+    setDataActionPending(true);
+    void props.localBackup.clearAllData()
+      .then(async () => {
+        await runtime.refreshProjection();
+        const defaults = defaultQuadrantHomeSettings();
+        setSettings(defaults);
+        setViewMode(defaults.viewMode);
+        setFocusHistoryItems([]);
+        setFocusSchedules([]);
+        setFocusScheduleOccurrences([]);
+        setDeleteConfirmationText('');
+        setSettingsSheet(null);
+        setSystemNotice('本机任务、专注记录和偏好已删除。');
+      })
+      .catch(() => setSystemNotice('删除失败，本机数据未确认清除，请重试。'))
+      .finally(() => setDataActionPending(false));
+  }
+
+  function selectSetting(
+    patch: Partial<QuadrantHomeSettings>,
+    message: string,
+  ): void {
+    updateSettingWithUndo(patch, message);
+    setSettingsSheet(null);
+  }
+
+  function settingsSheetTitle(sheet: SettingsSheet): string {
+    const titles: Record<SettingsSheet, string> = {
+      theme: '选择外观',
+      'focus-duration': '常用专注时长',
+      weekdays: '常用工作日',
+      'start-window': '更容易开始的时间',
+      'focus-protection': '专注保护',
+      urgency: '截止临近时提高紧急度',
+      'quick-quadrant': '快速添加默认象限',
+      'quick-duration': '快速添加默认时长',
+      'repeat-default': '重复任务默认设置',
+      'reminder-intensity': '提醒强度',
+      'reminder-limit': '每日主动提醒上限',
+      'screen-reader': '屏幕阅读器优化',
+      'data-overview': '本机数据概览',
+      permissions: '权限说明',
+      privacy: '隐私说明',
+      help: '一分钟了解四个页面',
+      about: '关于先做 5 分钟',
+      'delete-data': '删除全部数据',
+    };
+    return titles[sheet];
+  }
+
+  function renderSettingsSheetContent(sheet: SettingsSheet): React.ReactNode {
+    if (sheet === 'theme') return (['system', 'light', 'dark'] as const).map(theme => (
+      <Action key={theme} label={theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'} onPress={() => selectSetting({theme}, '外观设置已更新。')} secondary={settings.theme !== theme} />
+    ));
+    if (sheet === 'focus-duration') return ([2, 5, 15, 25, 50] as const).map(minutes => (
+      <Action key={minutes} label={`${minutes} 分钟`} onPress={() => selectSetting({preferredFocusMinutes: minutes}, '常用专注时长已更新。')} secondary={settings.preferredFocusMinutes !== minutes} />
+    ));
+    if (sheet === 'weekdays') return [
+      {label: '工作日', value: [1, 2, 3, 4, 5]},
+      {label: '每天', value: [0, 1, 2, 3, 4, 5, 6]},
+      {label: '周末', value: [0, 6]},
+    ].map(option => (
+      <Action key={option.label} label={option.label} onPress={() => selectSetting({preferredWeekdays: option.value}, '常用工作日已更新。')} secondary={weekdaysLabel(settings.preferredWeekdays) !== option.label} />
+    ));
+    if (sheet === 'start-window') return [
+      {label: '暂不设置', value: null},
+      {label: '早上 08:00–10:00', value: {startLocalTime: '08:00', endLocalTime: '10:00'}},
+      {label: '午后 14:00–16:00', value: {startLocalTime: '14:00', endLocalTime: '16:00'}},
+      {label: '晚上 20:00–22:00', value: {startLocalTime: '20:00', endLocalTime: '22:00'}},
+    ].map(option => (
+      <Action key={option.label} label={option.label} onPress={() => selectSetting({preferredStartWindow: option.value}, '开始时间偏好已更新。')} secondary={startWindowLabel(settings.preferredStartWindow) !== (option.value === null ? '暂未设置' : `${option.value.startLocalTime}–${option.value.endLocalTime}`)} />
+    ));
+    if (sheet === 'urgency') return (
+      <>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>只改变之后新建任务的默认规则；已有任务位置和已保存分数不会被删除。</Text>
+        <Action label="随截止变化" onPress={() => selectSetting({automaticUrgency: 'follow_due'}, '自动紧急度规则已更新。')} secondary={settings.automaticUrgency !== 'follow_due'} />
+        <Action label="保持我设置的位置" onPress={() => selectSetting({automaticUrgency: 'keep_position'}, '自动紧急度规则已更新。')} secondary={settings.automaticUrgency !== 'keep_position'} />
+      </>
+    );
+    if (sheet === 'quick-quadrant') return QUADRANT_LIST_ORDER.map(quadrant => (
+      <Action key={quadrant} label={QUADRANT_HOME_META[quadrant].title} onPress={() => selectSetting({quickAddDefaultQuadrant: quadrant}, '快速添加默认象限已更新。')} secondary={settings.quickAddDefaultQuadrant !== quadrant} />
+    ));
+    if (sheet === 'quick-duration') return ([5, 15, 25, 50] as const).map(minutes => (
+      <Action key={minutes} label={`${minutes} 分钟`} onPress={() => selectSetting({quickAddDefaultMinutes: minutes}, '快速添加默认时长已更新。')} secondary={settings.quickAddDefaultMinutes !== minutes} />
+    ));
+    if (sheet === 'repeat-default') return (['none', 'daily', 'weekly'] as const).map(value => (
+      <Action key={value} label={value === 'none' ? '不重复' : value === 'daily' ? '每天' : '每周（使用常用工作日）'} onPress={() => selectSetting({defaultRepeatRule: value}, '重复任务默认设置已更新。')} secondary={settings.defaultRepeatRule !== value} />
+    ));
+    if (sheet === 'reminder-intensity') return (['gentle', 'standard', 'custom'] as const).map(value => (
+      <Action key={value} label={value === 'gentle' ? '温和' : value === 'standard' ? '标准' : '自定义'} onPress={() => selectSetting({reminderIntensity: value}, '提醒强度已更新。')} secondary={settings.reminderIntensity !== value} />
+    ));
+    if (sheet === 'reminder-limit') return ([0, 1, 2, 3] as const).map(value => (
+      <Action key={value} label={value === 0 ? '不主动提醒' : `每天最多 ${value} 条`} onPress={() => selectSetting({dailyProactiveReminderLimit: value}, '每日主动提醒上限已更新。')} secondary={settings.dailyProactiveReminderLimit !== value} />
+    ));
+    if (sheet === 'screen-reader') return (['auto', 'list', 'keep_user'] as const).map(value => (
+      <Action key={value} label={value === 'auto' ? '自动' : value === 'list' ? '象限默认清单' : '保持我的选择'} onPress={() => selectSetting({screenReaderPreference: value}, '屏幕阅读器优化已更新。')} secondary={settings.screenReaderPreference !== value} />
+    ));
+    if (sheet === 'data-overview') {
+      const approximateBytes = encodeURIComponent(JSON.stringify({
+        tasks: snapshot.tasks,
+        sessions: focusHistoryItems,
+        schedules: focusSchedules,
+        settings,
+      })).length;
+      return (
+        <>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>任务：{snapshot.tasks.length} 项</Text>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>专注记录：{focusHistoryItems.length} 条</Text>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>专注时段：{focusSchedules.length} 段</Text>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>上次备份：{settings.lastBackupAt ?? '尚未创建'}</Text>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>本机数据估算占用：{Math.max(1, Math.ceil(approximateBytes / 1024))} KB</Text>
+          <Text style={[styles.subtitle, dark && styles.textMutedDark]}>这里只显示数量、日期和占用，不显示任务内容。</Text>
+        </>
+      );
+    }
+    if (sheet === 'permissions') return (
+      <>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>通知权限：用于按时发送专注时段和明确设置的任务提醒，只在你点击开启时请求。</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>网络权限：应用基础组件需要此权限；当前任务、专注和拖延原因不会自动上传。</Text>
+      </>
+    );
+    if (sheet === 'privacy') return (
+      <>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>你的任务默认只保存在这台设备上。只有你主动导出时才会生成备份文件。</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>当前没有云同步，也不声称备份已上传或经过云端加密。</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>备份合并仍在安全评估中；当前只提供预览后安全替换，没有可执行的合并按钮。</Text>
+      </>
+    );
+    if (sheet === 'help') return (
+      <>
+        <Text style={[styles.infoTitle, dark && styles.textDark]}>1. 象限</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>添加任务，长按移动；编辑任务时也可使用“移动到四象限”。</Text>
+        <Text style={[styles.infoTitle, dark && styles.textDark]}>2. 专注</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>安排时段或直接选一项开始，本次设置可以覆盖全局默认。</Text>
+        <Text style={[styles.infoTitle, dark && styles.textDark]}>3. 成长</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>只统计真实开始、成长区投入和卡住后的恢复。</Text>
+        <Text style={[styles.infoTitle, dark && styles.textDark]}>4. 我的</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>管理默认值、通知、无障碍、备份和本机数据。</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>卡住时打开任务，选择“我卡住了”；备份恢复会先预览，再安全替换。</Text>
+      </>
+    );
+    if (sheet === 'about') return (
+      <>
+        <Text style={[styles.infoTitle, dark && styles.textDark]}>先做 5 分钟</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>版本 1.0 · applicationId com.startfive.app</Text>
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>本地优先的任务、专注与成长工具。</Text>
+      </>
+    );
+    if (sheet === 'delete-data') return (
+      <>
+        <Text style={[styles.error]}>这会删除本机任务、专注记录、日程和偏好，无法撤销。</Text>
+        {focus?.snapshot.state === 'running' ? <Text style={styles.error}>请先结束正在进行的专注。</Text> : null}
+        {props.localBackup !== undefined && props.backupFileBridge !== undefined ? (
+          <Action label="先创建备份" onPress={() => { setSettingsSheet(null); setBackupOpen(true); }} secondary />
+        ) : null}
+        <Text style={[styles.subtitle, dark && styles.textMutedDark]}>输入“删除全部数据”后才能确认：</Text>
+        <TextInput accessibilityLabel="删除确认文本" onChangeText={setDeleteConfirmationText} placeholder="删除全部数据" style={[styles.input, dark && styles.inputDark]} value={deleteConfirmationText} />
+        <Action disabled={deleteConfirmationText !== '删除全部数据' || dataActionPending || focus?.snapshot.state === 'running'} label="确认删除全部数据" onPress={deleteAllLocalData} />
+      </>
+    );
+    return <Text style={[styles.subtitle, dark && styles.textMutedDark]}>此设置只影响之后新建的专注时段。</Text>;
   }
 
   function acceptFocusDurationRecommendation(): void {
@@ -3886,7 +4165,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const hasStartedToday = focusHistoryItems.some(
     session => session.startedAt.slice(0, 10) === priorityNow.slice(0, 10),
   );
-  const growthPageSummary = selectGrowthPageSummary({
+  const growthPageSummary = growthPageSelector({
     tasks: snapshot.tasks,
     sessions: focusHistoryItems,
     now: priorityNow,
@@ -4496,8 +4775,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <SectionHeader dark={dark} title="我的节奏" />
               <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
                 <SettingsRow dark={dark} label="常用专注时长" onPress={() => setSettingsSheet('focus-duration')} value={`${settings.preferredFocusMinutes} 分钟 ›`} />
-                <SettingsRow dark={dark} label="常用工作日" value="暂未设置" />
-                <SettingsRow dark={dark} label="更容易开始的时间" value="暂未设置" />
+                <SettingsRow dark={dark} label="常用工作日" onPress={() => setSettingsSheet('weekdays')} value={`${weekdaysLabel(settings.preferredWeekdays)} ›`} />
+                <SettingsRow dark={dark} label="更容易开始的时间" onPress={() => setSettingsSheet('start-window')} value={`${startWindowLabel(settings.preferredStartWindow)} ›`} />
                 <SettingsRow
                   dark={dark}
                   label="今天只推进一小步"
@@ -4510,7 +4789,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             <View style={styles.pageSection}>
               <SectionHeader dark={dark} title="任务与象限" />
               <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
-                <SettingsRow dark={dark} label="截止临近时提高紧急度" value="随截止变化" />
+                <SettingsRow dark={dark} label="截止临近时提高紧急度" onPress={() => setSettingsSheet('urgency')} value={`${settings.automaticUrgency === 'follow_due' ? '随截止变化' : '保持我设置的位置'} ›`} />
+                <SettingsRow dark={dark} label="快速添加默认象限" onPress={() => setSettingsSheet('quick-quadrant')} value={`${QUADRANT_HOME_META[settings.quickAddDefaultQuadrant].title} ›`} />
+                <SettingsRow dark={dark} label="快速添加默认时长" onPress={() => setSettingsSheet('quick-duration')} value={`${settings.quickAddDefaultMinutes} 分钟 ›`} />
+                <SettingsRow dark={dark} label="任务模板" value="暂未创建" />
+                <SettingsRow dark={dark} label="重复任务默认设置" onPress={() => setSettingsSheet('repeat-default')} value={`${settings.defaultRepeatRule === 'none' ? '不重复' : settings.defaultRepeatRule === 'daily' ? '每天' : '每周'} ›`} />
                 <SettingsRow dark={dark} label="待整理任务" onPress={() => openOrganizer('backlog')} value="›" />
                 <SettingsRow dark={dark} label="已完成任务" onPress={() => openOrganizer('completed')} value="›" />
                 <SettingsRow dark={dark} label="今日回顾" onPress={() => setSummaryOpen(true)} value="›" />
@@ -4523,11 +4806,19 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 <SettingsRow
                   dark={dark}
                   label="通知权限"
-                  onPress={props.tomorrowFirstReminder === undefined ? undefined : openTomorrowReminderSettings}
-                  value={tomorrowReminderStatus === 'scheduled' ? '已开启 ›' : tomorrowReminderStatus === 'denied' ? '未开启 ›' : '按需开启 ›'}
+                  onPress={props.notifications === undefined ? undefined : openNotificationPermission}
+                  value={notificationPermission === 'granted' ? '已开启' : '去开启 ›'}
                 />
-                <SettingsRow dark={dark} label="提醒强度" value="标准" />
-                <SettingsRow dark={dark} label="专注时减少干扰" value="暂未设置" />
+                {notificationPermission === 'granted' ? null : (
+                  <Text style={[styles.settingsHint, dark && styles.textMutedDark]}>开启通知后，专注时段才能按时提醒。</Text>
+                )}
+                <SettingsRow dark={dark} label="提醒强度" onPress={() => setSettingsSheet('reminder-intensity')} value={`${settings.reminderIntensity === 'gentle' ? '温和' : settings.reminderIntensity === 'standard' ? '标准' : '自定义'} ›`} />
+                <SettingsRow dark={dark} label="每日主动提醒上限" onPress={() => setSettingsSheet('reminder-limit')} value={`${settings.dailyProactiveReminderLimit} 条 ›`} />
+                <SettingsRow checked={settings.defaultProtectionLevel === 'REDUCE_DISTRACTIONS'} dark={dark} label="专注时减少干扰" onPress={() => updateSettingWithUndo({defaultProtectionLevel: settings.defaultProtectionLevel === 'REDUCE_DISTRACTIONS' ? 'REMINDER_ONLY' : 'REDUCE_DISTRACTIONS'}, '专注保护默认值已更新。')} role="switch" value={settings.defaultProtectionLevel === 'REDUCE_DISTRACTIONS' ? '开启' : '关闭'} />
+                <Text style={[styles.settingsHint, dark && styles.textMutedDark]}>仅减少 App 内界面、提醒和常驻通知干扰，不会阻断其他 App。</Text>
+                <SettingsRow checked={settings.keepScreenAwake} dark={dark} label="保持屏幕常亮" onPress={() => updateSettingWithUndo({keepScreenAwake: !settings.keepScreenAwake}, '屏幕常亮偏好已更新。')} role="switch" value={settings.keepScreenAwake ? '开启' : '关闭'} />
+                <SettingsRow checked={settings.hapticFeedback} dark={dark} label="震动反馈" onPress={() => updateSettingWithUndo({hapticFeedback: !settings.hapticFeedback}, '震动反馈偏好已更新。')} role="switch" value={settings.hapticFeedback ? '开启' : '关闭'} />
+                <SettingsRow checked={settings.focusEndSound} dark={dark} label="专注结束声音" onPress={() => updateSettingWithUndo({focusEndSound: !settings.focusEndSound}, '结束声音偏好已更新。')} role="switch" value={settings.focusEndSound ? '开启' : '关闭'} />
               </View>
             </View>
 
@@ -4544,24 +4835,27 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   checked={settings.reduceMotion}
                   dark={dark}
                   label="减少动态"
-                  onPress={() => updateSettings({reduceMotion: !settings.reduceMotion})}
+                  onPress={() => updateSettingWithUndo({reduceMotion: !settings.reduceMotion}, '减少动态偏好已更新。')}
                   role="switch"
                   value={settings.reduceMotion ? '开启' : '关闭'}
                 />
-                <SettingsRow dark={dark} label="屏幕阅读器优化" value="自动" />
+                <SettingsRow dark={dark} label="屏幕阅读器优化" onPress={() => setSettingsSheet('screen-reader')} value={`${settings.screenReaderPreference === 'auto' ? '自动' : settings.screenReaderPreference === 'list' ? '象限默认清单' : '保持我的选择'} ›`} />
               </View>
             </View>
 
             <View style={styles.pageSection}>
               <SectionHeader dark={dark} title="数据与隐私" />
               <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
-                <SettingsRow dark={dark} label="本机任务数据" value={`${snapshot.tasks.length} 项`} />
+                <SettingsRow dark={dark} label="本机数据概览" onPress={() => setSettingsSheet('data-overview')} value={`${snapshot.tasks.length} 项任务 ›`} />
                 <SettingsRow
                   dark={dark}
                   label="备份与恢复"
                   onPress={props.localBackup !== undefined && props.backupFileBridge !== undefined ? () => setBackupOpen(true) : undefined}
                   value={props.localBackup !== undefined && props.backupFileBridge !== undefined ? '›' : '不可用'}
                 />
+                <SettingsRow dark={dark} label="删除全部数据" onPress={props.localBackup === undefined ? undefined : () => setSettingsSheet('delete-data')} value={props.localBackup === undefined ? '不可用' : '›'} />
+                <SettingsRow dark={dark} label="权限说明" onPress={() => setSettingsSheet('permissions')} value="›" />
+                <SettingsRow dark={dark} label="隐私说明" onPress={() => setSettingsSheet('privacy')} value="›" />
                 <SettingsRow
                   dark={dark}
                   label="导出数据"
@@ -4574,8 +4868,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             <View style={styles.pageSection}>
               <SectionHeader dark={dark} title="帮助与关于" />
               <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
-                <SettingsRow dark={dark} label="使用帮助" onPress={() => setTipsVisible(true)} value="›" />
-                <SettingsRow dark={dark} label="关于先做 5 分钟" value="1.0" />
+                <SettingsRow dark={dark} label="一分钟了解四个页面" onPress={() => setSettingsSheet('help')} value="›" />
+                <SettingsRow dark={dark} label="四象限怎么移动" onPress={() => setSettingsSheet('help')} value="›" />
+                <SettingsRow dark={dark} label="怎样安排专注时段" onPress={() => setSettingsSheet('help')} value="›" />
+                <SettingsRow dark={dark} label="卡住时怎么办" onPress={() => setSettingsSheet('help')} value="›" />
+                <SettingsRow dark={dark} label="备份与恢复说明" onPress={() => setSettingsSheet('help')} value="›" />
+                <SettingsRow dark={dark} label="意见反馈" onPress={() => setSystemNotice('当前 internal 版本未配置外部反馈渠道。')} value="›" />
+                <SettingsRow dark={dark} label="关于先做 5 分钟" onPress={() => setSettingsSheet('about')} value="1.0 ›" />
               </View>
             </View>
           </View>
@@ -4780,6 +5079,19 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         </View>
       )}
 
+      {settingsUndo === null ? null : (
+        <View accessibilityLiveRegion="polite" style={styles.undoSnackbar}>
+          <Text style={styles.undoText}>{settingsUndo.message}</Text>
+          <Pressable
+            accessibilityLabel="撤销设置修改"
+            accessibilityRole="button"
+            onPress={undoLastSetting}
+            style={styles.undoAction}>
+            <Text style={styles.undoActionText}>撤销</Text>
+          </Pressable>
+        </View>
+      )}
+
       {focusScheduleEditorOpen ? (
         <AppBottomSheet
           dark={dark}
@@ -4837,7 +5149,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
             <Text style={[styles.fieldLabel, dark && styles.textDark]}>做多久？</Text>
             <View style={styles.segmentedRow}>
-              {([5, 15, 25, 50] as const).map(durationMinutes => (
+              {([2, 5, 15, 25, 50] as const).map(durationMinutes => (
                 <SegmentedButton
                   key={durationMinutes}
                   label={`${durationMinutes} 分钟`}
@@ -5015,36 +5327,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           dark={dark}
           onDismissAttempt={() => {
             setSettingsSheet(null);
+            setDeleteConfirmationText('');
             return true;
           }}
           reduceMotion={settings.reduceMotion}
-          title={settingsSheet === 'theme' ? '选择外观' : '常用专注时长'}>
+          title={settingsSheetTitle(settingsSheet)}>
           <View style={styles.sheetActions}>
-            {settingsSheet === 'theme' ? (
-              (['system', 'light', 'dark'] as const).map(theme => (
-                <Action
-                  key={theme}
-                  label={theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}
-                  onPress={() => {
-                    updateSettings({theme});
-                    setSettingsSheet(null);
-                  }}
-                  secondary={settings.theme !== theme}
-                />
-              ))
-            ) : (
-              ([5, 15, 25, 45] as const).map(minutes => (
-                <Action
-                  key={minutes}
-                  label={`${minutes} 分钟`}
-                  onPress={() => {
-                    updateSettings({preferredFocusMinutes: minutes});
-                    setSettingsSheet(null);
-                  }}
-                  secondary={settings.preferredFocusMinutes !== minutes}
-                />
-              ))
-            )}
+            {renderSettingsSheetContent(settingsSheet)}
           </View>
         </AppBottomSheet>
       )}
@@ -5237,6 +5526,7 @@ const styles = StyleSheet.create({
   agendaTitle: {flex: 1, color: APP_PAGE_TOKENS.light.text, fontSize: 14, fontWeight: '700'},
   agendaMinutes: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 12},
   settingsGroup: {backgroundColor: APP_PAGE_TOKENS.light.surface, borderRadius: APP_PAGE_TOKENS.radius.lg, paddingHorizontal: 16, overflow: 'hidden'},
+  settingsHint: {color: '#5E716C', fontSize: 13, lineHeight: 19, paddingVertical: 8},
   metricRow: {flexDirection: 'row', gap: 12, backgroundColor: APP_PAGE_TOKENS.light.surface, borderRadius: APP_PAGE_TOKENS.radius.lg, padding: 16},
   privacyIntro: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 14, lineHeight: 21},
   lowEnergyStatus: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 13, fontWeight: '800'},

@@ -1,6 +1,6 @@
 # CODEX P15R–P18 Progress
 
-更新时间：2026-08-16（Asia/Shanghai）
+更新时间：2026-08-17（Asia/Shanghai）
 
 ## 基线
 
@@ -9,7 +9,7 @@
 - 截图：`references/current_quick_add.jpg`、`references/current_quick_edit.jpg`
 - Task Repository envelope：version `1`
 - priority/support/growth schema：version `1`
-- backup schema：version `2`（version `1` 导入兼容保留）
+- backup schema：version `3`（version `1`、`2` 导入兼容保留）
 - P0–P14：40 suites、247/247 tests PASS
 - P14 APK SHA-256：`cd720dd410bfede498d6f9fdaf9f67fcb2b714b87e69577911575797e627270d`
 
@@ -54,16 +54,24 @@
 | P17-06 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/screens/CoreFlowScreen.tsx` | 用户端奖励文案统一为成长值，既有奖励幂等保留 |
 | P17 SOURCE_GATE | DONE | `tests/p17-semantic-growth` | P17 定点、P0–P17 合并回归、TypeScript、Android lint/build 通过 |
 | P17 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | Android DEVICE / UTEST 与 iOS 未执行 |
-| P18 | NOT_STARTED | — | 尚未开始 |
+| P18-01 | DONE | `src/data/quadrantHomePreferences.ts`、`src/domain/focusDurationRecommendation.ts`、`src/screens/QuadrantHomeScreen.tsx` | 2/5/15/25/50 分钟、工作日、开始时段、保护强度与常亮默认值只作用于新日程；偏好纳入本地存储和备份 |
+| P18-02 | DONE | `src/data/quadrantHomePreferences.ts`、`src/screens/QuadrantHomeScreen.tsx` | 任务与象限规则集中到“我的”；修改提示影响并提供撤销；既有分数不删除 |
+| P18-03 | DONE | `src/application/tomorrowFirstNotifications.ts`、`src/platform/nativeTomorrowFirstNotifications.android.ts`、`src/platform/nativeTomorrowFirstNotifications.ios.ts`、`android/app/src/main/java/com/startfive/app/notifications/StartFiveNotificationsModule.kt`、`ios/StartFive/StartFiveNotifications.swift`、`ios/StartFive/StartFiveNotificationsBridge.m`、`src/screens/QuadrantHomeScreen.tsx` | 权限惰性请求、提醒偏好、App 内减少干扰、专注常亮、完成震动与声音接入；未提供应用阻断入口 |
+| P18-04 | DONE_AUTO | `src/components/AppPage.tsx`、`src/screens/QuadrantHomeScreen.tsx`、`tests/p18-settings-reliability/performanceAndAccessibility.test.ts` | 外观、减少动态、屏幕阅读器偏好和最大字体源码门禁通过；TalkBack / DEVICE 待测 |
+| P18-05 | DONE | `src/application/localBackupService.ts`、`src/data/taskRepository.ts`、`src/screens/LocalBackupScreen.tsx`、`src/screens/QuadrantHomeScreen.tsx` | 本机数据概览、安全替换、备份日期、全量清除与精确确认完成；备份合并仍无执行按钮 |
+| P18-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 帮助、备份说明、反馈状态和版本信息可发现；首次启动不强制弹出帮助 |
+| P18-07 | DONE_AUTO | `src/domain/pageExperience.ts`、`src/components/AppPage.tsx`、`tests/p18-settings-reliability/performanceAndAccessibility.test.ts` | 成长聚合 memoized selector 与 5000 任务自动化通过；多尺寸真机视觉 QA 待测 |
+| P18 SOURCE_GATE | DONE | `tests/p18-settings-reliability`、`android/app/build/reports/lint-results-internal.html`、`android/app/build/outputs/apk/internal/app-internal.apk` | P18 定点、P0–P18 合并回归、TypeScript、Android lint/build 全部通过 |
+| P18 RELEASE_GATE | PENDING_EXTERNAL | `docs/P18_DEVICE_UTEST_ACCEPTANCE.md` | `adb devices -l` 返回设备数 0；Android DEVICE / UTEST 与 iOS 验收未执行 |
 
 ## 数据变化
 
 - 持久化任务模型：无字段变化。
 - 专注日程存储：`start-five.focus-schedules.v2`，envelope schema `start-five.focus-schedules` / version `2`；单条坏日程或事件隔离。
-- 备份版本：schemaVersion `2`，新增 `focusSchedules` store；schemaVersion `1` 解析兼容保留。
+- 备份版本：schemaVersion `3`，新增 `quadrantHomePreferences` store；schemaVersion `1`、`2` 解析兼容保留。
 - 日程事件幂等键：`focus-schedule-event:${scheduleId}:${localDateKey}:${type}`；启动键：`focus-schedule-start:${scheduleId}:${localDateKey}`。
 - 专注会话存储：key 保持 `start-five.focus-sessions.v1`；envelope version `2`，新增可选 `FocusContextSnapshot`；version `1` 读取与备份恢复兼容保留。
-- 象限首页偏好：version `6`，新增最多 32 条建议关闭记录；version `1`–`5` 读取迁移保留。
+- 象限首页偏好：version `7`，新增 P18 专注、任务、提醒、无障碍和备份日期偏好；version `1`–`6` 读取迁移保留，旧 `45` 分钟默认迁移为 `50`。
 - 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
 - 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
 - P15 页面体验：复用现有任务、计划、专注历史、成长与设置数据；无新增持久化字段、迁移或 schema 版本。
@@ -79,6 +87,10 @@
 - P0–P16 当前合并回归：48 suites、272/272 tests PASS。
 - P17 定点：3 suites、11/11 tests PASS。
 - P0–P17 当前合并回归：51 suites、283/283 tests PASS。
+- P18 定点：3 suites、9/9 tests PASS。
+- 原 P0–P14：40 suites、247/247 tests PASS。
+- P15R–P18 新增：45/45 tests PASS。
+- P0–P18 当前合并回归：54 suites、292/292 tests PASS。
 - TypeScript：`tsc --noEmit` PASS。
 - Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
 - Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
@@ -89,8 +101,8 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,182,091` bytes
-- SHA-256：`71d83b3272fb714509ba840406a5d8751253520c9de239781d2b83e06226417d`
+- size：`20,203,487` bytes
+- SHA-256：`aeb2fd1f04cb98853ec6c0659e3609824510750cbbffae90847c8353e6b8e513`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`
@@ -98,7 +110,7 @@
 
 ## 未完成与风险
 
-- Android 真机拖动、键盘、系统返回、TalkBack、最大字体和首次用户 UTEST 尚无设备执行。
+- Android 真机拖动、键盘、系统返回、TalkBack、最大字体、通知动作、常亮/反馈和首次用户 UTEST 尚无设备执行；执行脚本见 `docs/P18_DEVICE_UTEST_ACCEPTANCE.md`。
 - iOS 编译、VoiceOver 和真机验证需要 macOS/Xcode。
 - Gradle 9.3.1 报告 deprecated features；当前 lint/build 通过，Gradle 10 升级兼容性未处理。
 - P14-02B 仍为 `BLOCKED_SPEC_GUARD`，本阶段未改动备份合并语义。

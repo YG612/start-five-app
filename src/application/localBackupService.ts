@@ -13,6 +13,10 @@ import {
 import {validatePostFocusReviewBackup} from '../data/postFocusReviewRepository';
 import {validateReminderSchedulingBackup} from '../data/reminderSchedulingRepository';
 import {validateTomorrowFirstPreferenceBackup} from './tomorrowFirstNotifications';
+import {
+  QUADRANT_HOME_PREFERENCES_KEY,
+  validateQuadrantHomePreferencesBackup,
+} from '../data/quadrantHomePreferences';
 
 export type BackupPreview = Readonly<{
   backupDate: string | null;
@@ -53,6 +57,7 @@ export type LocalBackupService = Readonly<{
     status: 'none' | 'resumed' | 'committed';
     digestSha256?: string;
   }>>;
+  clearAllData(): Promise<void>;
 }>;
 
 type Store = Readonly<{alias: string; key: string}>;
@@ -62,6 +67,7 @@ const STORES: readonly Store[] = [
   {alias: 'focusSessions', key: FOCUS_SESSION_STORAGE_KEY},
   {alias: 'focusSchedules', key: FOCUS_SCHEDULE_STORAGE_KEY},
   {alias: 'postFocusReview', key: POST_FOCUS_REVIEW_STORAGE_KEY},
+  {alias: 'quadrantHomePreferences', key: QUADRANT_HOME_PREFERENCES_KEY},
   {alias: 'reminderScheduling', key: 'start-five/reminder-scheduling/v1'},
   {alias: 'tasks', key: TASK_STORAGE_KEY},
   {alias: 'tomorrowFirstPreference', key: 'start-five/tomorrow-first-reminder/v1'},
@@ -328,6 +334,8 @@ function validateLogicalStore(alias: string, raw: string | null): number {
         return validateFocusScheduleBackup(raw);
       case 'postFocusReview':
         return validatePostFocusReviewBackup(raw);
+      case 'quadrantHomePreferences':
+        return validateQuadrantHomePreferencesBackup(raw);
       case 'reminderScheduling':
         return validateReminderSchedulingBackup(raw);
       case 'tomorrowFirstPreference':
@@ -398,7 +406,7 @@ async function parseWire(
   }
   if (
     !isRecord(value) ||
-    (value.schemaVersion !== 1 && value.schemaVersion !== 2) ||
+    (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) ||
     !isRecord(value.manifest) ||
     !Array.isArray(value.manifest.stores) ||
     !Array.isArray(value.manifest.references) ||
@@ -429,8 +437,12 @@ async function parseWire(
     stores.push(candidate as ManifestStore);
   }
   const expectedStores = value.schemaVersion === 1
-    ? STORES.filter(store => store.alias !== 'focusSchedules')
-    : STORES;
+    ? STORES.filter(store =>
+        store.alias !== 'focusSchedules' && store.alias !== 'quadrantHomePreferences',
+      )
+    : value.schemaVersion === 2
+      ? STORES.filter(store => store.alias !== 'quadrantHomePreferences')
+      : STORES;
   if (
     stores.length !== expectedStores.length ||
     expectedStores.some(store => !aliases.has(store.alias)) ||
@@ -539,6 +551,7 @@ async function parseWire(
 export function createLocalBackupService(options: Readonly<{
   backend: CoordinatedBackend;
   tasks: TaskBackupAdapter;
+  reloadTasks(): Promise<readonly unknown[]>;
   reconcileNotifications(): Promise<void>;
   now?(): string;
 }>): LocalBackupService {
@@ -635,7 +648,7 @@ export function createLocalBackupService(options: Readonly<{
     if (!Number.isFinite(createdAtMs)) return fail('LOCAL_BACKUP_CLOCK_INVALID');
     const createdAt = new Date(createdAtMs).toISOString();
     const unsigned = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       createdAt,
       applicationVersion: BACKUP_APPLICATION_VERSION,
       manifest: {
@@ -661,7 +674,7 @@ export function createLocalBackupService(options: Readonly<{
       preview: previewFor(stores, taskMetadata, {
         backupDate: createdAt,
         applicationVersion: BACKUP_APPLICATION_VERSION,
-        schemaVersion: 2,
+        schemaVersion: 3,
       }),
     };
   }
@@ -708,12 +721,14 @@ export function createLocalBackupService(options: Readonly<{
         return {incoming, safety};
       });
       try {
+        await options.reloadTasks();
         await options.reconcileNotifications();
       } catch (error: unknown) {
         await options.backend.exclusive(async () => {
           const original = await parseWire(prepared.safety.bytes, options.tasks);
           await applyParsedStores(original.rawByAlias);
         });
+        await options.reloadTasks();
         await options.reconcileNotifications();
         throw error;
       }
@@ -765,6 +780,7 @@ export function createLocalBackupService(options: Readonly<{
         };
       });
       if (result.status === 'committed') {
+        await options.reloadTasks();
         await reconcileAndCommit();
       }
       return result;
@@ -786,9 +802,25 @@ export function createLocalBackupService(options: Readonly<{
         };
       });
       if (outcome.status === 'resumed') {
+        await options.reloadTasks();
         await reconcileAndCommit();
       }
       return outcome;
+    },
+    async clearAllData() {
+      await options.backend.exclusive(async () => {
+        for (const store of STORES) {
+          if (store.alias === 'tasks') {
+            await options.tasks.clearOpaqueData();
+          } else {
+            await options.backend.raw.removeItem(store.key);
+          }
+        }
+        await options.backend.raw.removeItem(JOURNAL_KEY);
+        await options.backend.raw.removeItem(SAFETY_SNAPSHOT_KEY);
+      });
+      await options.reloadTasks();
+      await options.reconcileNotifications();
     },
   };
 }

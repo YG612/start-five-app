@@ -110,7 +110,7 @@ describe('P14 reliability, scale and evidence gates', () => {
       pendingTaskCount: 1,
       completedTaskCount: 0,
       warningCount: 0,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     await expect(backup.replaceBackup(artifact.bytes)).resolves.toMatchObject({

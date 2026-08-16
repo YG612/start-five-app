@@ -203,13 +203,15 @@ export function selectTodayFocusAgenda(
     .slice(0, Math.max(0, limit));
 }
 
-export function selectGrowthPageSummary(input: Readonly<{
+export type GrowthPageSummaryInput = Readonly<{
   tasks: readonly Task[];
   sessions: readonly FocusSession[];
   now: string;
   timeZone?: string;
   weekStartsOn?: number;
-}>): GrowthPageSummary {
+}>;
+
+export function selectGrowthPageSummary(input: GrowthPageSummaryInput): GrowthPageSummary {
   const summary = selectSemanticGrowthSummary(input);
   const display = (metric: (typeof summary.today)[number]): GrowthMetric => ({
     label: metric.label,
@@ -222,6 +224,53 @@ export function selectGrowthPageSummary(input: Readonly<{
     hasWeeklySample: summary.hasWeeklySample,
     quality: summary.quality,
     streak: summary.streak,
+  };
+}
+
+function growthLocalDateKey(now: string, timeZone: string): string {
+  const date = new Date(now);
+  if (!Number.isFinite(date.getTime())) return now.slice(0, 10);
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const part = (type: 'year' | 'month' | 'day') =>
+      parts.find(item => item.type === type)?.value ?? '';
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  } catch {
+    return now.slice(0, 10);
+  }
+}
+
+export function createGrowthPageSummarySelector(): (
+  input: GrowthPageSummaryInput,
+) => GrowthPageSummary {
+  let previous: Readonly<{
+    tasks: readonly Task[];
+    sessions: readonly FocusSession[];
+    localDateKey: string;
+    timeZone: string;
+    weekStartsOn: number;
+    result: GrowthPageSummary;
+  }> | null = null;
+  return input => {
+    const timeZone = input.timeZone ?? 'UTC';
+    const weekStartsOn = input.weekStartsOn ?? 1;
+    const localDateKey = growthLocalDateKey(input.now, timeZone);
+    if (
+      previous !== null &&
+      previous.tasks === input.tasks &&
+      previous.sessions === input.sessions &&
+      previous.localDateKey === localDateKey &&
+      previous.timeZone === timeZone &&
+      previous.weekStartsOn === weekStartsOn
+    ) return previous.result;
+    const result = selectGrowthPageSummary(input);
+    previous = {tasks: input.tasks, sessions: input.sessions, localDateKey, timeZone, weekStartsOn, result};
+    return result;
   };
 }
 

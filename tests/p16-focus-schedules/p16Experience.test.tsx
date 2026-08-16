@@ -23,7 +23,7 @@ const TASK_INPUT = {
 } as const;
 
 describe('P16 focus schedule experience', () => {
-  it('creates a daily growth-zone schedule with the 25-minute first-use default and backup v2', async () => {
+  it('creates a daily growth-zone schedule with the saved default and backup v3', async () => {
     const harness = createWorkspaceHarness(
       new WorkspaceBackend(),
       new WorkspaceClock(NOW),
@@ -34,7 +34,7 @@ describe('P16 focus schedule experience', () => {
       await waitFor(() => expect(screen.getByRole('tab', {name: '专注'})).toBeTruthy());
       await fireEvent.press(screen.getByRole('tab', {name: '专注'}));
       await fireEvent.press(screen.getAllByRole('button', {name: '安排一段专注'})[0]!);
-      expect(screen.getByRole('tab', {name: '25 分钟'}).props.accessibilityState).toMatchObject({selected: true});
+      expect(screen.getByRole('tab', {name: '5 分钟'}).props.accessibilityState).toMatchObject({selected: true});
       expect(screen.getByRole('tab', {name: '成长区的一项任务'}).props.accessibilityState).toMatchObject({selected: true});
       await fireEvent.press(screen.getByRole('tab', {name: '每天 20:30'}));
       await fireEvent.press(screen.getByRole('button', {name: '保存专注时段'}));
@@ -42,13 +42,13 @@ describe('P16 focus schedule experience', () => {
       await waitFor(() => expect(screen.getAllByText('成长区的一项任务').length).toBeGreaterThan(0));
       await expect(harness.composition.focusSchedules.list()).resolves.toEqual([
         expect.objectContaining({
-          durationMinutes: 25,
+          durationMinutes: 5,
           target: {kind: 'QUADRANT', quadrant: 'Q2'},
           recurrence: {kind: 'DAILY', localTime: '20:30', timezone: expect.any(String)},
         }),
       ]);
       const backup = await harness.composition.localBackup.exportBackup();
-      expect(backup.preview.schemaVersion).toBe(2);
+      expect(backup.preview.schemaVersion).toBe(3);
       expect(backup.preview.stores).toContainEqual({alias: 'focusSchedules', recordCount: 1});
     } finally {
       await screen.unmount();

@@ -1,6 +1,6 @@
 import type {FocusDurationMinutes, FocusSession} from './focusSession';
 
-export type PreferredFocusMinutes = Extract<FocusDurationMinutes, 5 | 15 | 25 | 45>;
+export type PreferredFocusMinutes = Extract<FocusDurationMinutes, 2 | 5 | 15 | 25 | 50>;
 
 export type FocusDurationRecommendation = Readonly<{
   candidateMinutes: PreferredFocusMinutes;
@@ -10,7 +10,7 @@ export type FocusDurationRecommendation = Readonly<{
   totalCompletedSessions: number;
 }>;
 
-const CANDIDATES = [5, 15, 25, 45] as const;
+const CANDIDATES = [2, 5, 15, 25, 50] as const;
 const THIRTY_DAYS_MS = 30 * 86_400_000;
 
 export function selectFocusDurationRecommendation(input: Readonly<{

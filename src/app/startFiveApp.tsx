@@ -360,6 +360,7 @@ export function createStartFiveApp(
   const localBackup = createLocalBackupService({
     backend: coordinatedBackend,
     tasks: createTaskBackupAdapter(coordinatedBackend.raw),
+    reloadTasks: repository.reload,
     async reconcileNotifications() {
       if (tomorrowFirstReminder !== undefined) {
         await tomorrowFirstReminder.reconcile(await dayClosureService.load());
