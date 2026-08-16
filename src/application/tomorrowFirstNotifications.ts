@@ -25,6 +25,21 @@ export type LocalTriggerInput = Readonly<{
 
 export type TomorrowFirstTap =
   | Readonly<{
+      kind: 'focus_ongoing_continue' | 'focus_ongoing_end';
+      sessionId: string;
+    }>
+  | Readonly<{
+      kind:
+        | 'focus_schedule_start_five'
+        | 'focus_schedule_start_planned'
+        | 'focus_schedule_delay_ten'
+        | 'focus_schedule_skip'
+        | 'focus_schedule_open';
+      scheduleId: string;
+      localDateKey: string;
+      taskId?: string;
+    }>
+  | Readonly<{
       kind: 'tomorrow_first' | 'start_five' | 'delay_ten' | 'reschedule';
       dayKey: string;
       taskId: string;
@@ -45,6 +60,13 @@ export type TomorrowFirstNotifications = ReminderScheduler & Readonly<{
   requestPermission(): Promise<ReminderPermission>;
   getInitialTap(): Promise<TomorrowFirstTap | null>;
   subscribeTap(listener: (tap: TomorrowFirstTap) => void): () => void;
+  startFocusOngoing?(input: Readonly<{
+    sessionId: string;
+    title: string;
+    firstStep: string;
+    plannedEndAt: string;
+  }>): Promise<void>;
+  stopFocusOngoing?(sessionId: string): Promise<void>;
 }>;
 
 type ReminderReason = 'idle' | 'denied';

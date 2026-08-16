@@ -1,6 +1,9 @@
 package com.startfive.app.notifications
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -12,6 +15,9 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.modules.core.PermissionAwareActivity
+import androidx.core.app.NotificationCompat
+import com.startfive.app.MainActivity
+import com.startfive.app.R
 import java.lang.ref.WeakReference
 
 class StartFiveNotificationsModule(
@@ -105,6 +111,79 @@ class StartFiveNotificationsModule(
   }
 
   @ReactMethod
+  fun startFocusOngoing(
+    sessionId: String,
+    title: String,
+    firstStep: String,
+    quietUntilEpochMs: Double,
+    promise: Promise,
+  ) {
+    try {
+      require(sessionId.isNotBlank()) { "sessionId required" }
+      require(quietUntilEpochMs.isFinite() && quietUntilEpochMs > 0.0) { "quietUntilEpochMs invalid" }
+      val manager = reactApplicationContext.getSystemService(NotificationManager::class.java)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        manager.createNotificationChannel(NotificationChannel(
+          NotificationContract.FOCUS_CHANNEL_ID,
+          NotificationContract.FOCUS_CHANNEL_NAME,
+          NotificationManager.IMPORTANCE_LOW,
+        ))
+      }
+      fun action(kind: String): PendingIntent {
+        val intent = Intent(reactApplicationContext, MainActivity::class.java).apply {
+          action = NotificationContract.ACTION_TAP
+          flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+          putExtra(NotificationContract.EXTRA_TAP_KIND, kind)
+          putExtra(NotificationContract.EXTRA_SESSION_ID, sessionId)
+        }
+        return PendingIntent.getActivity(
+          reactApplicationContext,
+          "$sessionId:$kind".hashCode() and Int.MAX_VALUE,
+          intent,
+          PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+      }
+      val notification = NotificationCompat.Builder(reactApplicationContext, NotificationContract.FOCUS_CHANNEL_ID)
+        .setSmallIcon(R.mipmap.ic_launcher)
+        .setContentTitle(title.take(80))
+        .setContentText(firstStep.take(120))
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setContentIntent(action(NotificationContract.TAP_KIND_FOCUS_ONGOING_CONTINUE))
+        .addAction(R.mipmap.ic_launcher, "继续", action(NotificationContract.TAP_KIND_FOCUS_ONGOING_CONTINUE))
+        .addAction(R.mipmap.ic_launcher, "结束", action(NotificationContract.TAP_KIND_FOCUS_ONGOING_END))
+        .build()
+      manager.notify(FOCUS_NOTIFICATION_ID, notification)
+      check(focusQuietPreferences().edit()
+        .putString(NotificationContract.FOCUS_QUIET_SESSION_KEY, sessionId)
+        .putLong(NotificationContract.FOCUS_QUIET_UNTIL_KEY, quietUntilEpochMs.toLong())
+        .commit()) { "FOCUS_QUIET_STATE_WRITE_FAILED" }
+      promise.resolve(null)
+    } catch (error: Exception) {
+      promise.reject("FOCUS_ONGOING_NOTIFICATION_FAILED", error)
+    }
+  }
+
+  @ReactMethod
+  fun stopFocusOngoing(sessionId: String, promise: Promise) {
+    try {
+      require(sessionId.isNotBlank()) { "sessionId required" }
+      reactApplicationContext.getSystemService(NotificationManager::class.java)
+        .cancel(FOCUS_NOTIFICATION_ID)
+      val quiet = focusQuietPreferences()
+      if (quiet.getString(NotificationContract.FOCUS_QUIET_SESSION_KEY, null) == sessionId) {
+        check(quiet.edit()
+          .remove(NotificationContract.FOCUS_QUIET_SESSION_KEY)
+          .remove(NotificationContract.FOCUS_QUIET_UNTIL_KEY)
+          .commit()) { "FOCUS_QUIET_STATE_WRITE_FAILED" }
+      }
+      promise.resolve(null)
+    } catch (error: Exception) {
+      promise.reject("FOCUS_ONGOING_NOTIFICATION_FAILED", error)
+    }
+  }
+
+  @ReactMethod
   fun addListener(eventName: String) {
     if (eventName == NotificationContract.TAP_EVENT) {
       listenerCount += 1
@@ -126,6 +205,11 @@ class StartFiveNotificationsModule(
 
   private fun permissionPreferences() = reactApplicationContext.getSharedPreferences(
     "start_five_notification_permission_v1",
+    android.content.Context.MODE_PRIVATE,
+  )
+
+  private fun focusQuietPreferences() = reactApplicationContext.getSharedPreferences(
+    NotificationContract.FOCUS_QUIET_PREFERENCES,
     android.content.Context.MODE_PRIVATE,
   )
 
@@ -235,6 +319,8 @@ class StartFiveNotificationsModule(
     val kind: String,
     val dayKey: String? = null,
     val taskId: String? = null,
+    val scheduleId: String? = null,
+    val sessionId: String? = null,
     val entryId: String? = null,
     val text: String? = null,
     val truncated: Boolean = false,
@@ -243,6 +329,8 @@ class StartFiveNotificationsModule(
       putString("kind", kind)
       dayKey?.let { putString("dayKey", it) }
       taskId?.let { putString("taskId", it) }
+      scheduleId?.let { putString("scheduleId", it) }
+      sessionId?.let { putString("sessionId", it) }
       entryId?.let { putString("entryId", it) }
       text?.let { putString("text", it) }
       if (kind == NotificationContract.TAP_KIND_SHARE_TEXT) {
@@ -253,6 +341,7 @@ class StartFiveNotificationsModule(
 
   companion object {
     private const val PERMISSION_REQUEST_CODE = 7341
+    private const val FOCUS_NOTIFICATION_ID = 7342
     private val permissionLock = Any()
     private val tapLock = Any()
     private var permissionPromise: Promise? = null
@@ -289,11 +378,28 @@ class StartFiveNotificationsModule(
             NotificationContract.TAP_KIND_START_FIVE,
             NotificationContract.TAP_KIND_DELAY_TEN,
             NotificationContract.TAP_KIND_RESCHEDULE,
+            NotificationContract.TAP_KIND_FOCUS_SCHEDULE_START_FIVE,
+            NotificationContract.TAP_KIND_FOCUS_SCHEDULE_START_PLANNED,
+            NotificationContract.TAP_KIND_FOCUS_SCHEDULE_DELAY_TEN,
+            NotificationContract.TAP_KIND_FOCUS_SCHEDULE_SKIP,
+            NotificationContract.TAP_KIND_FOCUS_SCHEDULE_OPEN,
+            NotificationContract.TAP_KIND_FOCUS_ONGOING_CONTINUE,
+            NotificationContract.TAP_KIND_FOCUS_ONGOING_END,
           )
           if (kind !in validKinds) return null
-          val dayKey = source.getStringExtra(NotificationContract.EXTRA_DAY_KEY) ?: return null
-          val taskId = source.getStringExtra(NotificationContract.EXTRA_TASK_ID) ?: return null
-          NotificationTap(kind = kind, dayKey = dayKey, taskId = taskId)
+          if (kind == NotificationContract.TAP_KIND_FOCUS_ONGOING_CONTINUE ||
+            kind == NotificationContract.TAP_KIND_FOCUS_ONGOING_END
+          ) {
+            val sessionId = source.getStringExtra(NotificationContract.EXTRA_SESSION_ID) ?: return null
+            NotificationTap(kind = kind, sessionId = sessionId)
+          } else {
+            val dayKey = source.getStringExtra(NotificationContract.EXTRA_DAY_KEY) ?: return null
+            val taskId = source.getStringExtra(NotificationContract.EXTRA_TASK_ID)
+            val scheduleId = source.getStringExtra(NotificationContract.EXTRA_SCHEDULE_ID)
+            if (kind.startsWith("focus_schedule_") && scheduleId == null) return null
+            if (!kind.startsWith("focus_schedule_") && taskId == null) return null
+            NotificationTap(kind = kind, dayKey = dayKey, taskId = taskId, scheduleId = scheduleId)
+          }
         }
         NotificationContract.ACTION_SHORTCUT_ADD -> NotificationTap(
           kind = NotificationContract.TAP_KIND_SHORTCUT_ADD,
@@ -326,6 +432,8 @@ class StartFiveNotificationsModule(
       source.removeExtra(NotificationContract.EXTRA_TAP_KIND)
       source.removeExtra(NotificationContract.EXTRA_DAY_KEY)
       source.removeExtra(NotificationContract.EXTRA_TASK_ID)
+      source.removeExtra(NotificationContract.EXTRA_SCHEDULE_ID)
+      source.removeExtra(NotificationContract.EXTRA_SESSION_ID)
       source.removeExtra(Intent.EXTRA_TEXT)
       return result
     }

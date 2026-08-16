@@ -26,6 +26,9 @@ export type ProductEventName =
   | 'backlog_review_action'
   | 'work_plan_created'
   | 'planned_session_started'
+  | 'focus_schedule_saved'
+  | 'focus_schedule_action'
+  | 'focus_interruption'
   | 'backup_previewed'
   | 'backup_restore_finished';
 

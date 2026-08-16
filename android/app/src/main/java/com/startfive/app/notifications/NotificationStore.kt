@@ -19,6 +19,8 @@ internal data class StoredIntent(
   val ruleId: String,
   val kind: String,
   val triggerAt: String,
+  val notificationTitle: String? = null,
+  val notificationBody: String? = null,
 ) {
   val stableId: String
     get() = "reminder:$taskId:$ruleId"
@@ -166,6 +168,8 @@ internal class NotificationStore(context: Context) {
             ruleId = requiredString(item, "ruleId"),
             kind = requiredString(item, "kind"),
             triggerAt = requiredString(item, "triggerAt"),
+            notificationTitle = optionalString(item, "notificationTitle"),
+            notificationBody = optionalString(item, "notificationBody"),
           )
           require(intent.taskId == taskId) { "intent taskId mismatch" }
           add(intent)
@@ -193,6 +197,8 @@ internal class NotificationStore(context: Context) {
             putString("ruleId", intent.ruleId)
             putString("kind", intent.kind)
             putString("triggerAt", intent.triggerAt)
+            intent.notificationTitle?.let { putString("notificationTitle", it) }
+            intent.notificationBody?.let { putString("notificationBody", it) }
           })
         }
       })
@@ -201,6 +207,9 @@ internal class NotificationStore(context: Context) {
     private fun requiredString(map: ReadableMap, key: String): String =
       map.getString(key)?.takeIf { it.isNotEmpty() }
         ?: throw IllegalArgumentException("$key is required")
+
+    private fun optionalString(map: ReadableMap, key: String): String? =
+      if (!map.hasKey(key) || map.isNull(key)) null else map.getString(key)?.takeIf { it.isNotEmpty() }
 
     private fun toJson(snapshot: StoredSnapshot) = JSONObject().apply {
       put("taskId", snapshot.taskId)
@@ -215,6 +224,8 @@ internal class NotificationStore(context: Context) {
             put("ruleId", intent.ruleId)
             put("kind", intent.kind)
             put("triggerAt", intent.triggerAt)
+            intent.notificationTitle?.let { put("notificationTitle", it) }
+            intent.notificationBody?.let { put("notificationBody", it) }
           })
         }
       })
@@ -230,6 +241,8 @@ internal class NotificationStore(context: Context) {
             ruleId = item.getString("ruleId"),
             kind = item.getString("kind"),
             triggerAt = item.getString("triggerAt"),
+            notificationTitle = item.optString("notificationTitle").takeIf { it.isNotEmpty() },
+            notificationBody = item.optString("notificationBody").takeIf { it.isNotEmpty() },
           ))
         }
       }

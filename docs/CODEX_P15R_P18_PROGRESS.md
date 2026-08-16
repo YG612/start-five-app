@@ -9,7 +9,7 @@
 - 截图：`references/current_quick_add.jpg`、`references/current_quick_edit.jpg`
 - Task Repository envelope：version `1`
 - priority/support/growth schema：version `1`
-- backup schema：version `1`
+- backup schema：version `2`（version `1` 导入兼容保留）
 - P0–P14：40 suites、247/247 tests PASS
 - P14 APK SHA-256：`cd720dd410bfede498d6f9fdaf9f67fcb2b714b87e69577911575797e627270d`
 
@@ -37,15 +37,23 @@
 | P15-06 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`tests/p15-page-architecture/p15Experience.test.tsx` | 四项底部导航与活动专注隐藏导航通过自动化；DEVICE 待测 |
 | P15 SOURCE_GATE | DONE | `tests/p15-page-architecture` | P15 定点、合并回归、TypeScript、Android lint/build 通过 |
 | P15 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；Android DEVICE / UTEST 未执行 |
-| P16 | NOT_STARTED | — | 尚未开始 |
+| P16-01 | DONE | `src/domain/focusSchedule.ts`、`src/data/focusScheduleRepository.ts`、`src/application/localBackupService.ts` | 日程/事件模型、schema v2、坏记录隔离与备份纳入完成 |
+| P16-02 | DONE | `src/domain/pageExperience.ts`、`src/screens/QuadrantHomeScreen.tsx` | 四来源统一议程、优先级、五分钟去重、今日三项与冲突提示完成 |
+| P16-03 | DONE | `src/application/focusScheduleService.ts`、`src/screens/QuadrantHomeScreen.tsx` | 四步创建/编辑、默认时长、任务绑定、暂停与删除完成 |
+| P16-04 | DONE | `src/application/focusScheduleService.ts`、`src/application/tomorrowFirstNotifications.ts`、`android/app/src/main/java/com/startfive/app/notifications/NotificationAlarmReceiver.kt`、`android/app/src/main/java/com/startfive/app/notifications/StartFiveNotificationsModule.kt` | 下一次提醒、动作、幂等、跳过/延后与原生回传完成 |
+| P16-05 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/app/focusSessionRuntime.tsx`、`android/app/src/main/java/com/startfive/app/notifications/StartFiveNotificationsModule.kt` | 活动页降噪、持续通知、后台中断提示与提前结束救援完成；DEVICE 待测 |
+| P16-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 专注后四种下一步选择保留并接入日程结算 |
+| P16 SOURCE_GATE | DONE | `tests/p16-focus-schedules`、`tests/p14-reliability-accessibility/p14Reliability.test.ts` | P16 定点、P0–P16 合并回归、TypeScript、Android lint/build 通过 |
+| P16 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；Android DEVICE / UTEST 未执行 |
 | P17 | NOT_STARTED | — | 尚未开始 |
 | P18 | NOT_STARTED | — | 尚未开始 |
 
 ## 数据变化
 
 - 持久化任务模型：无字段变化。
-- 数据迁移：无新增迁移。
-- 备份版本：保持 version `1` / schemaVersion `1`。
+- 专注日程存储：`start-five.focus-schedules.v2`，envelope schema `start-five.focus-schedules` / version `2`；单条坏日程或事件隔离。
+- 备份版本：schemaVersion `2`，新增 `focusSchedules` store；schemaVersion `1` 解析兼容保留。
+- 日程事件幂等键：`focus-schedule-event:${scheduleId}:${localDateKey}:${type}`；启动键：`focus-schedule-start:${scheduleId}:${localDateKey}`。
 - 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
 - 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
 - P15 页面体验：复用现有任务、计划、专注历史、成长与设置数据；无新增持久化字段、迁移或 schema 版本。
@@ -57,6 +65,8 @@
 - P15R 合并回归：42 suites、254/254 tests PASS。
 - P15 定点：2 suites、6/6 tests PASS。
 - 当前合并回归：44 suites、260/260 tests PASS。
+- P16 定点：4 suites、12/12 tests PASS。
+- P0–P16 当前合并回归：48 suites、272/272 tests PASS。
 - TypeScript：`tsc --noEmit` PASS。
 - Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
 - Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
@@ -67,8 +77,8 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,109,399` bytes
-- SHA-256：`fcb65ffcf83cf6c22247fde0aa48efb30ea4df52aeb63076a0c23abf9d21226d`
+- size：`20,169,663` bytes
+- SHA-256：`7285c281533c58c6947b51bc85f242decdce301b2a028ea9497e64c6303c6365`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`

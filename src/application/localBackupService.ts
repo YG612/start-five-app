@@ -6,6 +6,10 @@ import type {TaskBackupAdapter} from '../data/taskRepository';
 import {validateDayClosureBackup} from '../data/dayClosureRepository';
 import {validateFirstActivationBackup} from '../data/firstActivationRepository';
 import {validateFocusSessionBackup} from '../data/focusSessionRepository';
+import {
+  FOCUS_SCHEDULE_STORAGE_KEY,
+  validateFocusScheduleBackup,
+} from '../data/focusScheduleRepository';
 import {validatePostFocusReviewBackup} from '../data/postFocusReviewRepository';
 import {validateReminderSchedulingBackup} from '../data/reminderSchedulingRepository';
 import {validateTomorrowFirstPreferenceBackup} from './tomorrowFirstNotifications';
@@ -56,6 +60,7 @@ const STORES: readonly Store[] = [
   {alias: 'dayClosure', key: 'start-five.day-closure.v1'},
   {alias: 'firstActivation', key: 'start-five.first-activation.v1'},
   {alias: 'focusSessions', key: FOCUS_SESSION_STORAGE_KEY},
+  {alias: 'focusSchedules', key: FOCUS_SCHEDULE_STORAGE_KEY},
   {alias: 'postFocusReview', key: POST_FOCUS_REVIEW_STORAGE_KEY},
   {alias: 'reminderScheduling', key: 'start-five/reminder-scheduling/v1'},
   {alias: 'tasks', key: TASK_STORAGE_KEY},
@@ -298,6 +303,9 @@ function rawRecordCount(raw: string | null): number {
   const value = parseJson(raw);
   if (isRecord(value) && Array.isArray(value.tasks)) return value.tasks.length;
   if (isRecord(value) && Array.isArray(value.sessions)) return value.sessions.length;
+  if (isRecord(value) && Array.isArray(value.schedules) && Array.isArray(value.events)) {
+    return value.schedules.length + value.events.length;
+  }
   if (isRecord(value) && Array.isArray(value.receipts)) {
     return value.receipts.length + (value.active === null ? 0 : 1);
   }
@@ -316,6 +324,8 @@ function validateLogicalStore(alias: string, raw: string | null): number {
         return validateFirstActivationBackup(raw);
       case 'focusSessions':
         return validateFocusSessionBackup(raw);
+      case 'focusSchedules':
+        return validateFocusScheduleBackup(raw);
       case 'postFocusReview':
         return validatePostFocusReviewBackup(raw);
       case 'reminderScheduling':
@@ -388,7 +398,7 @@ async function parseWire(
   }
   if (
     !isRecord(value) ||
-    value.schemaVersion !== 1 ||
+    (value.schemaVersion !== 1 && value.schemaVersion !== 2) ||
     !isRecord(value.manifest) ||
     !Array.isArray(value.manifest.stores) ||
     !Array.isArray(value.manifest.references) ||
@@ -418,9 +428,12 @@ async function parseWire(
     payloadIds.add(candidate.payloadId);
     stores.push(candidate as ManifestStore);
   }
+  const expectedStores = value.schemaVersion === 1
+    ? STORES.filter(store => store.alias !== 'focusSchedules')
+    : STORES;
   if (
-    stores.length !== STORES.length ||
-    STORES.some(store => !aliases.has(store.alias)) ||
+    stores.length !== expectedStores.length ||
+    expectedStores.some(store => !aliases.has(store.alias)) ||
     Object.keys(value.payloads).length !== payloadIds.size ||
     Object.keys(value.payloads).some(key => !payloadIds.has(key))
   ) {
@@ -622,7 +635,7 @@ export function createLocalBackupService(options: Readonly<{
     if (!Number.isFinite(createdAtMs)) return fail('LOCAL_BACKUP_CLOCK_INVALID');
     const createdAt = new Date(createdAtMs).toISOString();
     const unsigned = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       createdAt,
       applicationVersion: BACKUP_APPLICATION_VERSION,
       manifest: {
@@ -648,7 +661,7 @@ export function createLocalBackupService(options: Readonly<{
       preview: previewFor(stores, taskMetadata, {
         backupDate: createdAt,
         applicationVersion: BACKUP_APPLICATION_VERSION,
-        schemaVersion: 1,
+        schemaVersion: 2,
       }),
     };
   }

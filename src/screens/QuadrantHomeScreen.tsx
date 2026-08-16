@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import type {CoreAppService} from '../application/coreAppService';
+import type {FocusScheduleService} from '../application/focusScheduleService';
 import {postponeTaskTenMinutes} from '../application/reminderScheduling';
 import type {
   DayClosureService,
@@ -151,6 +152,12 @@ import {
   type FocusDurationRecommendation,
 } from '../domain/focusDurationRecommendation';
 import type {FocusSession} from '../domain/focusSession';
+import type {
+  FocusProtectionLevel,
+  FocusSchedule,
+  FocusScheduleDraft,
+  FocusScheduleOccurrence,
+} from '../domain/focusSchedule';
 import {
   compactTaskLabelConfig,
   getCompactTaskLabel,
@@ -158,9 +165,9 @@ import {
 import {
   formatAgendaTime,
   formatPageDate,
-  selectFocusAgenda,
+  selectFocusAgendaWithMeta,
   selectGrowthPageSummary,
-  selectTodayFocusAgenda,
+  type FocusAgendaItem,
 } from '../domain/pageExperience';
 
 type MainTab = 'quadrants' | 'focus' | 'growth' | 'mine';
@@ -170,6 +177,10 @@ type FocusContinuationContext = Readonly<{
   taskId: string;
   focusSessionId: string;
   plannedSessionId?: string;
+  scheduleId?: string;
+  scheduleDateKey?: string;
+  schedulePlannedStartAt?: string;
+  protectionLevel?: FocusProtectionLevel;
 }>;
 type TaskPanelLayer = 'action' | 'details' | 'reschedule' | 'stuck' | 'rescue' | 'more';
 
@@ -180,6 +191,7 @@ type QuadrantHomeScreenProps = Readonly<{
   dayClosure: DayClosureService;
   reviewHistory: FocusHistoryQuery;
   focusHistory?: Readonly<{listHistory(): Promise<readonly FocusSession[]>}>;
+  focusSchedules: FocusScheduleService;
   homeStartedAtMs: number;
   metricClock: ProductMetricClock;
   metricPort: ProductMetricPort;
@@ -253,6 +265,18 @@ type CompletionUndo = Readonly<{
 }>;
 
 type TaskWithProgress = Task & Readonly<{progress?: TaskProgress}>;
+
+type FocusScheduleTiming = 'today' | 'daily' | 'workdays' | 'custom';
+type FocusScheduleTargetChoice = 'current' | 'growth' | 'auto';
+type FocusScheduleEditorDraft = Readonly<{
+  timing: FocusScheduleTiming;
+  localTime: string;
+  weekdays: readonly number[];
+  durationMinutes: 5 | 15 | 25 | 50;
+  target: FocusScheduleTargetChoice;
+  taskId: string | null;
+  protectionLevel: FocusProtectionLevel;
+}>;
 
 function progressForTask(task: Task): TaskProgress {
   const persisted = (task as TaskWithProgress).progress;
@@ -811,6 +835,7 @@ function TaskEditor(props: Readonly<{
   onRescueDismiss(): void;
   onSave(intent?: 'explicit' | 'dismiss'): Promise<boolean>;
   onStart(): void;
+  onScheduleFocus(): void;
   onStopRepeat(): void;
   onStuckOpen(): void;
   onStuckRepair(submission: StuckRepairSubmission): void;
@@ -911,6 +936,7 @@ function TaskEditor(props: Readonly<{
             {props.mode === 'edit' && layer === 'action' ? (
               <>
                 <Action label="编辑更多" onPress={() => setLayer('details')} secondary />
+                <Action label="安排专注时段" onPress={props.onScheduleFocus} secondary />
                 <Action disabled={props.pending} label={`先做 ${props.defaultFocusMinutes} 分钟`} onPress={props.onStart} />
               </>
             ) : null}
@@ -1493,6 +1519,27 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     React.useState<FocusDurationRecommendation | null>(null);
   const [focusHistoryItems, setFocusHistoryItems] =
     React.useState<readonly FocusSession[]>([]);
+  const [focusSchedules, setFocusSchedules] = React.useState<readonly FocusSchedule[]>([]);
+  const [focusScheduleOccurrences, setFocusScheduleOccurrences] =
+    React.useState<readonly FocusScheduleOccurrence[]>([]);
+  const [focusScheduleEditorOpen, setFocusScheduleEditorOpen] = React.useState(false);
+  const [editingFocusScheduleId, setEditingFocusScheduleId] = React.useState<string | null>(null);
+  const [focusSchedulePending, setFocusSchedulePending] = React.useState(false);
+  const [focusScheduleError, setFocusScheduleError] = React.useState<string | null>(null);
+  const [focusScheduleDraft, setFocusScheduleDraft] = React.useState<FocusScheduleEditorDraft>({
+    timing: 'today',
+    localTime: '20:30',
+    weekdays: [1, 2, 3, 4, 5],
+    durationMinutes: 25,
+    target: 'growth',
+    taskId: null,
+    protectionLevel: 'REMINDER_ONLY',
+  });
+  const [focusReturnNotice, setFocusReturnNotice] = React.useState(false);
+  const [activeFocusProtection, setActiveFocusProtection] =
+    React.useState<FocusProtectionLevel>('REMINDER_ONLY');
+  const [focusExitSheetOpen, setFocusExitSheetOpen] = React.useState(false);
+  const [phoneExitConfirmOpen, setPhoneExitConfirmOpen] = React.useState(false);
   const [moreDurationsOpen, setMoreDurationsOpen] = React.useState(false);
   const [recentGrowthExpanded, setRecentGrowthExpanded] = React.useState(false);
   const [settingsSheet, setSettingsSheet] =
@@ -1532,6 +1579,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const hybridMoveNoticeSeenRef = React.useRef(new Set<string>());
   const focusContinuationRef = React.useRef<FocusContinuationContext | null>(null);
   const handledFocusSessionsRef = React.useRef(new Set<string>());
+  const focusBackgroundAtRef = React.useRef<number | null>(null);
+  const interruptionRecordedRef = React.useRef(new Set<string>());
+  const skipAdjustmentPromptedRef = React.useRef(new Set<string>());
 
   const recordMetric = React.useCallback((
     name: ProductEventName,
@@ -1617,10 +1667,55 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     const subscription = AppState.addEventListener('change', state => {
       if (state === 'active') {
         setPriorityNow(props.now());
+        const backgroundAt = focusBackgroundAtRef.current;
+        const sessionId = focus?.snapshot.activeSession?.id;
+        if (
+          backgroundAt !== null &&
+          sessionId !== undefined &&
+          activeFocusProtection === 'REDUCE_DISTRACTIONS' &&
+          Date.parse(props.now()) - backgroundAt >= 5_000
+        ) {
+          const key = `${sessionId}:${backgroundAt}`;
+          if (!interruptionRecordedRef.current.has(key)) {
+            interruptionRecordedRef.current.add(key);
+            setFocusReturnNotice(true);
+            const taskRef = focus?.snapshot.activeSession?.taskId;
+            recordMetric('focus_interruption', {
+              source: 'app_state',
+              ...(taskRef === undefined ? {} : {taskRef}),
+            });
+          }
+        }
+        focusBackgroundAtRef.current = null;
+      } else if (
+        focus?.snapshot.state === 'running' &&
+        activeFocusProtection === 'REDUCE_DISTRACTIONS' &&
+        focusBackgroundAtRef.current === null
+      ) {
+        focusBackgroundAtRef.current = Date.parse(props.now());
       }
     });
     return () => subscription.remove();
-  }, [props.now]);
+  }, [activeFocusProtection, focus?.snapshot.activeSession?.id, focus?.snapshot.activeSession?.taskId, focus?.snapshot.state, props.now, recordMetric]);
+
+  React.useEffect(() => {
+    const session = focus?.snapshot.activeSession;
+    if (
+      session === null || session === undefined ||
+      focus?.snapshot.state !== 'running' ||
+      activeFocusProtection !== 'REDUCE_DISTRACTIONS' ||
+      props.notifications?.startFocusOngoing === undefined
+    ) return;
+    void props.notifications.startFocusOngoing({
+      sessionId: session.id,
+      title: activeFocusTask?.title ?? '正在专注',
+      firstStep: activeFocusTask?.firstStep ?? '继续当前这一小步',
+      plannedEndAt: session.plannedEndAt,
+    }).catch(() => undefined);
+    return () => {
+      void props.notifications?.stopFocusOngoing?.(session.id).catch(() => undefined);
+    };
+  }, [activeFocusProtection, activeFocusTask?.firstStep, activeFocusTask?.title, focus?.snapshot.activeSession?.id, focus?.snapshot.state, props.notifications]);
 
   React.useEffect(() => {
     if (workspace?.snapshot.loaded === true) {
@@ -1637,6 +1732,19 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     ) return;
     handledFocusSessionsRef.current.add(context.focusSessionId);
     setPostFocusTaskId(context.taskId);
+    setActiveFocusProtection('REMINDER_ONLY');
+    setFocusReturnNotice(false);
+    if (
+      context.scheduleId !== undefined &&
+      context.scheduleDateKey !== undefined &&
+      context.schedulePlannedStartAt !== undefined
+    ) {
+      void props.focusSchedules.recordCompleted(
+        context.scheduleId,
+        context.scheduleDateKey,
+        context.schedulePlannedStartAt,
+      ).then(() => refreshFocusSchedules()).catch(() => undefined);
+    }
     if (context.plannedSessionId !== undefined && workspace !== null) {
       const task = workspace.snapshot.tasks.find(item => item.id === context.taskId);
       if (task !== undefined) {
@@ -1864,6 +1972,34 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     settings.preferredFocusMinutes,
     viewPreferenceLoaded,
   ]);
+
+  React.useEffect(() => {
+    let current = true;
+    void Promise.all([
+      props.focusSchedules.list(),
+      props.focusSchedules.today(priorityNow),
+    ]).then(([schedules, occurrences]) => {
+      if (!current) return;
+      setFocusSchedules(schedules);
+      setFocusScheduleOccurrences(occurrences);
+      void Promise.all(schedules.map(async schedule => ({
+        schedule,
+        count: await props.focusSchedules.consecutiveSkipCount(schedule.id),
+      }))).then(items => {
+        const candidate = items.find(item =>
+          item.count >= 3 && !skipAdjustmentPromptedRef.current.has(item.schedule.id),
+        );
+        if (!current || candidate === undefined) return;
+        skipAdjustmentPromptedRef.current.add(candidate.schedule.id);
+        setSystemNotice('这段专注最近连续跳过了 3 次。要不要打开它调整时间？');
+      }).catch(() => undefined);
+    }).catch(() => {
+      if (!current) return;
+      setFocusSchedules([]);
+      setFocusScheduleOccurrences([]);
+    });
+    return () => { current = false; };
+  }, [priorityNow, props.focusSchedules]);
 
   React.useEffect(() => {
     let current = true;
@@ -2156,6 +2292,38 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       } else {
         startFiveMinutes(target.task, 5, 'shortcut_start_five');
       }
+      return;
+    }
+
+    if (entry.kind === 'focus_ongoing_continue') {
+      setTab('focus');
+      return;
+    }
+    if (entry.kind === 'focus_ongoing_end') {
+      if (focus?.snapshot.activeSession?.id === entry.sessionId) {
+        interruptCurrentFocus('从常驻通知结束');
+      }
+      return;
+    }
+    if ('scheduleId' in entry) {
+      setTab('focus');
+      if (entry.kind === 'focus_schedule_open') return;
+      void props.focusSchedules.getOccurrence(entry.scheduleId, entry.localDateKey)
+        .then(occurrence => {
+          if (occurrence === null) {
+            setSystemNotice('这段专注已经处理或暂不可用。');
+            return;
+          }
+          if (entry.kind === 'focus_schedule_start_five') {
+            startFocusSchedule(occurrence, 5);
+          } else if (entry.kind === 'focus_schedule_start_planned') {
+            startFocusSchedule(occurrence);
+          } else if (entry.kind === 'focus_schedule_delay_ten') {
+            delayFocusSchedule(occurrence);
+          } else if (entry.kind === 'focus_schedule_skip') {
+            skipFocusSchedule(occurrence);
+          }
+        }).catch(() => setSystemNotice('提醒对应的专注时段不可用。'));
       return;
     }
 
@@ -2458,6 +2626,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     task: Task | null,
     plannedMinutes: 2 | 5 | 15 | 25 | 45 | 50 = 5,
     source = 'task_sheet',
+    scheduleOccurrence?: FocusScheduleOccurrence,
   ): void {
     if (task === null || focus === null || actionPending) {
       return;
@@ -2481,7 +2650,31 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         focusContinuationRef.current = {
           taskId: started.id,
           focusSessionId: focusSession.id,
+          ...(scheduleOccurrence === undefined ? {} : {
+            scheduleId: scheduleOccurrence.schedule.id,
+            scheduleDateKey: scheduleOccurrence.localDateKey,
+            schedulePlannedStartAt: scheduleOccurrence.plannedStartAt,
+            protectionLevel: scheduleOccurrence.schedule.protectionLevel,
+          }),
         };
+        if (scheduleOccurrence !== undefined) {
+          setActiveFocusProtection(scheduleOccurrence.schedule.protectionLevel);
+          void props.focusSchedules.recordStarted({
+            scheduleId: scheduleOccurrence.schedule.id,
+            localDateKey: scheduleOccurrence.localDateKey,
+            plannedStartAt: scheduleOccurrence.plannedStartAt,
+            resolvedTaskId: started.id,
+            focusSessionId: focusSession.id,
+          }).then(() => Promise.all([
+            props.focusSchedules.list(),
+            props.focusSchedules.today(props.now()),
+          ])).then(([schedules, occurrences]) => {
+            setFocusSchedules(schedules);
+            setFocusScheduleOccurrences(occurrences);
+          }).catch(() => undefined);
+        } else {
+          setActiveFocusProtection('REMINDER_ONLY');
+        }
         recordMetric('focus_started', {
           durationMs:
             currentSheetOpenedAtRef.current === null
@@ -2520,6 +2713,239 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         setActionError(userFacingError(reason, USER_COPY.taskStartFailed));
       })
       .finally(() => setActionPending(false));
+  }
+
+  function focusScheduleTask(schedule: FocusSchedule): Task | null {
+    const target = schedule.target;
+    if (target.kind === 'TASK') {
+      return activeTasks.find(task => task.id === target.taskId) ?? null;
+    }
+    if (target.kind === 'QUADRANT') {
+      return selectActionPointer(
+        activeTasks.filter(task => effectiveQuadrantForTask(task, priorityNow) === target.quadrant),
+        priorityNow,
+        0,
+      )?.task ?? null;
+    }
+    return homePrimaryTask ?? activeTasks[0] ?? null;
+  }
+
+  function defaultScheduleDuration(): 5 | 15 | 25 | 50 {
+    const supported = [25, 5, 15, 50] as const;
+    if (focusHistoryItems.length === 0) return 25;
+    const counts = new Map<number, number>();
+    focusHistoryItems.forEach(item => {
+      if (supported.includes(item.plannedMinutes as 5 | 15 | 25 | 50)) {
+        counts.set(item.plannedMinutes, (counts.get(item.plannedMinutes) ?? 0) + 1);
+      }
+    });
+    return supported.reduce((mostCommon, duration) =>
+      (counts.get(duration) ?? 0) > (counts.get(mostCommon) ?? 0)
+        ? duration
+        : mostCommon,
+    );
+  }
+
+  function openFocusScheduleEditor(task: Task | null = null): void {
+    setEditingFocusScheduleId(null);
+    setFocusScheduleError(null);
+    setFocusScheduleDraft({
+      timing: 'today',
+      localTime: '20:30',
+      weekdays: [1, 2, 3, 4, 5],
+      durationMinutes: defaultScheduleDuration(),
+      target: task === null ? 'growth' : 'current',
+      taskId: task?.id ?? null,
+      protectionLevel: 'REMINDER_ONLY',
+    });
+    setFocusScheduleEditorOpen(true);
+  }
+
+  function editFocusSchedule(schedule: FocusSchedule): void {
+    const recurrence = schedule.recurrence;
+    const timing: FocusScheduleTiming = recurrence.kind === 'ONCE'
+      ? 'today'
+      : recurrence.kind === 'DAILY'
+        ? 'daily'
+        : recurrence.weekdays.join(',') === '1,2,3,4,5' ? 'workdays' : 'custom';
+    setEditingFocusScheduleId(schedule.id);
+    setFocusScheduleError(null);
+    setFocusScheduleDraft({
+      timing,
+      localTime: recurrence.kind === 'ONCE'
+        ? formatAgendaTime(recurrence.startsAt)
+        : recurrence.localTime,
+      weekdays: recurrence.kind === 'WEEKLY' ? recurrence.weekdays : [1, 2, 3, 4, 5],
+      durationMinutes: schedule.durationMinutes === 5 || schedule.durationMinutes === 15 ||
+        schedule.durationMinutes === 25 || schedule.durationMinutes === 50
+        ? schedule.durationMinutes : 25,
+      target: schedule.target.kind === 'TASK' ? 'current' : schedule.target.kind === 'AUTO' ? 'auto' : 'growth',
+      taskId: schedule.target.kind === 'TASK' ? schedule.target.taskId : null,
+      protectionLevel: schedule.protectionLevel,
+    });
+    setFocusScheduleEditorOpen(true);
+  }
+
+  function focusScheduleDraftForSave(): FocusScheduleDraft {
+    const zone = props.currentTimeZone?.() ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+    const dateKey = priorityNow.slice(0, 10);
+    const startsAt = props.resolveLocalTrigger?.({
+      closureDayKey: dateKey,
+      wallClockTime: focusScheduleDraft.localTime,
+      timeZone: zone,
+      now: props.now(),
+    }) ?? new Date(`${dateKey}T${focusScheduleDraft.localTime}:00`).toISOString();
+    const recurrence = focusScheduleDraft.timing === 'today'
+      ? {kind: 'ONCE' as const, startsAt}
+      : focusScheduleDraft.timing === 'daily'
+        ? {kind: 'DAILY' as const, localTime: focusScheduleDraft.localTime, timezone: zone}
+        : {
+            kind: 'WEEKLY' as const,
+            weekdays: focusScheduleDraft.timing === 'workdays'
+              ? [1, 2, 3, 4, 5]
+              : focusScheduleDraft.weekdays,
+            localTime: focusScheduleDraft.localTime,
+            timezone: zone,
+          };
+    const taskId = focusScheduleDraft.taskId ?? quickFocusTask?.id ?? null;
+    return {
+      durationMinutes: focusScheduleDraft.durationMinutes,
+      recurrence,
+      protectionLevel: focusScheduleDraft.protectionLevel,
+      target: focusScheduleDraft.target === 'auto'
+        ? {kind: 'AUTO'}
+        : focusScheduleDraft.target === 'growth'
+          ? {kind: 'QUADRANT', quadrant: 'Q2'}
+          : taskId === null ? {kind: 'AUTO'} : {kind: 'TASK', taskId},
+    };
+  }
+
+  function refreshFocusSchedules(): Promise<void> {
+    return Promise.all([
+      props.focusSchedules.list(),
+      props.focusSchedules.today(props.now()),
+    ]).then(([schedules, occurrences]) => {
+      setFocusSchedules(schedules);
+      setFocusScheduleOccurrences(occurrences);
+    });
+  }
+
+  function saveFocusSchedule(): void {
+    if (focusSchedulePending) return;
+    setFocusSchedulePending(true);
+    setFocusScheduleError(null);
+    const requestPermission = props.notifications === undefined
+      ? Promise.resolve()
+      : props.notifications.getPermission().then(permission =>
+          permission === 'not_determined' ? props.notifications!.requestPermission().then(() => undefined) : undefined,
+        );
+    void requestPermission.then(() => {
+      const draftForSave = focusScheduleDraftForSave();
+      const target = draftForSave.target;
+      const resolvedTaskId = target.kind === 'TASK'
+        ? target.taskId
+        : target.kind === 'QUADRANT'
+          ? activeTasks.find(task => effectiveQuadrantForTask(task, priorityNow) === target.quadrant)?.id
+          : quickFocusTask?.id;
+      const resolved = activeTasks.find(task => task.id === resolvedTaskId);
+      const notificationTask = resolved === undefined ? undefined : {
+        taskId: resolved.id,
+        title: resolved.title,
+        firstStep: resolved.firstStep ?? '继续当前这一小步',
+      };
+      return editingFocusScheduleId === null
+        ? props.focusSchedules.create(draftForSave, notificationTask)
+        : props.focusSchedules.update(editingFocusScheduleId, draftForSave, notificationTask);
+    }).then(schedule => {
+      recordMetric('focus_schedule_saved', {source: editingFocusScheduleId === null ? 'create' : 'edit'});
+      setFocusScheduleEditorOpen(false);
+      setEditingFocusScheduleId(null);
+      return refreshFocusSchedules().then(() => schedule);
+    }).catch(reason => {
+      setFocusScheduleError(userFacingError(reason, '专注时段保存失败，输入已保留。'));
+    }).finally(() => setFocusSchedulePending(false));
+  }
+
+  function startFocusSchedule(occurrence: FocusScheduleOccurrence, minutes?: 5 | 15 | 25 | 50): void {
+    void props.focusSchedules.getStartedEvent(occurrence.schedule.id, occurrence.localDateKey)
+      .then(existing => {
+        if (existing !== null) {
+          setSystemNotice('这段专注已经开始过，没有创建重复计时。');
+          return;
+        }
+        const task = focusScheduleTask(occurrence.schedule);
+        if (task === null) {
+          setTab('focus');
+          setSystemNotice('这项任务已经完成。请换一项或停用这段专注。');
+          editFocusSchedule(occurrence.schedule);
+          return;
+        }
+        startFiveMinutes(
+          task,
+          minutes ?? occurrence.schedule.durationMinutes,
+          'focus_schedule',
+          occurrence,
+        );
+      }).catch(reason => setActionError(userFacingError(reason, '专注时段启动失败，请重试。')));
+  }
+
+  function skipFocusSchedule(occurrence: FocusScheduleOccurrence): void {
+    void props.focusSchedules.skip(
+      occurrence.schedule.id,
+      occurrence.localDateKey,
+      occurrence.plannedStartAt,
+    ).then(() => refreshFocusSchedules()).then(() => {
+      setSystemNotice('今天已跳过，不影响未来重复，也不会扣除成长值。');
+      recordMetric('focus_schedule_action', {source: 'skip'});
+    }).catch(reason => setActionError(userFacingError(reason, '跳过失败，请重试。')));
+  }
+
+  function delayFocusSchedule(occurrence: FocusScheduleOccurrence): void {
+    const rescheduledTo = new Date(Date.parse(props.now()) + 10 * 60_000).toISOString();
+    void props.focusSchedules.reschedule(
+      occurrence.schedule.id,
+      occurrence.localDateKey,
+      occurrence.plannedStartAt,
+      rescheduledTo,
+    ).then(() => refreshFocusSchedules()).then(() => {
+      setSystemNotice('已延后 10 分钟，任务截止时间没有改变。');
+      recordMetric('focus_schedule_action', {source: 'delay_ten'});
+    }).catch(reason => setActionError(userFacingError(reason, '延后失败，请重试。')));
+  }
+
+  function startAgendaItem(item: FocusAgendaItem): void {
+    if (item.source === 'FOCUS_SCHEDULE' && item.scheduleId !== undefined && item.localDateKey !== undefined) {
+      const occurrence = focusScheduleOccurrences.find(candidate =>
+        candidate.schedule.id === item.scheduleId && candidate.localDateKey === item.localDateKey,
+      );
+      if (occurrence !== undefined) startFocusSchedule(occurrence);
+      return;
+    }
+    const task = item.taskId === undefined
+      ? null
+      : activeTasks.find(candidate => candidate.id === item.taskId) ?? null;
+    if (task === null) return;
+    if (item.source === 'TASK_PLAN') {
+      const plannedId = item.id.replace(/^plan:/, '');
+      const planned = task.plannedWorkSessions?.find(candidate => candidate.id === plannedId);
+      if (planned !== undefined) {
+        void startPlannedWork(task, planned);
+        return;
+      }
+    }
+    startFiveMinutes(task, item.durationMinutes as 2 | 5 | 15 | 25 | 45 | 50, 'focus_agenda');
+  }
+
+  function openAgendaItem(item: FocusAgendaItem): void {
+    if (item.source === 'FOCUS_SCHEDULE' && item.scheduleId !== undefined) {
+      const schedule = focusSchedules.find(candidate => candidate.id === item.scheduleId);
+      if (schedule !== undefined) editFocusSchedule(schedule);
+      return;
+    }
+    if (item.taskId !== undefined) {
+      runtime.selectTask(item.taskId);
+      setProgressTaskId(item.taskId);
+    }
   }
 
   function startPlannedWork(
@@ -2564,13 +2990,28 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       .finally(() => setActionPending(false));
   }
 
-  function interruptCurrentFocus(): void {
+  function interruptCurrentFocus(reason = '用户中断专注'): void {
     if (focus === null) return;
     const context = focusContinuationRef.current;
-    void focus.interrupt().then(() => {
+    void focus.interrupt(reason).then(() => {
+      setFocusExitSheetOpen(false);
+      setPhoneExitConfirmOpen(false);
+      setFocusReturnNotice(false);
+      setActiveFocusProtection('REMINDER_ONLY');
       if (context === null) return;
       handledFocusSessionsRef.current.add(context.focusSessionId);
       setPostFocusTaskId(context.taskId);
+      if (
+        context.scheduleId !== undefined &&
+        context.scheduleDateKey !== undefined &&
+        context.schedulePlannedStartAt !== undefined
+      ) {
+        void props.focusSchedules.recordCompleted(
+          context.scheduleId,
+          context.scheduleDateKey,
+          context.schedulePlannedStartAt,
+        ).then(() => refreshFocusSchedules()).catch(() => undefined);
+      }
       if (context.plannedSessionId === undefined) return;
       const task = snapshot.tasks.find(item => item.id === context.taskId);
       if (task === undefined) return;
@@ -2610,6 +3051,27 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     };
     void runtime.updateTask(task.id, patch as never)
       .then(() => setPostFocusTaskId(null))
+      .catch(reason => setActionError(userFacingError(reason, '步骤记录失败，请重试。')));
+  }
+
+  function completeCurrentFocusStep(): void {
+    const task = activeFocusTask;
+    if (task === null) return;
+    const finish = (task.steps?.length ?? 0) === 0
+      ? runtime.completeFirstStep(task.id, null).then(() => undefined)
+      : (() => {
+          const next = completeActiveTaskStep(task, props.now());
+          const patch: P13TaskPatch = {
+            steps: next.steps ?? [],
+            firstStep: next.firstStep ?? null,
+            ...((next as Task & {progress?: TaskProgress}).progress === undefined
+              ? {}
+              : {progress: (next as Task & {progress: TaskProgress}).progress}),
+          };
+          return runtime.updateTask(task.id, patch as never).then(() => undefined);
+        })();
+    void finish
+      .then(() => interruptCurrentFocus('这一步完成了'))
       .catch(reason => setActionError(userFacingError(reason, '步骤记录失败，请重试。')));
   }
 
@@ -3370,10 +3832,25 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }
 
   const homePrimaryTask = primaryTaskFor(homePrimaryAction);
-  const focusAgenda = selectFocusAgenda(tasks);
-  const nextFocusAgenda = focusAgenda[0] ?? null;
-  const todayFocusAgenda = selectTodayFocusAgenda(tasks, priorityNow, 3);
-  const todayFocusAgendaCount = selectTodayFocusAgenda(tasks, priorityNow, 256).length;
+  const agendaSessions = focus?.snapshot.activeSession === null || focus?.snapshot.activeSession === undefined ||
+    focusHistoryItems.some(item => item.id === focus.snapshot.activeSession?.id)
+    ? focusHistoryItems
+    : [...focusHistoryItems, focus.snapshot.activeSession];
+  const focusAgendaMeta = selectFocusAgendaWithMeta({
+    tasks: activeTasks,
+    sessions: agendaSessions,
+    scheduleOccurrences: focusScheduleOccurrences,
+    now: priorityNow,
+  });
+  const focusAgenda = focusAgendaMeta.items;
+  const nextFocusAgenda = focusAgenda.find(item =>
+    item.source !== 'ACTIVE_FOCUS' && item.status !== 'DONE' && item.status !== 'SKIPPED',
+  ) ?? null;
+  const todayAgendaAll = focusAgenda.filter(item =>
+    item.plannedStartAt?.slice(0, 10) === priorityNow.slice(0, 10),
+  );
+  const todayFocusAgenda = todayAgendaAll.slice(0, 3);
+  const todayFocusAgendaCount = todayAgendaAll.length;
   const quickFocusTask = homePrimaryTask ?? tasks[0] ?? null;
   const hasStartedToday = focusHistoryItems.some(
     session => session.startedAt.slice(0, 10) === priorityNow.slice(0, 10),
@@ -3661,24 +4138,50 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         {tab === 'focus' ? (
           <View style={styles.tabPage}>
             <PageHeader dark={dark} title="专注" />
+            {focus?.snapshot.state === 'running' ? null : (
+              <View style={styles.pageHeaderAction}>
+                <Action compact label="安排一段专注" displayLabel="＋ 安排专注" onPress={() => openFocusScheduleEditor()} secondary />
+              </View>
+            )}
             {focus?.snapshot.state === 'running' ? (
               <View style={styles.focusHero}>
                 <Text style={styles.focusLabel}>正在专注</Text>
                 <Text style={styles.focusTask}>
                   {activeFocusTask?.title ?? '当前任务'}
                 </Text>
-                {activeFocusTask?.firstStep == null ? null : (
-                  <Text style={styles.focusStep}>第一小步：{activeFocusTask.firstStep}</Text>
-                )}
+                <Text style={styles.focusLabel}>现在先做</Text>
+                <Text style={styles.focusStep}>
+                  {activeFocusTask?.firstStep ?? '继续当前这一小步'}
+                </Text>
                 <Text accessibilityLabel="5分钟剩余时间" style={styles.timer}>
                   {formatRemaining(focus.snapshot.remainingMs)}
                 </Text>
+                {focusReturnNotice ? (
+                  <InlineNotice accessibilityLabel="返回专注提示" dark={dark}>
+                    <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                      刚才离开了一会儿，继续这一小步就可以。
+                    </Text>
+                    <Action compact label="继续当前专注" displayLabel="继续" onPress={() => setFocusReturnNotice(false)} secondary />
+                  </InlineNotice>
+                ) : null}
                 <Action
                   disabled={focus.lifecyclePending}
                   label="结束本次专注"
-                  onPress={interruptCurrentFocus}
+                  displayLabel="暂停"
+                  onPress={() => interruptCurrentFocus('暂停')}
                   secondary
                 />
+                <Action
+                  disabled={focus.lifecyclePending}
+                  label="这一步完成了"
+                  onPress={completeCurrentFocusStep}
+                />
+                <Pressable
+                  accessibilityLabel="需要提前结束"
+                  accessibilityRole="button"
+                  onPress={() => setFocusExitSheetOpen(true)}>
+                  <Text style={styles.textLink}>需要提前结束？</Text>
+                </Pressable>
               </View>
             ) : postFocusTask !== null ? (
               <View style={[styles.infoCard, dark && styles.surfaceDark]}>
@@ -3721,35 +4224,24 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <HeroPanel accessibilityLabel="下一段专注" dark={dark}>
                 <Text style={[styles.continuationKicker, dark && styles.textMutedDark]}>下一段专注</Text>
                 <Text style={[styles.infoTitle, dark && styles.textDark]}>
-                  {formatAgendaTime(nextFocusAgenda.session.plannedStartAt)} · {nextFocusAgenda.session.plannedMinutes} 分钟
+                  {formatAgendaTime(nextFocusAgenda.plannedStartAt ?? priorityNow)} · {nextFocusAgenda.durationMinutes} 分钟
                 </Text>
-                <Text style={[styles.continuationTitle, dark && styles.textDark]}>{nextFocusAgenda.task.title}</Text>
-                {nextFocusAgenda.task.firstStep == null ? null : (
+                <Text style={[styles.continuationTitle, dark && styles.textDark]}>{nextFocusAgenda.title}</Text>
+                {nextFocusAgenda.firstStep == null ? null : (
                   <Text style={[styles.firstStepText, dark && styles.textMutedDark]}>
-                    第一步：{nextFocusAgenda.task.firstStep}
+                    第一步：{nextFocusAgenda.firstStep}
                   </Text>
                 )}
-                <Action label="现在开始" onPress={() => startPlannedWork(nextFocusAgenda.task, nextFocusAgenda.session)} />
+                <Action label="现在开始" onPress={() => startAgendaItem(nextFocusAgenda)} />
                 <Action
                   label="重新安排"
-                  onPress={() => {
-                    runtime.selectTask(nextFocusAgenda.task.id);
-                    setProgressTaskId(nextFocusAgenda.task.id);
-                  }}
+                  onPress={() => openAgendaItem(nextFocusAgenda)}
                   secondary
                 />
               </HeroPanel>
             ) : (
               <EmptyState
-                action={<Action label="安排一段专注" onPress={() => {
-                  if (quickFocusTask === null) {
-                    selectTab('quadrants');
-                    openCreate(undefined, 'focus_empty');
-                    return;
-                  }
-                  runtime.selectTask(quickFocusTask.id);
-                  setProgressTaskId(quickFocusTask.id);
-                }} />}
+                action={<Action label="安排一段专注" onPress={() => openFocusScheduleEditor()} />}
                 dark={dark}
                 description="安排后，到时间会直接告诉你第一小步。"
                 title="给重要任务留一小段时间"
@@ -3785,23 +4277,29 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               </View>
             )}
 
+            {focus?.snapshot.state === 'running' ? null : (
+            <>
+            {focusAgendaMeta.mergedConflict ? (
+              <InlineNotice accessibilityLabel="专注安排已合并" dark={dark}>
+                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                  这段时间已有任务安排，已合并显示。
+                </Text>
+              </InlineNotice>
+            ) : null}
             <View style={styles.pageSection}>
               <SectionHeader dark={dark} title="今天" />
               {todayFocusAgenda.length === 0 ? (
                 <Text style={[styles.subtitle, dark && styles.textMutedDark]}>今天还没有已安排的专注。</Text>
               ) : todayFocusAgenda.map(item => (
                 <Pressable
-                  accessibilityLabel={`${formatAgendaTime(item.session.plannedStartAt)} ${item.task.title} ${item.session.plannedMinutes} 分钟`}
+                  accessibilityLabel={`${formatAgendaTime(item.plannedStartAt ?? priorityNow)} ${item.title} ${item.durationMinutes} 分钟`}
                   accessibilityRole="button"
-                  key={item.session.id}
-                  onPress={() => {
-                    runtime.selectTask(item.task.id);
-                    setProgressTaskId(item.task.id);
-                  }}
+                  key={item.id}
+                  onPress={() => openAgendaItem(item)}
                   style={styles.agendaRow}>
-                  <Text style={[styles.agendaTime, dark && styles.textDark]}>{formatAgendaTime(item.session.plannedStartAt)}</Text>
-                  <Text numberOfLines={1} style={[styles.agendaTitle, dark && styles.textDark]}>{item.task.title}</Text>
-                  <Text style={[styles.agendaMinutes, dark && styles.textMutedDark]}>{item.session.plannedMinutes} 分钟</Text>
+                  <Text style={[styles.agendaTime, dark && styles.textDark]}>{formatAgendaTime(item.plannedStartAt ?? priorityNow)}</Text>
+                  <Text numberOfLines={1} style={[styles.agendaTitle, dark && styles.textDark]}>{item.title}</Text>
+                  <Text style={[styles.agendaMinutes, dark && styles.textMutedDark]}>{item.status === 'SKIPPED' ? '已跳过' : item.status === 'DONE' ? '已完成' : `${item.durationMinutes} 分钟`}</Text>
                 </Pressable>
               ))}
               {todayFocusAgendaCount <= 3 ? null : (
@@ -3815,11 +4313,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <SettingsRow
                 dark={dark}
                 label="专注保护"
-                onPress={() => setSystemNotice('专注保护的详细设置将在下一阶段接入。')}
-                value="减少干扰 ›"
+                onPress={() => openFocusScheduleEditor()}
+                value="仅提醒 / 减少干扰 ›"
               />
               <SettingsRow dark={dark} label="最近专注" onPress={() => setHistoryOpen(true)} value="›" />
             </View>
+            </>
+            )}
           </View>
         ) : null}
 
@@ -4056,6 +4556,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       progressTask === null &&
       organizerMode === null &&
       !lowEnergySheetOpen &&
+      !focusScheduleEditorOpen &&
+      !focusExitSheetOpen &&
+      !phoneExitConfirmOpen &&
       settingsSheet === null &&
       focus?.snapshot.state !== 'running' ? (
       <View accessibilityLabel="底部导航" style={[styles.bottomNav, dark && styles.surfaceDark]}>
@@ -4124,6 +4627,14 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             selectedTask,
             commonFocusMinutes,
           )}
+          onScheduleFocus={() => {
+            const task = selectedTask;
+            setEditorMode(null);
+            if (task !== null) {
+              setTab('focus');
+              openFocusScheduleEditor(task);
+            }
+          }}
           onStopRepeat={stopSelectedRepeat}
           onStuckOpen={() => {
             recordMetric('stuck_flow_open', {
@@ -4210,6 +4721,208 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </Pressable>
         </View>
       )}
+
+      {focusScheduleEditorOpen ? (
+        <AppBottomSheet
+          dark={dark}
+          onDismissAttempt={() => {
+            if (focusSchedulePending) return false;
+            setFocusScheduleEditorOpen(false);
+            return true;
+          }}
+          reduceMotion={settings.reduceMotion}
+          subtitle="只保留开始需要的四项设置；重复时段不会复制任务。"
+          title={editingFocusScheduleId === null ? '安排一段专注' : '编辑专注时段'}>
+          <ScrollView contentContainerStyle={styles.focusScheduleEditor}>
+            <Text style={[styles.fieldLabel, dark && styles.textDark]}>什么时候？</Text>
+            <View style={styles.segmentedRow}>
+              {(['today', 'daily', 'workdays', 'custom'] as const).map(timing => (
+                <SegmentedButton
+                  key={timing}
+                  label={timing === 'today'
+                    ? `今天 ${focusScheduleDraft.localTime}`
+                    : timing === 'daily'
+                      ? `每天 ${focusScheduleDraft.localTime}`
+                      : timing === 'workdays'
+                        ? `工作日 ${focusScheduleDraft.localTime}`
+                        : '自定义'}
+                  onPress={() => setFocusScheduleDraft({...focusScheduleDraft, timing})}
+                  selected={focusScheduleDraft.timing === timing}
+                />
+              ))}
+            </View>
+            <TextInput
+              accessibilityLabel="专注开始时间"
+              maxLength={5}
+              onChangeText={localTime => setFocusScheduleDraft({...focusScheduleDraft, localTime})}
+              placeholder="20:30"
+              style={[styles.input, dark && styles.inputDark]}
+              value={focusScheduleDraft.localTime}
+            />
+            {focusScheduleDraft.timing !== 'custom' ? null : (
+              <View accessibilityLabel="自定义星期" style={styles.segmentedRow}>
+                {(['日', '一', '二', '三', '四', '五', '六'] as const).map((label, day) => (
+                  <SegmentedButton
+                    key={label}
+                    label={`周${label}`}
+                    onPress={() => setFocusScheduleDraft({
+                      ...focusScheduleDraft,
+                      weekdays: focusScheduleDraft.weekdays.includes(day)
+                        ? focusScheduleDraft.weekdays.filter(item => item !== day)
+                        : [...focusScheduleDraft.weekdays, day].sort(),
+                    })}
+                    selected={focusScheduleDraft.weekdays.includes(day)}
+                  />
+                ))}
+              </View>
+            )}
+
+            <Text style={[styles.fieldLabel, dark && styles.textDark]}>做多久？</Text>
+            <View style={styles.segmentedRow}>
+              {([5, 15, 25, 50] as const).map(durationMinutes => (
+                <SegmentedButton
+                  key={durationMinutes}
+                  label={`${durationMinutes} 分钟`}
+                  onPress={() => setFocusScheduleDraft({...focusScheduleDraft, durationMinutes})}
+                  selected={focusScheduleDraft.durationMinutes === durationMinutes}
+                />
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, dark && styles.textDark]}>做什么？</Text>
+            <View style={styles.segmentedRow}>
+              {([
+                ['current', '当前任务'],
+                ['growth', '成长区的一项任务'],
+                ['auto', '到时自动选择'],
+              ] as const).map(([target, label]) => (
+                <SegmentedButton
+                  key={target}
+                  label={label}
+                  onPress={() => setFocusScheduleDraft({
+                    ...focusScheduleDraft,
+                    target,
+                    taskId: target === 'current' ? focusScheduleDraft.taskId ?? quickFocusTask?.id ?? null : null,
+                  })}
+                  selected={focusScheduleDraft.target === target}
+                />
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, dark && styles.textDark]}>专注保护</Text>
+            <View style={styles.segmentedRow}>
+              <SegmentedButton
+                label="仅提醒"
+                onPress={() => setFocusScheduleDraft({...focusScheduleDraft, protectionLevel: 'REMINDER_ONLY'})}
+                selected={focusScheduleDraft.protectionLevel === 'REMINDER_ONLY'}
+              />
+              <SegmentedButton
+                label="减少干扰"
+                onPress={() => setFocusScheduleDraft({...focusScheduleDraft, protectionLevel: 'REDUCE_DISTRACTIONS'})}
+                selected={focusScheduleDraft.protectionLevel === 'REDUCE_DISTRACTIONS'}
+              />
+            </View>
+
+            {editingFocusScheduleId === null || focusScheduleDraft.target !== 'current' ||
+            activeTasks.some(task => task.id === focusScheduleDraft.taskId) ? null : (
+              <InlineNotice accessibilityLabel="专注时段任务不可用" dark={dark}>
+                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>这项任务已经完成。</Text>
+                <Action compact label="换一项" onPress={() => setFocusScheduleDraft({...focusScheduleDraft, target: 'growth', taskId: null})} secondary />
+                <Action compact label="停用这段专注" onPress={() => {
+                  if (editingFocusScheduleId === null) return;
+                  setFocusSchedulePending(true);
+                  void props.focusSchedules.setEnabled(editingFocusScheduleId, false)
+                    .then(() => refreshFocusSchedules())
+                    .then(() => setFocusScheduleEditorOpen(false))
+                    .catch(reason => setFocusScheduleError(userFacingError(reason, '停用失败，请重试。')))
+                    .finally(() => setFocusSchedulePending(false));
+                }} secondary />
+              </InlineNotice>
+            )}
+
+            {focusScheduleError === null ? null : (
+              <Text accessibilityLiveRegion="assertive" style={styles.error}>{focusScheduleError}</Text>
+            )}
+            <Action disabled={focusSchedulePending} label="保存专注时段" onPress={saveFocusSchedule} />
+            {editingFocusScheduleId === null ? null : (
+              <>
+                <Action
+                  disabled={focusSchedulePending}
+                  label={focusSchedules.find(item => item.id === editingFocusScheduleId)?.enabled === false
+                    ? '恢复这段专注' : '暂停这段专注'}
+                  onPress={() => {
+                    const schedule = focusSchedules.find(item => item.id === editingFocusScheduleId);
+                    if (schedule === undefined) return;
+                    setFocusSchedulePending(true);
+                    void props.focusSchedules.setEnabled(schedule.id, !schedule.enabled)
+                      .then(() => refreshFocusSchedules())
+                      .then(() => setFocusScheduleEditorOpen(false))
+                      .catch(reason => setFocusScheduleError(userFacingError(reason, '状态更新失败，请重试。')))
+                      .finally(() => setFocusSchedulePending(false));
+                  }}
+                  secondary
+                />
+                <Action
+                  disabled={focusSchedulePending}
+                  label="删除专注时段"
+                  onPress={() => {
+                    setFocusSchedulePending(true);
+                    void props.focusSchedules.remove(editingFocusScheduleId)
+                      .then(() => refreshFocusSchedules())
+                      .then(() => {
+                        setFocusScheduleEditorOpen(false);
+                        setSystemNotice('专注时段已删除，过去的专注记录仍然保留。');
+                      })
+                      .catch(reason => setFocusScheduleError(userFacingError(reason, '删除失败，请重试。')))
+                      .finally(() => setFocusSchedulePending(false));
+                  }}
+                  secondary
+                />
+              </>
+            )}
+          </ScrollView>
+        </AppBottomSheet>
+      ) : null}
+
+      {focusExitSheetOpen ? (
+        <AppBottomSheet
+          dark={dark}
+          onDismissAttempt={() => {
+            setFocusExitSheetOpen(false);
+            return true;
+          }}
+          reduceMotion={settings.reduceMotion}
+          title="需要提前结束？">
+          <View style={styles.sheetActions}>
+            {(['临时有事', '现在太累', '任务比预想更难', '被其他事情打断'] as const).map(reason => (
+              <Action key={reason} label={reason} onPress={() => interruptCurrentFocus(reason)} secondary />
+            ))}
+            <Action label="只是想刷手机" onPress={() => {
+              setFocusExitSheetOpen(false);
+              setPhoneExitConfirmOpen(true);
+            }} secondary />
+          </View>
+        </AppBottomSheet>
+      ) : null}
+
+      {phoneExitConfirmOpen ? (
+        <AppBottomSheet
+          dark={dark}
+          onDismissAttempt={() => {
+            setPhoneExitConfirmOpen(false);
+            return true;
+          }}
+          reduceMotion={settings.reduceMotion}
+          title="要不要再坚持 2 分钟后再决定？">
+          <View style={styles.sheetActions}>
+            <Action label="再做 2 分钟" onPress={() => {
+              setPhoneExitConfirmOpen(false);
+              setFocusReturnNotice(false);
+            }} />
+            <Action label="现在结束" onPress={() => interruptCurrentFocus('只是想刷手机')} secondary />
+          </View>
+        </AppBottomSheet>
+      ) : null}
 
       {lowEnergySheetOpen ? (
         <AppBottomSheet
@@ -4298,7 +5011,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </View>
           <View style={styles.rewardCopy}>
             <Text style={styles.rewardKicker}>{reward.kicker}</Text>
-            <Text numberOfLines={1} style={[styles.rewardTitle, dark && styles.textDark]}>任务：{reward.taskTitle}</Text>
+            <Text numberOfLines={1} style={[styles.rewardTitle, dark && styles.textDark]}>
+              {`任务：${reward.taskTitle}`}
+            </Text>
             <Text style={[styles.rewardReason, dark && styles.textMutedDark]}>{reward.reason}</Text>
             <Text style={styles.rewardProgress}>当前累计 {reward.totalScore} 成长值</Text>
           </View>
@@ -4454,7 +5169,9 @@ const styles = StyleSheet.create({
   navText: {color: '#71817D', fontSize: 14, fontWeight: '800'},
   navTextSelected: {color: '#1F7466'},
   tabPage: {gap: 16},
+  pageHeaderAction: {alignItems: 'flex-end', marginTop: -10},
   pageSection: {gap: 10},
+  focusScheduleEditor: {gap: 14, paddingBottom: 28},
   durationGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
   textLink: {color: APP_PAGE_TOKENS.light.primary, fontSize: 14, fontWeight: '900', paddingVertical: 6},
   agendaRow: {minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopColor: APP_PAGE_TOKENS.light.border, borderTopWidth: StyleSheet.hairlineWidth},

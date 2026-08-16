@@ -37,7 +37,7 @@ export type AppFocusSessionRuntime = Readonly<{
   retryRestore(): void;
   retryFinish(): void;
   start(taskId: string, plannedMinutes?: FocusDurationMinutes): Promise<FocusSession>;
-  interrupt(): Promise<FocusSession>;
+  interrupt(reason?: string): Promise<FocusSession>;
 }>;
 
 type FocusSessionRuntimeProviderProps = Readonly<{
@@ -349,7 +349,7 @@ export function FocusSessionRuntimeProvider({
       startInFlightRef.current = pending;
       return pending;
     },
-    interrupt() {
+    interrupt(reason = '用户中断专注') {
       const active = snapshotRef.current.activeSession;
       if (active === null) {
         return Promise.reject(new Error('FOCUS_SESSION_NOT_FOUND'));
@@ -358,7 +358,7 @@ export function FocusSessionRuntimeProvider({
         return Promise.reject(new Error('FOCUS_SESSION_LIFECYCLE_PENDING'));
       }
       const pending = service
-        .interrupt(active.id, '用户中断专注')
+        .interrupt(active.id, reason)
         .then(async interrupted => {
           await reviewService.captureEndedSession(interrupted);
           if (mountedRef.current) {

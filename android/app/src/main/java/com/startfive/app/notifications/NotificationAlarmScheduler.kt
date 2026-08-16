@@ -20,6 +20,12 @@ internal object NotificationAlarmScheduler {
       putExtra(NotificationContract.EXTRA_TASK_ID, intent.taskId)
       putExtra(NotificationContract.EXTRA_RULE_ID, intent.ruleId)
       putExtra(NotificationContract.EXTRA_REMINDER_KIND, intent.kind)
+      intent.notificationTitle?.let {
+        putExtra(NotificationContract.EXTRA_NOTIFICATION_TITLE, it)
+      }
+      intent.notificationBody?.let {
+        putExtra(NotificationContract.EXTRA_NOTIFICATION_BODY, it)
+      }
     }
     val pendingIntent = PendingIntent.getBroadcast(
       context,

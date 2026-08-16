@@ -44,6 +44,8 @@ export type ReminderIntent = Readonly<{
   ruleId: string;
   kind: ReminderKind;
   triggerAt: string;
+  notificationTitle?: string;
+  notificationBody?: string;
 }>;
 
 export type ReminderPlanningInput = Readonly<{

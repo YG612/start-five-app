@@ -6,6 +6,10 @@ import {
   type NetworkAdapter,
 } from '../application/coreAppService';
 import {createFocusSessionService} from '../application/focusSessionService';
+import {
+  createFocusScheduleService,
+  type FocusScheduleService,
+} from '../application/focusScheduleService';
 import {createDayClosureService} from '../application/dayClosureService';
 import {
   createPostFocusReviewService,
@@ -22,6 +26,7 @@ import {
 } from '../domain/taskSupport';
 import {isTaskInQuadrants} from '../domain/taskOrganization';
 import {createFocusSessionRepository} from '../data/focusSessionRepository';
+import {createFocusScheduleRepository} from '../data/focusScheduleRepository';
 import {createDayClosureRepository} from '../data/dayClosureRepository';
 import {createPostFocusReviewRepository} from '../data/postFocusReviewRepository';
 import {createPersistentFocusSessionStorage} from '../data/persistentFocusSessionStorage';
@@ -100,6 +105,7 @@ export type StartFiveAppComposition = {
     listReceiptHistory(): Promise<ReceiptHistorySnapshot>;
   }>;
   localBackup: LocalBackupService;
+  focusSchedules: FocusScheduleService;
   AppRoot: React.ComponentType;
 };
 
@@ -259,6 +265,35 @@ export function createStartFiveApp(
       idGenerator: dependencies.idGenerator,
     });
   const focusService = createFocusService(createFocusBackend(() => true));
+  const focusScheduleTimeZone = () =>
+    dependencies.currentTimeZone?.() ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone ??
+    'UTC';
+  const resolveFocusScheduleTrigger = (input: Readonly<{
+    localDateKey: string;
+    localTime: string;
+    timeZone: string;
+  }>): string => {
+    if (dependencies.resolveLocalTrigger !== undefined) {
+      return dependencies.resolveLocalTrigger({
+        closureDayKey: input.localDateKey,
+        wallClockTime: input.localTime,
+        timeZone: input.timeZone,
+        now: dependencies.now(),
+      });
+    }
+    return new Date(`${input.localDateKey}T${input.localTime}:00`).toISOString();
+  };
+  const focusSchedules = createFocusScheduleService({
+    repository: createFocusScheduleRepository(coordinatedBackend),
+    now: dependencies.now,
+    idGenerator: dependencies.idGenerator,
+    currentTimeZone: focusScheduleTimeZone,
+    resolveLocalTrigger: resolveFocusScheduleTrigger,
+    ...(dependencies.tomorrowFirstNotifications === undefined
+      ? {}
+      : {notifications: dependencies.tomorrowFirstNotifications}),
+  });
   const firstActivationService = createFirstActivationService({
     repository: createFirstActivationRepository(coordinatedBackend),
     tasks: taskLifecycle,
@@ -306,6 +341,18 @@ export function createStartFiveApp(
     async reconcileNotifications() {
       if (tomorrowFirstReminder !== undefined) {
         await tomorrowFirstReminder.reconcile(await dayClosureService.load());
+      }
+      const taskSnapshot = await service.getState();
+      for (const schedule of await focusSchedules.list()) {
+        const target = schedule.target;
+        const task = target.kind === 'TASK'
+          ? taskSnapshot.tasks.find(candidate => candidate.id === target.taskId)
+          : undefined;
+        await focusSchedules.reconcile(schedule, task === undefined ? undefined : {
+          taskId: task.id,
+          title: task.title,
+          firstStep: task.firstStep ?? '继续当前这一小步',
+        });
       }
     },
     now: dependencies.now,
@@ -419,6 +466,7 @@ export function createStartFiveApp(
         metricPort={productMetricPort}
         metricSessionId={productMetricSessionId}
         focusHistory={focusService}
+        focusSchedules={focusSchedules}
         now={dependencies.now}
         preferences={quadrantHomePreferences}
         {...(dependencies.currentTimeZone === undefined
@@ -446,5 +494,5 @@ export function createStartFiveApp(
     );
   }
 
-  return {repository, service, reviewHistory, localBackup, AppRoot};
+  return {repository, service, reviewHistory, localBackup, focusSchedules, AppRoot};
 }

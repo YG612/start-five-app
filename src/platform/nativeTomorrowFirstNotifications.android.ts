@@ -18,6 +18,8 @@ type StartFiveNotificationsNativeModule = Readonly<{
     next: ReminderScheduleSnapshot,
   ): Promise<void>;
   getInitialTap(): Promise<TomorrowFirstTap | null>;
+  startFocusOngoing?(sessionId: string, title: string, firstStep: string, quietUntilEpochMs: number): Promise<void>;
+  stopFocusOngoing?(sessionId: string): Promise<void>;
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }>;
@@ -43,6 +45,13 @@ export function createNativeTomorrowFirstNotifications(): TomorrowFirstNotificat
     replace: ({previous, next}: ReminderReplaceRequest) =>
       module.replace(previous, next),
     getInitialTap: () => module.getInitialTap(),
+    ...(module.startFocusOngoing === undefined ? {} : {
+      startFocusOngoing: (input: Readonly<{sessionId: string; title: string; firstStep: string; plannedEndAt: string}>) =>
+        module.startFocusOngoing!(input.sessionId, input.title, input.firstStep, Date.parse(input.plannedEndAt)),
+    }),
+    ...(module.stopFocusOngoing === undefined ? {} : {
+      stopFocusOngoing: (sessionId: string) => module.stopFocusOngoing!(sessionId),
+    }),
     subscribeTap(listener) {
       const subscription = emitter.addListener(
         'startFiveNotificationTap',
