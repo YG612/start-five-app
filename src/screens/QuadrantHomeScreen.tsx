@@ -1554,6 +1554,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     tipsSeen: false,
     lowEnergyMode: DEFAULT_LOW_ENERGY_MODE,
     insightDismissal: null,
+    insightDismissals: [],
     viewModeManuallySelected: false,
     screenReaderListApplied: false,
     preferredFocusMinutes: 5,
@@ -2638,7 +2639,11 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     );
     void runtime
       .startSelectedTask(task.id)
-      .then(started => focus.start(started.id, plannedMinutes).then(focusSession => ({
+      .then(started => focus.start(
+        started.id,
+        plannedMinutes,
+        scheduleOccurrence?.schedule.id,
+      ).then(focusSession => ({
         started,
         focusSession,
         firstStartRewarded:
@@ -3704,8 +3709,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const latestGrowthRewards = recentGrowthRewards(snapshot.tasks, 5);
   const growthInsight = selectGrowthInsight({
     tasks: snapshot.tasks,
+    sessions: focusHistoryItems,
     now: priorityNow,
     dismissal: settings.insightDismissal,
+    ...(settings.insightDismissals === undefined
+      ? {}
+      : {dismissals: settings.insightDismissals}),
+    timeZone: props.currentTimeZone?.() ?? 'UTC',
   });
 
   function selectViewMode(mode: ViewMode): void {
@@ -3746,6 +3756,20 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }
 
   function performGrowthInsight(insight: GrowthInsight): void {
+    if (insight.action.kind === 'create_focus_schedule') {
+      const task = activeTasks.find(candidate => candidate.id === insight.action.taskId) ?? null;
+      if (task === null) return;
+      setTab('focus');
+      openFocusScheduleEditor(task);
+      setFocusScheduleDraft(current => ({
+        ...current,
+        localTime: insight.action.kind === 'create_focus_schedule'
+          ? insight.action.suggestedLocalTime
+          : current.localTime,
+        durationMinutes: 25,
+      }));
+      return;
+    }
     setTab('quadrants');
     openTask(
       insight.action.taskId,
@@ -3755,8 +3779,15 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }
 
   function dismissGrowthInsight(insight: GrowthInsight): void {
+    const dismissedAt = props.now();
+    const insightDismissal = {id: insight.id, dismissedAt};
+    const insightDismissals = [
+      ...(settings.insightDismissals ?? []).filter(item => item.id !== insight.id),
+      insightDismissal,
+    ].slice(-32);
     updateSettings({
-      insightDismissal: {id: insight.id, dismissedAt: props.now()},
+      insightDismissal,
+      insightDismissals,
     });
   }
 
@@ -3859,6 +3890,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     tasks: snapshot.tasks,
     sessions: focusHistoryItems,
     now: priorityNow,
+    timeZone: props.currentTimeZone?.() ?? 'UTC',
   });
 
   return (
@@ -4328,11 +4360,21 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
             <PageHeader dark={dark} title="成长" />
             <HeroPanel accessibilityLabel="成长状态" dark={dark} style={styles.growthHero}>
               <GrowthPlant progress={growth} />
-              <Text style={styles.growthLevel}>{growth.stage.title}</Text>
-              <Text style={[styles.growthScoreWithUnit, dark && styles.textDark]}>
-                当前 {snapshot.growthScore} 成长值
+              <Text style={styles.growthLevel}>
+                {growth.score === 0
+                  ? '小种子'
+                  : growth.stage.id === 'two_leaves'
+                    ? '长出新叶了'
+                    : growth.stage.title}
               </Text>
-              <Text style={[styles.subtitle, dark && styles.textMutedDark]}>{growth.stage.description}</Text>
+              <Text style={[styles.growthScoreWithUnit, dark && styles.textDark]}>
+                {growth.score === 0 ? '等待第一次有效专注' : `当前 ${snapshot.growthScore} 成长值`}
+              </Text>
+              <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                {growth.score === 0
+                  ? '完成第一次有效专注，它就会开始发芽。'
+                  : growth.stage.description}
+              </Text>
               <View style={styles.progressTrackLarge}>
                 <View style={[styles.progressFill, {width: `${growth.progressRatio * 100}%`}]} />
               </View>
@@ -4341,6 +4383,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   ? '当前成长阶段已完整展开'
                   : `距离${growth.nextStage.title}还差 ${growth.pointsToNext} 成长值`}
               </Text>
+              {growth.score !== 0 ? null : (
+                <Action label="选一项先做 5 分钟" onPress={() => setTab('quadrants')} />
+              )}
             </HeroPanel>
 
             <View style={styles.pageSection}>
@@ -4351,6 +4396,21 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 ))}
               </View>
             </View>
+
+            <InlineNotice accessibilityLabel="连续主动开始" dark={dark}>
+              <Text style={[styles.infoTitle, dark && styles.textDark]}>
+                {growthPageSummary.streak.currentDays > 0
+                  ? `连续主动开始 ${growthPageSummary.streak.currentDays} 天`
+                  : growthPageSummary.streak.previousBestDays > 0
+                    ? `上次连续 ${growthPageSummary.streak.previousBestDays} 天`
+                    : '从一次主动开始建立连续记录'}
+              </Text>
+              <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                {growthPageSummary.streak.currentDays > 0
+                  ? `这周已有 ${growthPageSummary.streak.activeDaysThisWeek} 天主动开始。`
+                  : '今天重新开始也算前进，不需要完成全部任务。'}
+              </Text>
+            </InlineNotice>
 
             <View style={styles.pageSection}>
               <SectionHeader dark={dark} title="本周变好" />
@@ -4380,10 +4440,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   <Text key={rewardItem.businessKey} style={[styles.subtitle, dark && styles.textMutedDark]}>
                     +{rewardItem.points} · {rewardItem.taskTitle} · {
                       rewardItem.kind === 'task_first_start'
-                        ? '第一次开始'
+                        ? '第一次开始这项任务'
                         : rewardItem.kind === 'task_first_step'
-                          ? '第一小步'
-                          : '完成任务'
+                          ? '完成第一小步'
+                          : '完成一项真实任务'
                     }
                   </Text>
                 ))}
@@ -4392,6 +4452,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               )}
             </View>
 
+            {growthInsight === null && focusDurationRecommendation === null ? null : (
             <View accessibilityLabel="给你的一个建议" style={[styles.infoCard, dark && styles.surfaceDark]}>
               <Text style={[styles.infoTitle, dark && styles.textDark]}>给你的一个建议</Text>
               {growthInsight !== null ? (
@@ -4400,7 +4461,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   <Text style={[styles.subtitle, dark && styles.textMutedDark]}>{growthInsight.description}</Text>
                   <View style={styles.segmentedRow}>
                     <Action label={growthInsight.actionLabel} onPress={() => performGrowthInsight(growthInsight)} />
-                    <Action label="7 天内不再提示" onPress={() => dismissGrowthInsight(growthInsight)} secondary />
+                    <Action label="30 天内不再提示" onPress={() => dismissGrowthInsight(growthInsight)} secondary />
                   </View>
                 </>
               ) : focusDurationRecommendation !== null ? (
@@ -4413,12 +4474,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                     <Action label="暂时不用" onPress={dismissFocusDurationRecommendation} secondary />
                   </View>
                 </>
-              ) : (
-                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                  本地样本还不够，暂时不做结论。
-                </Text>
-              )}
+              ) : null}
             </View>
+            )}
           </View>
         ) : null}
 
@@ -5007,7 +5065,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           pointerEvents="box-none"
           style={[styles.rewardOverlay, dark && styles.surfaceDark]}>
           <View style={styles.rewardScoreBadge}>
-            <Text style={styles.rewardPoints}>+{reward.points}</Text>
+            <Text style={styles.rewardPoints}>+{reward.points} 成长值</Text>
           </View>
           <View style={styles.rewardCopy}>
             <Text style={styles.rewardKicker}>{reward.kicker}</Text>

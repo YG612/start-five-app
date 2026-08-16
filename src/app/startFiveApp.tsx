@@ -25,6 +25,11 @@ import {
   nextStartAtForTask,
 } from '../domain/taskSupport';
 import {isTaskInQuadrants} from '../domain/taskOrganization';
+import {
+  effectiveQuadrantForTask,
+  effectiveUrgencyForTask,
+  priorityCoordinatesForTask,
+} from '../domain/taskPriority';
 import {createFocusSessionRepository} from '../data/focusSessionRepository';
 import {createFocusScheduleRepository} from '../data/focusScheduleRepository';
 import {createDayClosureRepository} from '../data/dayClosureRepository';
@@ -263,6 +268,23 @@ export function createStartFiveApp(
       ),
       now: focusNow,
       idGenerator: dependencies.idGenerator,
+      async resolveContextSnapshot(taskId, startedAt, focusScheduleId) {
+        const task = await repository.getById(taskId);
+        if (task === null) return null;
+        const coordinates = priorityCoordinatesForTask(task);
+        const firstStepId = task.steps
+          ?.filter(step => step.status === 'ACTIVE' || step.status === 'PENDING')
+          .sort((left, right) => left.order - right.order)[0]?.id;
+        return {
+          taskId,
+          quadrantAtStart: effectiveQuadrantForTask(task, startedAt),
+          importanceScoreAtStart: coordinates.importanceScore,
+          effectiveUrgencyAtStart: effectiveUrgencyForTask(task, startedAt),
+          ...(task.dueAt === null ? {} : {dueAtAtStart: task.dueAt}),
+          ...(firstStepId === undefined ? {} : {firstStepIdAtStart: firstStepId}),
+          ...(focusScheduleId === undefined ? {} : {focusScheduleId}),
+        };
+      },
     });
   const focusService = createFocusService(createFocusBackend(() => true));
   const focusScheduleTimeZone = () =>

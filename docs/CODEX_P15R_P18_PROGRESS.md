@@ -45,7 +45,15 @@
 | P16-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 专注后四种下一步选择保留并接入日程结算 |
 | P16 SOURCE_GATE | DONE | `tests/p16-focus-schedules`、`tests/p14-reliability-accessibility/p14Reliability.test.ts` | P16 定点、P0–P16 合并回归、TypeScript、Android lint/build 通过 |
 | P16 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；Android DEVICE / UTEST 未执行 |
-| P17 | NOT_STARTED | — | 尚未开始 |
+| P17-00 | DONE | `src/domain/semanticGrowth.ts`、`src/domain/pageExperience.ts` | 指标真实性与旧数据质量分级完成 |
+| P17-01 | DONE | `src/domain/focusSession.ts`、`src/application/focusSessionService.ts`、`src/data/focusSessionRepository.ts`、`src/app/startFiveApp.tsx` | 开始时任务语义快照、存储 v2、v1 读取与备份恢复完成 |
+| P17-02 | DONE | `src/domain/semanticGrowth.ts`、`src/domain/pageExperience.ts` | 两分钟边界、首次去重、本地日/周、成长区与修复恢复聚合完成 |
+| P17-03 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/growth.ts` | 语义化成长 Hero、单位、真实行动入口完成 |
+| P17-04 | DONE | `src/domain/semanticGrowth.ts`、`src/screens/QuadrantHomeScreen.tsx` | 连续主动开始、本周天数与温和中断表达完成 |
+| P17-05 | DONE | `src/domain/growthInsights.ts`、`src/data/quadrantHomePreferences.ts`、`src/screens/QuadrantHomeScreen.tsx` | 单条可执行建议、样本门槛、真实日程动作与 30 天多建议冷却完成 |
+| P17-06 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/screens/CoreFlowScreen.tsx` | 用户端奖励文案统一为成长值，既有奖励幂等保留 |
+| P17 SOURCE_GATE | DONE | `tests/p17-semantic-growth` | P17 定点、P0–P17 合并回归、TypeScript、Android lint/build 通过 |
+| P17 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | Android DEVICE / UTEST 与 iOS 未执行 |
 | P18 | NOT_STARTED | — | 尚未开始 |
 
 ## 数据变化
@@ -54,6 +62,8 @@
 - 专注日程存储：`start-five.focus-schedules.v2`，envelope schema `start-five.focus-schedules` / version `2`；单条坏日程或事件隔离。
 - 备份版本：schemaVersion `2`，新增 `focusSchedules` store；schemaVersion `1` 解析兼容保留。
 - 日程事件幂等键：`focus-schedule-event:${scheduleId}:${localDateKey}:${type}`；启动键：`focus-schedule-start:${scheduleId}:${localDateKey}`。
+- 专注会话存储：key 保持 `start-five.focus-sessions.v1`；envelope version `2`，新增可选 `FocusContextSnapshot`；version `1` 读取与备份恢复兼容保留。
+- 象限首页偏好：version `6`，新增最多 32 条建议关闭记录；version `1`–`5` 读取迁移保留。
 - 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
 - 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
 - P15 页面体验：复用现有任务、计划、专注历史、成长与设置数据；无新增持久化字段、迁移或 schema 版本。
@@ -67,6 +77,8 @@
 - 当前合并回归：44 suites、260/260 tests PASS。
 - P16 定点：4 suites、12/12 tests PASS。
 - P0–P16 当前合并回归：48 suites、272/272 tests PASS。
+- P17 定点：3 suites、11/11 tests PASS。
+- P0–P17 当前合并回归：51 suites、283/283 tests PASS。
 - TypeScript：`tsc --noEmit` PASS。
 - Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
 - Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
@@ -77,8 +89,8 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,169,663` bytes
-- SHA-256：`7285c281533c58c6947b51bc85f242decdce301b2a028ea9497e64c6303c6365`
+- size：`20,182,091` bytes
+- SHA-256：`71d83b3272fb714509ba840406a5d8751253520c9de239781d2b83e06226417d`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`

@@ -42,7 +42,8 @@ describe('P15 four-page architecture', () => {
       expect(screen.queryByRole('button', {name: '先做 50 分钟'})).toBeNull();
 
       await fireEvent.press(screen.getByRole('tab', {name: '成长'}));
-      expect(screen.getByText('当前 0 成长值')).toBeTruthy();
+      expect(screen.getByText('小种子')).toBeTruthy();
+      expect(screen.getByText('完成第一次有效专注，它就会开始发芽。')).toBeTruthy();
       expect(screen.getByText('再使用几天，我们会在这里显示你的变化。')).toBeTruthy();
       expect(screen.getByRole('button', {name: '最近成长'})).toBeTruthy();
 

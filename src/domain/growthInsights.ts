@@ -1,8 +1,9 @@
 import type {Task} from './task';
+import type {FocusSession} from './focusSession';
 import {growthRewardsForTask} from './growth';
 import {effectiveQuadrantForTask, type TaskWithPriority} from './taskPriority';
 
-export const INSIGHT_COOLDOWN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
+export const INSIGHT_COOLDOWN_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
 
 export type GrowthInsight = Readonly<{
   id: string;
@@ -11,7 +12,12 @@ export type GrowthInsight = Readonly<{
   actionLabel: string;
   action:
     | Readonly<{kind: 'reschedule_task'; taskId: string}>
-    | Readonly<{kind: 'edit_first_step'; taskId: string}>;
+    | Readonly<{kind: 'edit_first_step'; taskId: string}>
+    | Readonly<{
+        kind: 'create_focus_schedule';
+        taskId: string;
+        suggestedLocalTime: string;
+      }>;
 }>;
 
 export type InsightDismissal = Readonly<{
@@ -21,12 +27,14 @@ export type InsightDismissal = Readonly<{
 
 function dismissalActive(
   insightId: string,
-  dismissal: InsightDismissal | null,
+  dismissals: readonly InsightDismissal[],
   nowInput: string,
 ): boolean {
-  if (dismissal === null || dismissal.id !== insightId) return false;
-  const remaining = Date.parse(nowInput) - Date.parse(dismissal.dismissedAt);
-  return Number.isFinite(remaining) && remaining >= 0 && remaining < INSIGHT_COOLDOWN_MILLISECONDS;
+  return dismissals.some(dismissal => {
+    if (dismissal.id !== insightId) return false;
+    const remaining = Date.parse(nowInput) - Date.parse(dismissal.dismissedAt);
+    return Number.isFinite(remaining) && remaining >= 0 && remaining < INSIGHT_COOLDOWN_MILLISECONDS;
+  });
 }
 
 function isActiveTask(task: Task): boolean {
@@ -62,6 +70,87 @@ function lateGrowthStartInsight(
   };
 }
 
+function localHour(timestamp: string, timeZone: string): number {
+  try {
+    const hour = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(timestamp))
+      .find(part => part.type === 'hour')?.value;
+    return hour === undefined ? -1 : Number(hour);
+  } catch {
+    return new Date(timestamp).getUTCHours();
+  }
+}
+
+function exactLateStartInsight(input: Readonly<{
+  tasks: readonly Task[];
+  sessions: readonly FocusSession[];
+  now: string;
+  timeZone: string;
+}>): GrowthInsight | null {
+  const since = Date.parse(input.now) - INSIGHT_COOLDOWN_MILLISECONDS;
+  const taskById = new Map(input.tasks.map(task => [task.id, task]));
+  const lateByTask = new Map<string, number>();
+  for (const session of input.sessions) {
+    if (
+      (session.actualSeconds ?? 0) < 120 ||
+      session.snapshot?.quadrantAtStart !== 'Q2' ||
+      Date.parse(session.startedAt) < since ||
+      Date.parse(session.startedAt) > Date.parse(input.now) ||
+      localHour(session.startedAt, input.timeZone) < 22
+    ) continue;
+    lateByTask.set(session.taskId, (lateByTask.get(session.taskId) ?? 0) + 1);
+  }
+  const match = [...lateByTask.entries()]
+    .filter(([, count]) => count >= 4)
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([taskId, count]) => ({task: taskById.get(taskId), count}))
+    .find(item => item.task !== undefined && isActiveTask(item.task));
+  if (match?.task === undefined) return null;
+  return {
+    id: `late-growth-start:${match.task.id}:${match.count}`,
+    title: '把这项重要任务提早一点开始',
+    description: `你最近 ${match.count} 次都在 22:00 后开始“${match.task.title}”。要不要在 20:30 留 25 分钟？`,
+    actionLabel: '安排专注时段',
+    action: {
+      kind: 'create_focus_schedule',
+      taskId: match.task.id,
+      suggestedLocalTime: '20:30',
+    },
+  };
+}
+
+function lowGrowthInvestmentInsight(input: Readonly<{
+  tasks: readonly Task[];
+  sessions: readonly FocusSession[];
+  now: string;
+}>): GrowthInsight | null {
+  const since = Date.parse(input.now) - INSIGHT_COOLDOWN_MILLISECONDS;
+  const qualifying = input.sessions.filter(session =>
+    (session.actualSeconds ?? 0) >= 120 &&
+    session.snapshot !== null &&
+    session.snapshot !== undefined &&
+    Date.parse(session.startedAt) >= since &&
+    Date.parse(session.startedAt) <= Date.parse(input.now),
+  );
+  if (qualifying.length < 4) return null;
+  const growth = qualifying.filter(session => session.snapshot?.quadrantAtStart === 'Q2');
+  if (growth.length / qualifying.length >= 0.25) return null;
+  const target = input.tasks
+    .filter(isActiveTask)
+    .find(task => effectiveQuadrantForTask(task, input.now) === 'Q2');
+  if (target === undefined) return null;
+  return {
+    id: `low-growth-investment:${target.id}`,
+    title: '给成长区留一个开始位置',
+    description: '最近的有效专注较少投入成长区，可以先为一项重要但不紧急的任务留 25 分钟。',
+    actionLabel: '安排专注时段',
+    action: {kind: 'create_focus_schedule', taskId: target.id, suggestedLocalTime: '20:30'},
+  };
+}
+
 function repeatedPostponeInsight(tasks: readonly Task[]): GrowthInsight | null {
   const target = tasks
     .filter(isActiveTask)
@@ -89,14 +178,36 @@ function repeatedPostponeInsight(tasks: readonly Task[]): GrowthInsight | null {
 
 export function selectGrowthInsight(input: Readonly<{
   tasks: readonly Task[];
+  sessions?: readonly FocusSession[];
   now: string;
   dismissal: InsightDismissal | null;
+  dismissals?: readonly InsightDismissal[];
+  timeZone?: string;
 }>): GrowthInsight | null {
+  const exactLate = input.sessions === undefined
+    ? lateGrowthStartInsight(input.tasks, input.now)
+    : exactLateStartInsight({
+        tasks: input.tasks,
+        sessions: input.sessions,
+        now: input.now,
+        timeZone: input.timeZone ?? 'UTC',
+      });
   const candidates = [
-    lateGrowthStartInsight(input.tasks, input.now),
+    exactLate,
     repeatedPostponeInsight(input.tasks),
+    ...(input.sessions === undefined
+      ? []
+      : [lowGrowthInvestmentInsight({
+          tasks: input.tasks,
+          sessions: input.sessions,
+          now: input.now,
+        })]),
   ].filter((insight): insight is GrowthInsight => insight !== null);
+  const dismissals = [
+    ...(input.dismissals ?? []),
+    ...(input.dismissal === null ? [] : [input.dismissal]),
+  ];
   return candidates.find(
-    insight => !dismissalActive(insight.id, input.dismissal, input.now),
+    insight => !dismissalActive(insight.id, dismissals, input.now),
   ) ?? null;
 }

@@ -1129,7 +1129,7 @@ export function CoreFlowScreen({
 
             {lastPoints !== null ? (
               <Text accessibilityLiveRegion="polite" style={styles.scoreText}>
-                  本次成长值：{lastPoints}
+                  获得 {lastPoints} 成长值
               </Text>
             ) : null}
           </View>

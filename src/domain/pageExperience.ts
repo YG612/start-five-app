@@ -1,8 +1,12 @@
 import type {FocusSession} from './focusSession';
 import type {PlannedWorkSession, Task} from './task';
 import type {FocusScheduleOccurrence} from './focusSchedule';
-import {effectiveQuadrantForTask} from './taskPriority';
 import {nextStartAtForTask} from './taskSupport';
+import {
+  selectSemanticGrowthSummary,
+  type MetricQuality,
+  type ProactiveStartStreak,
+} from './semanticGrowth';
 
 export type LegacyFocusAgendaItem = Readonly<{
   task: Task;
@@ -30,12 +34,18 @@ export type FocusAgendaInput = Readonly<{
   now: string;
 }>;
 
-export type GrowthMetric = Readonly<{label: string; value: string}>;
+export type GrowthMetric = Readonly<{
+  label: string;
+  value: string;
+  quality: MetricQuality;
+}>;
 
 export type GrowthPageSummary = Readonly<{
   today: readonly GrowthMetric[];
   week: readonly GrowthMetric[];
   hasWeeklySample: boolean;
+  quality: MetricQuality;
+  streak: ProactiveStartStreak;
 }>;
 
 function selectLegacyFocusAgenda(tasks: readonly Task[]): readonly LegacyFocusAgendaItem[] {
@@ -193,52 +203,25 @@ export function selectTodayFocusAgenda(
     .slice(0, Math.max(0, limit));
 }
 
-function sessionMinutes(session: FocusSession): number {
-  if (session.actualSeconds !== null) return Math.max(0, Math.round(session.actualSeconds / 60));
-  return session.status === 'completed' ? session.plannedMinutes : 0;
-}
-
 export function selectGrowthPageSummary(input: Readonly<{
   tasks: readonly Task[];
   sessions: readonly FocusSession[];
   now: string;
+  timeZone?: string;
+  weekStartsOn?: number;
 }>): GrowthPageSummary {
-  const todayKey = input.now.slice(0, 10);
-  const nowMs = Date.parse(input.now);
-  const weekStart = nowMs - 7 * 24 * 60 * 60 * 1000;
-  const taskById = new Map(input.tasks.map(task => [task.id, task]));
-  const todaySessions = input.sessions.filter(session => session.startedAt.slice(0, 10) === todayKey);
-  const weekSessions = input.sessions.filter(session => {
-    const started = Date.parse(session.startedAt);
-    return Number.isFinite(started) && started >= weekStart && started <= nowMs;
+  const summary = selectSemanticGrowthSummary(input);
+  const display = (metric: (typeof summary.today)[number]): GrowthMetric => ({
+    label: metric.label,
+    value: `${metric.value} ${metric.unit}`,
+    quality: metric.quality,
   });
-  const minutes = (sessions: readonly FocusSession[]) =>
-    sessions.reduce((total, session) => total + sessionMinutes(session), 0);
-  const growthMinutes = (sessions: readonly FocusSession[]) =>
-    sessions.reduce((total, session) => {
-      const task = taskById.get(session.taskId);
-      return task !== undefined && effectiveQuadrantForTask(task, input.now) === 'Q2'
-        ? total + sessionMinutes(session)
-        : total;
-    }, 0);
-  const completedThisWeek = input.tasks.filter(task => {
-    if (task.completedAt === null) return false;
-    const completed = Date.parse(task.completedAt);
-    return Number.isFinite(completed) && completed >= weekStart && completed <= nowMs;
-  }).length;
-
   return {
-    today: [
-      {label: '今日投入', value: `${minutes(todaySessions)} 分钟`},
-      {label: '主动开始', value: `${todaySessions.length} 次`},
-      {label: '成长区投入', value: `${growthMinutes(todaySessions)} 分钟`},
-    ],
-    week: [
-      {label: '完成专注', value: `${weekSessions.length} 次`},
-      {label: '成长区投入', value: `${growthMinutes(weekSessions)} 分钟`},
-      {label: '完成任务', value: `${completedThisWeek} 项`},
-    ],
-    hasWeeklySample: weekSessions.length >= 3 || completedThisWeek >= 2,
+    today: summary.today.map(display),
+    week: summary.week.map(display),
+    hasWeeklySample: summary.hasWeeklySample,
+    quality: summary.quality,
+    streak: summary.streak,
   };
 }
 

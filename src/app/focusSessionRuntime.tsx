@@ -36,7 +36,11 @@ export type AppFocusSessionRuntime = Readonly<{
   notifyTaskHydrated(inProgressTaskIds: readonly string[]): void;
   retryRestore(): void;
   retryFinish(): void;
-  start(taskId: string, plannedMinutes?: FocusDurationMinutes): Promise<FocusSession>;
+  start(
+    taskId: string,
+    plannedMinutes?: FocusDurationMinutes,
+    focusScheduleId?: string,
+  ): Promise<FocusSession>;
   interrupt(reason?: string): Promise<FocusSession>;
 }>;
 
@@ -324,7 +328,7 @@ export function FocusSessionRuntimeProvider({
     retryFinish() {
       attemptDeadlineFinishRef.current(true);
     },
-    start(taskId, plannedMinutes = 5) {
+    start(taskId, plannedMinutes = 5, focusScheduleId) {
       const existing = startInFlightRef.current;
       if (existing !== null) {
         return existing;
@@ -333,7 +337,11 @@ export function FocusSessionRuntimeProvider({
       setRestorePhase('ready');
       setRestoreError(null);
       const pending = service
-        .start({taskId, plannedMinutes})
+        .start({
+          taskId,
+          plannedMinutes,
+          ...(focusScheduleId === undefined ? {} : {focusScheduleId}),
+        })
         .then(async started => {
           await reviewService.trackStartedSession(started);
           if (mountedRef.current) {

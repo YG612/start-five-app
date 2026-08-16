@@ -104,7 +104,7 @@ describe('quadrant home vertical slice', () => {
       );
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
       await fireEvent.press(screen.getByRole('button', {name: '完成任务'}));
-      await waitFor(() => expect(screen.getByText('+45')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('+45 成长值')).toBeTruthy());
       expect(screen.getByText('任务已完成')).toBeTruthy();
       expect(screen.getByText('完成成长区任务，行动已计入成长。')).toBeTruthy();
       expect(screen.getByText('当前累计 45 成长值')).toBeTruthy();
@@ -263,7 +263,7 @@ describe('quadrant home vertical slice', () => {
       await fireEvent.press(screen.getByRole('button', {name: `救火区任务：${task.title}`}));
       await fireEvent.press(screen.getByRole('button', {name: '完成任务'}));
       await waitFor(() => expect(screen.getByRole('button', {name: '撤销完成'})).toBeTruthy());
-      expect(screen.getByText('+35')).toBeTruthy();
+      expect(screen.getByText('+35 成长值')).toBeTruthy();
       await fireEvent.press(screen.getByRole('button', {name: '撤销完成'}));
       await waitFor(() =>
         expect(screen.getByRole('button', {name: `救火区任务：${task.title}`})).toBeTruthy(),

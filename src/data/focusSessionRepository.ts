@@ -1,4 +1,4 @@
-import type {FocusSession} from '../domain/focusSession';
+import type {FocusContextSnapshot, FocusSession} from '../domain/focusSession';
 import {
   FOCUS_SESSION_SNAPSHOT_SCHEMA,
   FOCUS_SESSION_SNAPSHOT_VERSION,
@@ -26,7 +26,7 @@ export type FocusSessionKeyValueStorage = {
 export const DEFAULT_FOCUS_SESSION_STORAGE_KEY =
   'start-five.focus-sessions.v1';
 
-const SESSION_FIELDS = [
+const SESSION_FIELDS_V1 = [
   'actualSeconds',
   'createdAt',
   'endedAt',
@@ -34,6 +34,20 @@ const SESSION_FIELDS = [
   'interruptionReason',
   'plannedEndAt',
   'plannedMinutes',
+  'startedAt',
+  'status',
+  'taskId',
+  'updatedAt',
+] as const;
+const SESSION_FIELDS_V2 = [
+  'actualSeconds',
+  'createdAt',
+  'endedAt',
+  'id',
+  'interruptionReason',
+  'plannedEndAt',
+  'plannedMinutes',
+  'snapshot',
   'startedAt',
   'status',
   'taskId',
@@ -103,7 +117,12 @@ function codedError(code: string): FocusSessionRepositoryError {
 }
 
 function cloneSession(session: FocusSession): FocusSession {
-  return {...session};
+  return {
+    ...session,
+    ...(session.snapshot === undefined
+      ? {}
+      : {snapshot: session.snapshot === null ? null : {...session.snapshot}}),
+  };
 }
 
 function cloneSessions(sessions: readonly FocusSession[]): FocusSession[] {
@@ -114,7 +133,7 @@ function captureSession(session: FocusSession): FocusSession {
   if (typeof session !== 'object' || session === null) {
     return session;
   }
-  return {...session};
+  return cloneSession(session);
 }
 
 function hasExactKeys(value: object, expected: readonly string[]): boolean {
@@ -157,11 +176,62 @@ function isCanonicalReason(value: unknown): value is string {
   );
 }
 
+const SNAPSHOT_FIELDS = new Set([
+  'taskId',
+  'quadrantAtStart',
+  'importanceScoreAtStart',
+  'effectiveUrgencyAtStart',
+  'dueAtAtStart',
+  'firstStepIdAtStart',
+  'focusScheduleId',
+]);
+
+function isOptionalScore(value: unknown): boolean {
+  return value === undefined || (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 100
+  );
+}
+
+function isValidContextSnapshot(
+  value: unknown,
+  taskId: string,
+): value is FocusContextSnapshot | null | undefined {
+  if (value === null || value === undefined) return true;
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some(key => !SNAPSHOT_FIELDS.has(key))) return false;
+  if (
+    record.taskId !== taskId ||
+    (record.quadrantAtStart !== 'Q1' &&
+      record.quadrantAtStart !== 'Q2' &&
+      record.quadrantAtStart !== 'Q3' &&
+      record.quadrantAtStart !== 'Q4') ||
+    !isOptionalScore(record.importanceScoreAtStart) ||
+    !isOptionalScore(record.effectiveUrgencyAtStart)
+  ) return false;
+  if (
+    record.dueAtAtStart !== undefined &&
+    !isCanonicalTimestamp(record.dueAtAtStart)
+  ) return false;
+  return (
+    (record.firstStepIdAtStart === undefined ||
+      isCanonicalIdentifier(record.firstStepIdAtStart)) &&
+    (record.focusScheduleId === undefined ||
+      isCanonicalIdentifier(record.focusScheduleId))
+  );
+}
+
 function isValidSession(value: unknown): value is FocusSession {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
-  if (!hasExactKeys(value, SESSION_FIELDS)) {
+  if (
+    !hasExactKeys(value, SESSION_FIELDS_V1) &&
+    !hasExactKeys(value, SESSION_FIELDS_V2)
+  ) {
     return false;
   }
 
@@ -178,6 +248,7 @@ function isValidSession(value: unknown): value is FocusSession {
   ) {
     return false;
   }
+  if (!isValidContextSnapshot(record.snapshot, record.taskId)) return false;
 
   const startedAt = Date.parse(record.startedAt);
   const plannedEndAt = Date.parse(record.plannedEndAt);
@@ -272,7 +343,8 @@ function parseSnapshot(raw: string | null): FocusSession[] {
   const envelope = parsed as Record<string, unknown>;
   if (
     envelope.schema !== FOCUS_SESSION_SNAPSHOT_SCHEMA ||
-    envelope.version !== FOCUS_SESSION_SNAPSHOT_VERSION ||
+    (envelope.version !== 1 &&
+      envelope.version !== FOCUS_SESSION_SNAPSHOT_VERSION) ||
     typeof envelope.schema !== 'string' ||
     typeof envelope.version !== 'number' ||
     !Number.isInteger(envelope.version)
@@ -298,7 +370,8 @@ function serializeSnapshot(sessions: readonly FocusSession[]): string {
 }
 
 function sameSession(left: FocusSession, right: FocusSession): boolean {
-  return SESSION_FIELDS.every(field => left[field] === right[field]);
+  return SESSION_FIELDS_V1.every(field => left[field] === right[field]) &&
+    JSON.stringify(left.snapshot ?? null) === JSON.stringify(right.snapshot ?? null);
 }
 
 function upsert(

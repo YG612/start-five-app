@@ -16,6 +16,7 @@ export type QuadrantHomeSettings = Readonly<{
   tipsSeen: boolean;
   lowEnergyMode: LowEnergyModePreference;
   insightDismissal: InsightDismissal | null;
+  insightDismissals?: readonly InsightDismissal[];
   viewModeManuallySelected: boolean;
   screenReaderListApplied: boolean;
   preferredFocusMinutes: PreferredFocusMinutes;
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: QuadrantHomeSettings = {
   tipsSeen: false,
   lowEnergyMode: DEFAULT_LOW_ENERGY_MODE,
   insightDismissal: null,
+  insightDismissals: [],
   viewModeManuallySelected: false,
   screenReaderListApplied: false,
   preferredFocusMinutes: 5,
@@ -70,6 +72,17 @@ function parseInsightDismissal(value: unknown): InsightDismissal | null {
     id: candidate.id.trim(),
     dismissedAt: new Date(candidate.dismissedAt).toISOString(),
   };
+}
+
+function parseInsightDismissals(value: unknown): readonly InsightDismissal[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(parseInsightDismissal)
+    .filter((item): item is InsightDismissal => item !== null)
+    .filter((item, index, all) =>
+      all.findIndex(candidate => candidate.id === item.id) === index,
+    )
+    .slice(-32);
 }
 
 function parseLowEnergyMode(value: unknown): LowEnergyModePreference {
@@ -106,7 +119,8 @@ function parse(raw: string | null): QuadrantHomeSettings {
       (value as {version?: unknown}).version !== 2 &&
       (value as {version?: unknown}).version !== 3 &&
       (value as {version?: unknown}).version !== 4 &&
-      (value as {version?: unknown}).version !== 5)
+      (value as {version?: unknown}).version !== 5 &&
+      (value as {version?: unknown}).version !== 6)
   ) {
     return DEFAULT_SETTINGS;
   }
@@ -121,6 +135,7 @@ function parse(raw: string | null): QuadrantHomeSettings {
     tipsSeen: candidate.tipsSeen === true,
     lowEnergyMode: parseLowEnergyMode(candidate.lowEnergyMode),
     insightDismissal: parseInsightDismissal(candidate.insightDismissal),
+    insightDismissals: parseInsightDismissals(candidate.insightDismissals),
     viewModeManuallySelected: candidate.viewModeManuallySelected === true,
     screenReaderListApplied: candidate.screenReaderListApplied === true,
     preferredFocusMinutes: parsePreferredFocusMinutes(candidate.preferredFocusMinutes),
@@ -142,7 +157,7 @@ export function validateQuadrantHomePreferencesBackup(raw: string | null): numbe
     typeof value !== 'object' ||
     value === null ||
     Array.isArray(value) ||
-    (value as {version?: unknown}).version !== 5
+    (value as {version?: unknown}).version !== 6
   ) {
     throw new Error('QUADRANT_HOME_PREFERENCES_INVALID');
   }
@@ -156,7 +171,9 @@ export function validateQuadrantHomePreferencesBackup(raw: string | null): numbe
   const candidate = value as Record<string, unknown>;
   if (
     !Object.prototype.hasOwnProperty.call(candidate, 'insightDismissal') ||
-    (candidate.insightDismissal !== null && parsed.insightDismissal === null)
+    (candidate.insightDismissal !== null && parsed.insightDismissal === null) ||
+    !Array.isArray(candidate.insightDismissals) ||
+    parsed.insightDismissals?.length !== candidate.insightDismissals.length
   ) {
     throw new Error('QUADRANT_HOME_PREFERENCES_INVALID');
   }
@@ -178,7 +195,7 @@ export function createQuadrantHomePreferences(
       const current = parse(await backend.getItem(QUADRANT_HOME_PREFERENCES_KEY));
       await backend.setItem(
         QUADRANT_HOME_PREFERENCES_KEY,
-        JSON.stringify({version: 5, ...current, ...patch}),
+        JSON.stringify({version: 6, ...current, ...patch}),
       );
     });
     tail = pending.then(() => undefined, () => undefined);

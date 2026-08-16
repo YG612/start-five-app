@@ -194,8 +194,8 @@ describe('P10 direct product experience', () => {
       expect(screen.getByLabelText('成长阶段：发芽')).toBeTruthy();
       expect(screen.getByText('距离两片叶还差 5 成长值')).toBeTruthy();
       await fireEvent.press(screen.getByRole('button', {name: '最近成长'}));
-      expect(screen.getByText(`+5 · ${task.title} · 第一小步`)).toBeTruthy();
-      expect(screen.getByLabelText('给你的一个建议')).toBeTruthy();
+      expect(screen.getByText(`+5 · ${task.title} · 完成第一小步`)).toBeTruthy();
+      expect(screen.queryByLabelText('给你的一个建议')).toBeNull();
     } finally {
       await screen.unmount();
     }

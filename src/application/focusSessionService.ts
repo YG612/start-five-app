@@ -1,5 +1,6 @@
 import type {
   FocusDurationMinutes,
+  FocusContextSnapshot,
   FocusSession,
   FocusSessionInput,
   FocusSessionQueryResult,
@@ -13,6 +14,11 @@ export type CreateFocusSessionServiceOptions = Readonly<{
   repository: FocusSessionRepository;
   now(): string;
   idGenerator(): string;
+  resolveContextSnapshot?(
+    taskId: string,
+    startedAt: string,
+    focusScheduleId?: string,
+  ): Promise<FocusContextSnapshot | null>;
 }>;
 
 export type FocusSessionService = {
@@ -44,7 +50,12 @@ function fail(code: string): never {
 }
 
 function cloneSession(session: FocusSession): FocusSession {
-  return {...session};
+  return {
+    ...session,
+    ...(session.snapshot === undefined
+      ? {}
+      : {snapshot: session.snapshot === null ? null : {...session.snapshot}}),
+  };
 }
 
 function normalizeIdentifier(value: unknown, code: string): string {
@@ -72,12 +83,15 @@ function normalizeReason(value: unknown): string {
 function validateStartInput(input: unknown): {
   taskId: string;
   plannedMinutes: FocusDurationMinutes;
+  focusScheduleId?: string;
 } {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return fail('FOCUS_SESSION_INVALID_INPUT');
   }
   const keys = Object.keys(input);
-  if (keys.some(key => key !== 'taskId' && key !== 'plannedMinutes')) {
+  if (keys.some(key =>
+    key !== 'taskId' && key !== 'plannedMinutes' && key !== 'focusScheduleId'
+  )) {
     return fail('FOCUS_SESSION_INVALID_INPUT');
   }
   const candidate = input as Record<string, unknown>;
@@ -94,6 +108,12 @@ function validateStartInput(input: unknown): {
   return {
     taskId,
     plannedMinutes: candidate.plannedMinutes as FocusDurationMinutes,
+    ...(candidate.focusScheduleId === undefined
+      ? {}
+      : {focusScheduleId: normalizeIdentifier(
+          candidate.focusScheduleId,
+          'FOCUS_SESSION_INVALID_SCHEDULE_ID',
+        )}),
   };
 }
 
@@ -131,6 +151,7 @@ function createRunningSession(
   taskId: string,
   plannedMinutes: FocusDurationMinutes,
   now: {value: string; milliseconds: number},
+  snapshot: FocusContextSnapshot | null,
 ): FocusSession {
   return {
     id,
@@ -146,6 +167,7 @@ function createRunningSession(
     interruptionReason: null,
     createdAt: now.value,
     updatedAt: now.value,
+    snapshot,
   };
 }
 
@@ -205,6 +227,13 @@ export function createFocusSessionService(
         }
       }
 
+      const snapshot = options.resolveContextSnapshot === undefined
+        ? null
+        : await options.resolveContextSnapshot(
+            normalized.taskId,
+            current.value,
+            normalized.focusScheduleId,
+          );
       const generatedId = normalizeIdentifier(
         idGenerator(),
         'FOCUS_SESSION_INVALID_ID',
@@ -218,6 +247,7 @@ export function createFocusSessionService(
         normalized.taskId,
         normalized.plannedMinutes,
         current,
+        snapshot,
       );
       if (active !== null) {
         await transaction.save(completeAtDeadline(active));
