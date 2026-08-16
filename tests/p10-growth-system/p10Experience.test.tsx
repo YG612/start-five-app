@@ -116,7 +116,7 @@ describe('P10 direct product experience', () => {
       await waitFor(() => expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: `先做5分钟：${task.title}`}));
       await flushUi();
-      await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       expect(screen.getByText('第一次真正开始，行动已经计入成长。')).toBeTruthy();
       const saved = await harness.composition.repository.getById(task.id) as TaskWithGrowth;
       expect(saved.growthRewards).toEqual([
@@ -192,8 +192,8 @@ describe('P10 direct product experience', () => {
       await fireEvent.press(screen.getByRole('tab', {name: '成长'}));
       await flushUi();
       expect(screen.getByLabelText('成长阶段：发芽')).toBeTruthy();
-      expect(screen.getByText('再获得 5 分到两片叶')).toBeTruthy();
-      expect(screen.getByText('成长区贡献')).toBeTruthy();
+      expect(screen.getByText('距离两片叶还差 5 成长值')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', {name: '最近成长'}));
       expect(screen.getByText(`+5 · ${task.title} · 第一小步`)).toBeTruthy();
       expect(screen.getByLabelText('给你的一个建议')).toBeTruthy();
     } finally {
@@ -225,7 +225,7 @@ describe('P10 direct product experience', () => {
     });
     const screen = await render(React.createElement(harness.composition.AppRoot));
     try {
-      await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       expect(await harness.composition.repository.getById(other.id)).toMatchObject({status: 'pending'});
       expect(await harness.composition.repository.getById(exact.id)).toMatchObject({
         status: 'in_progress',

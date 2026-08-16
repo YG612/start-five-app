@@ -50,11 +50,20 @@ import type {
   TomorrowFirstReminderResult,
   TomorrowFirstReminderService,
 } from '../application/tomorrowFirstNotifications';
-import {BrandMark} from '../components/BrandMark';
 import {
   AppBottomSheet,
   type SheetDismissReason,
 } from '../components/AppBottomSheet';
+import {
+  APP_PAGE_TOKENS,
+  EmptyState,
+  HeroPanel,
+  InlineNotice,
+  MetricItem,
+  PageHeader,
+  SectionHeader,
+  SettingsRow,
+} from '../components/AppPage';
 import {selectHomeContinuation} from '../domain/homeContinuation';
 import {
   homePrimaryActionKey,
@@ -113,7 +122,6 @@ import {
   FIRST_START_REWARD_POINTS,
   growthProgressForScore,
   growthRewardsForTask,
-  growthZoneContribution,
   recentGrowthRewards,
   type GrowthProgress,
   type TaskWithGrowth,
@@ -147,6 +155,13 @@ import {
   compactTaskLabelConfig,
   getCompactTaskLabel,
 } from '../domain/taskDisplay';
+import {
+  formatAgendaTime,
+  formatPageDate,
+  selectFocusAgenda,
+  selectGrowthPageSummary,
+  selectTodayFocusAgenda,
+} from '../domain/pageExperience';
 
 type MainTab = 'quadrants' | 'focus' | 'growth' | 'mine';
 type ViewMode = QuadrantHomeViewMode;
@@ -1476,6 +1491,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const [postFocusTaskId, setPostFocusTaskId] = React.useState<string | null>(null);
   const [focusDurationRecommendation, setFocusDurationRecommendation] =
     React.useState<FocusDurationRecommendation | null>(null);
+  const [focusHistoryItems, setFocusHistoryItems] =
+    React.useState<readonly FocusSession[]>([]);
+  const [moreDurationsOpen, setMoreDurationsOpen] = React.useState(false);
+  const [recentGrowthExpanded, setRecentGrowthExpanded] = React.useState(false);
+  const [settingsSheet, setSettingsSheet] =
+    React.useState<'theme' | 'focus-duration' | null>(null);
   const [lowEnergySheetOpen, setLowEnergySheetOpen] = React.useState(false);
   const [moveUndo, setMoveUndo] = React.useState<MoveUndo | null>(null);
   const [completionUndo, setCompletionUndo] = React.useState<CompletionUndo | null>(null);
@@ -1821,6 +1842,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     void props.focusHistory.listHistory()
       .then(sessions => {
         if (!current) return;
+        setFocusHistoryItems(sessions);
         setFocusDurationRecommendation(selectFocusDurationRecommendation({
           sessions,
           currentDefault: settings.preferredFocusMinutes,
@@ -1829,7 +1851,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         }));
       })
       .catch(() => {
-        if (current) setFocusDurationRecommendation(null);
+        if (current) {
+          setFocusHistoryItems([]);
+          setFocusDurationRecommendation(null);
+        }
       });
     return () => { current = false; };
   }, [
@@ -2431,7 +2456,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
   function startFiveMinutes(
     task: Task | null,
-    plannedMinutes: 2 | 5 | 15 | 25 | 45 = 5,
+    plannedMinutes: 2 | 5 | 15 | 25 | 45 | 50 = 5,
     source = 'task_sheet',
   ): void {
     if (task === null || focus === null || actionPending) {
@@ -3215,7 +3240,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     tomorrowSnapshot !== null &&
     tomorrowRecord.dayKey < tomorrowSnapshot.currentDay;
   const latestGrowthRewards = recentGrowthRewards(snapshot.tasks, 5);
-  const growthContribution = growthZoneContribution(snapshot.tasks, priorityNow);
   const growthInsight = selectGrowthInsight({
     tasks: snapshot.tasks,
     now: priorityNow,
@@ -3346,6 +3370,19 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }
 
   const homePrimaryTask = primaryTaskFor(homePrimaryAction);
+  const focusAgenda = selectFocusAgenda(tasks);
+  const nextFocusAgenda = focusAgenda[0] ?? null;
+  const todayFocusAgenda = selectTodayFocusAgenda(tasks, priorityNow, 3);
+  const todayFocusAgendaCount = selectTodayFocusAgenda(tasks, priorityNow, 256).length;
+  const quickFocusTask = homePrimaryTask ?? tasks[0] ?? null;
+  const hasStartedToday = focusHistoryItems.some(
+    session => session.startedAt.slice(0, 10) === priorityNow.slice(0, 10),
+  );
+  const growthPageSummary = selectGrowthPageSummary({
+    tasks: snapshot.tasks,
+    sessions: focusHistoryItems,
+    now: priorityNow,
+  });
 
   return (
     <DarkThemeContext.Provider value={dark}>
@@ -3355,18 +3392,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       <ScrollView contentContainerStyle={styles.content}>
         {tab === 'quadrants' ? (
           <>
-            <View style={styles.headerRow}>
-              <BrandMark size={40} />
-              <View style={styles.headerCopy}>
-                <Text style={[styles.eyebrow, dark && styles.textMutedDark]}>{props.now().slice(0, 10)}</Text>
-                <Text accessibilityRole="header" style={[styles.title, dark && styles.textDark]}>今天先推进一小步</Text>
-                {tipsVisible ? (
-                  <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                    横轴重要，纵轴紧急；点任务就能修改。
-                  </Text>
-                ) : null}
-              </View>
-              <View style={styles.headerActions}>
+            <PageHeader
+              dark={dark}
+              eyebrow={formatPageDate(priorityNow)}
+              title={hasStartedToday ? '今天已经开始过了 ✓' : '今天先开始一次'}
+              trailing={(
+                <View style={styles.headerActions}>
                 <Pressable
                   accessibilityLabel="查找任务"
                   accessibilityRole="button"
@@ -3374,15 +3405,18 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   style={styles.headerUtility}>
                   <Text style={styles.headerUtilityText}>查找</Text>
                 </Pressable>
-              </View>
-              {editorMode === null ? <Pressable
-                accessibilityLabel="添加任务"
-                accessibilityRole="button"
-                onPress={() => openCreate()}
-                style={styles.floatingAdd}>
-                <Text style={styles.floatingAddText}>＋</Text>
-              </Pressable> : null}
-            </View>
+                {editorMode === null ? (
+                  <Pressable
+                    accessibilityLabel="添加任务"
+                    accessibilityRole="button"
+                    onPress={() => openCreate()}
+                    style={styles.headerUtility}>
+                    <Text style={styles.headerUtilityText}>＋</Text>
+                  </Pressable>
+                ) : null}
+                </View>
+              )}
+            />
             {unsortedTasks.length === 0 ? null : (
               <Pressable
                 accessibilityLabel={`待判断 ${unsortedTasks.length} 项`}
@@ -3400,7 +3434,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 style={[styles.actionPointer, dark && styles.surfaceDark]}>
                 <Text style={[styles.continuationKicker, dark && styles.textMutedDark]}>
                   {homePrimaryAction.type === 'RESUME_ACTIVE_FOCUS'
-                    ? '专注正在进行'
+                    ? '继续刚才的任务'
                     : homePrimaryAction.type === 'CONTINUE_TASK'
                       ? '继续刚才的任务'
                       : homePrimaryAction.type === 'TRIAGE_URGENT_UNSORTED'
@@ -3466,15 +3500,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 ) : null}
               </View>
             )}
-            <View style={[styles.growthStrip, dark && styles.surfaceDark]}>
-              <Text style={styles.growthStripText}>
-                {growth.stage.title} · {snapshot.growthScore}
-                {growth.nextStage === null ? '+' : `/${growth.nextStage.minScore}`}
-              </Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, {width: `${growth.progressRatio * 100}%`}]} />
-              </View>
-            </View>
             {!tomorrowFirstVisible || tomorrowTarget === null ? null : (
               <View
                 accessibilityLabel="明日第一项"
@@ -3552,20 +3577,15 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               </View>
             )}
             {lowEnergyMode.enabled ? (
-              <View accessibilityLabel="今天轻一点已开启" style={[styles.hybridNotice, dark && styles.surfaceDark]}>
-                <Text style={[styles.sheetSubtitle, dark && styles.textDark]}>
-                  今天已降低使用压力 · 默认专注 {lowEnergyMode.defaultFocusMinutes} 分钟 · 明天自动恢复
+              <Pressable
+                accessibilityLabel="今天只推进一小步"
+                accessibilityRole="button"
+                onPress={() => setLowEnergySheetOpen(true)}>
+                <Text style={[styles.lowEnergyStatus, dark && styles.textMutedDark]}>
+                  今天只推进一小步
                 </Text>
-                <Action compact label="恢复通常节奏" onPress={disableLowEnergyMode} secondary />
-              </View>
-            ) : (
-              <Action
-                compact
-                label="今天轻一点"
-                onPress={() => setLowEnergySheetOpen(true)}
-                secondary
-              />
-            )}
+              </Pressable>
+            ) : null}
             {systemNotice === null ? null : (
               <Pressable
                 accessibilityLabel="系统入口状态"
@@ -3640,28 +3660,26 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
         {tab === 'focus' ? (
           <View style={styles.tabPage}>
-            <Text accessibilityRole="header" style={[styles.title, dark && styles.textDark]}>专注</Text>
+            <PageHeader dark={dark} title="专注" />
             {focus?.snapshot.state === 'running' ? (
               <View style={styles.focusHero}>
-                  <Text style={styles.focusLabel}>
-                    正在先做 {focus.snapshot.activeSession?.plannedMinutes ?? 5} 分钟
-                  </Text>
+                <Text style={styles.focusLabel}>正在专注</Text>
                 <Text style={styles.focusTask}>
-                  专注任务：<Text>{activeFocusTask?.title ?? '当前任务'}</Text>
+                  {activeFocusTask?.title ?? '当前任务'}
                 </Text>
                 {activeFocusTask?.firstStep == null ? null : (
-                    <Text style={styles.focusStep}>第一小步：{activeFocusTask.firstStep}</Text>
+                  <Text style={styles.focusStep}>第一小步：{activeFocusTask.firstStep}</Text>
                 )}
                 <Text accessibilityLabel="5分钟剩余时间" style={styles.timer}>
                   {formatRemaining(focus.snapshot.remainingMs)}
                 </Text>
-                  <Action
-                    disabled={focus.lifecyclePending}
-                    label="结束本次专注"
-                    onPress={interruptCurrentFocus}
-                    secondary
-                  />
-                </View>
+                <Action
+                  disabled={focus.lifecyclePending}
+                  label="结束本次专注"
+                  onPress={interruptCurrentFocus}
+                  secondary
+                />
+              </View>
             ) : postFocusTask !== null ? (
               <View style={[styles.infoCard, dark && styles.surfaceDark]}>
                 <Text style={[styles.infoTitle, dark && styles.textDark]}>
@@ -3699,24 +3717,121 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                   secondary
                 />
               </View>
+            ) : nextFocusAgenda !== null ? (
+              <HeroPanel accessibilityLabel="下一段专注" dark={dark}>
+                <Text style={[styles.continuationKicker, dark && styles.textMutedDark]}>下一段专注</Text>
+                <Text style={[styles.infoTitle, dark && styles.textDark]}>
+                  {formatAgendaTime(nextFocusAgenda.session.plannedStartAt)} · {nextFocusAgenda.session.plannedMinutes} 分钟
+                </Text>
+                <Text style={[styles.continuationTitle, dark && styles.textDark]}>{nextFocusAgenda.task.title}</Text>
+                {nextFocusAgenda.task.firstStep == null ? null : (
+                  <Text style={[styles.firstStepText, dark && styles.textMutedDark]}>
+                    第一步：{nextFocusAgenda.task.firstStep}
+                  </Text>
+                )}
+                <Action label="现在开始" onPress={() => startPlannedWork(nextFocusAgenda.task, nextFocusAgenda.session)} />
+                <Action
+                  label="重新安排"
+                  onPress={() => {
+                    runtime.selectTask(nextFocusAgenda.task.id);
+                    setProgressTaskId(nextFocusAgenda.task.id);
+                  }}
+                  secondary
+                />
+              </HeroPanel>
             ) : (
-              <View style={[styles.infoCard, dark && styles.surfaceDark]}>
-                <Text style={[styles.infoTitle, dark && styles.textDark]}>还没有进行中的专注</Text>
-                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>回到象限，点任务后选择“先做5分钟”。</Text>
-                <Action label="回到象限" onPress={() => selectTab('quadrants')} />
+              <EmptyState
+                action={<Action label="安排一段专注" onPress={() => {
+                  if (quickFocusTask === null) {
+                    selectTab('quadrants');
+                    openCreate(undefined, 'focus_empty');
+                    return;
+                  }
+                  runtime.selectTask(quickFocusTask.id);
+                  setProgressTaskId(quickFocusTask.id);
+                }} />}
+                dark={dark}
+                description="安排后，到时间会直接告诉你第一小步。"
+                title="给重要任务留一小段时间"
+              />
+            )}
+
+            {focus?.snapshot.state === 'running' || postFocusTask !== null || quickFocusTask === null ? null : (
+              <View style={styles.pageSection}>
+                <SectionHeader dark={dark} title="现在有一点时间？" />
+                <View accessibilityLabel="快速专注时长" style={styles.durationGrid}>
+                  {([2, 5, 15, 25] as const).map(minutes => (
+                    <Action
+                      compact
+                      key={minutes}
+                      label={`先做 ${minutes} 分钟`}
+                      onPress={() => startFiveMinutes(quickFocusTask, minutes, 'focus_quick')}
+                      secondary
+                    />
+                  ))}
+                </View>
+                <Pressable
+                  accessibilityLabel="更多时长"
+                  accessibilityRole="button"
+                  onPress={() => setMoreDurationsOpen(value => !value)}>
+                  <Text style={styles.textLink}>更多时长</Text>
+                </Pressable>
+                {moreDurationsOpen ? (
+                  <View style={styles.durationGrid}>
+                    <Action compact label="先做 50 分钟" onPress={() => startFiveMinutes(quickFocusTask, 50, 'focus_more')} secondary />
+                    <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>自定义时长可在任务安排中选择。</Text>
+                  </View>
+                ) : null}
               </View>
             )}
-            <Action label="查看最近专注" onPress={() => setHistoryOpen(true)} secondary />
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="今天" />
+              {todayFocusAgenda.length === 0 ? (
+                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>今天还没有已安排的专注。</Text>
+              ) : todayFocusAgenda.map(item => (
+                <Pressable
+                  accessibilityLabel={`${formatAgendaTime(item.session.plannedStartAt)} ${item.task.title} ${item.session.plannedMinutes} 分钟`}
+                  accessibilityRole="button"
+                  key={item.session.id}
+                  onPress={() => {
+                    runtime.selectTask(item.task.id);
+                    setProgressTaskId(item.task.id);
+                  }}
+                  style={styles.agendaRow}>
+                  <Text style={[styles.agendaTime, dark && styles.textDark]}>{formatAgendaTime(item.session.plannedStartAt)}</Text>
+                  <Text numberOfLines={1} style={[styles.agendaTitle, dark && styles.textDark]}>{item.task.title}</Text>
+                  <Text style={[styles.agendaMinutes, dark && styles.textMutedDark]}>{item.session.plannedMinutes} 分钟</Text>
+                </Pressable>
+              ))}
+              {todayFocusAgendaCount <= 3 ? null : (
+                <Pressable accessibilityLabel="查看全部今日安排" accessibilityRole="button" onPress={() => openOrganizer('backlog')}>
+                  <Text style={styles.textLink}>查看全部</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+              <SettingsRow
+                dark={dark}
+                label="专注保护"
+                onPress={() => setSystemNotice('专注保护的详细设置将在下一阶段接入。')}
+                value="减少干扰 ›"
+              />
+              <SettingsRow dark={dark} label="最近专注" onPress={() => setHistoryOpen(true)} value="›" />
+            </View>
           </View>
         ) : null}
 
         {tab === 'growth' ? (
           <View style={styles.tabPage}>
-            <Text accessibilityRole="header" style={[styles.title, dark && styles.textDark]}>成长</Text>
-            <View style={[styles.growthHero, dark && styles.surfaceDark]}>
+            <PageHeader dark={dark} title="成长" />
+            <HeroPanel accessibilityLabel="成长状态" dark={dark} style={styles.growthHero}>
               <GrowthPlant progress={growth} />
               <Text style={styles.growthLevel}>{growth.stage.title}</Text>
-              <Text style={[styles.growthTotal, dark && styles.textDark]}>{snapshot.growthScore}</Text>
+              <Text style={[styles.growthScoreWithUnit, dark && styles.textDark]}>
+                当前 {snapshot.growthScore} 成长值
+              </Text>
               <Text style={[styles.subtitle, dark && styles.textMutedDark]}>{growth.stage.description}</Text>
               <View style={styles.progressTrackLarge}>
                 <View style={[styles.progressFill, {width: `${growth.progressRatio * 100}%`}]} />
@@ -3724,19 +3839,44 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <Text style={styles.progressCaption}>
                 {growth.nextStage === null
                   ? '当前成长阶段已完整展开'
-                  : `再获得 ${growth.pointsToNext} 分到${growth.nextStage.title}`}
+                  : `距离${growth.nextStage.title}还差 ${growth.pointsToNext} 成长值`}
               </Text>
+            </HeroPanel>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="今天" />
+              <View accessibilityLabel="今日成长摘要" style={styles.metricRow}>
+                {growthPageSummary.today.map(metric => (
+                  <MetricItem dark={dark} key={metric.label} label={metric.label} value={metric.value} />
+                ))}
+              </View>
             </View>
-            <View style={[styles.infoCard, dark && styles.surfaceDark]}>
-              <Text style={[styles.infoTitle, dark && styles.textDark]}>成长区贡献</Text>
-              <Text style={[styles.growthTotal, dark && styles.textDark]}>{growthContribution}</Text>
-              <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                来自成长区任务的开始、第一小步和任务完成奖励
-              </Text>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="本周变好" />
+              {growthPageSummary.hasWeeklySample ? (
+                <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                  {growthPageSummary.week.map(metric => (
+                    <SettingsRow dark={dark} key={metric.label} label={metric.label} value={metric.value} />
+                  ))}
+                </View>
+              ) : (
+                <InlineNotice accessibilityLabel="成长样本不足" dark={dark}>
+                  <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                    再使用几天，我们会在这里显示你的变化。
+                  </Text>
+                </InlineNotice>
+              )}
             </View>
-            <View style={[styles.infoCard, dark && styles.surfaceDark]}>
-              <Text style={[styles.infoTitle, dark && styles.textDark]}>最近奖励</Text>
-              {latestGrowthRewards.map(rewardItem => (
+
+            <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+              <SettingsRow
+                dark={dark}
+                label="最近成长"
+                onPress={() => setRecentGrowthExpanded(value => !value)}
+                value={recentGrowthExpanded ? '收起' : '›'}
+              />
+              {!recentGrowthExpanded ? null : latestGrowthRewards.map(rewardItem => (
                   <Text key={rewardItem.businessKey} style={[styles.subtitle, dark && styles.textMutedDark]}>
                     +{rewardItem.points} · {rewardItem.taskTitle} · {
                       rewardItem.kind === 'task_first_start'
@@ -3747,17 +3887,14 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                     }
                   </Text>
                 ))}
-              {latestGrowthRewards.length === 0 ? (
+              {!recentGrowthExpanded || latestGrowthRewards.length > 0 ? null : (
                 <Text style={[styles.subtitle, dark && styles.textMutedDark]}>第一次开始后，这里会保留奖励原因。</Text>
-              ) : null}
+              )}
             </View>
+
             <View accessibilityLabel="给你的一个建议" style={[styles.infoCard, dark && styles.surfaceDark]}>
               <Text style={[styles.infoTitle, dark && styles.textDark]}>给你的一个建议</Text>
-              {growthInsight === null ? (
-                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                  本地样本还不够，暂时不做结论。
-                </Text>
-              ) : (
+              {growthInsight !== null ? (
                 <>
                   <Text style={[styles.infoTitle, dark && styles.textDark]}>{growthInsight.title}</Text>
                   <Text style={[styles.subtitle, dark && styles.textMutedDark]}>{growthInsight.description}</Text>
@@ -3766,24 +3903,20 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                     <Action label="7 天内不再提示" onPress={() => dismissGrowthInsight(growthInsight)} secondary />
                   </View>
                 </>
-              )}
-            </View>
-            <View accessibilityLabel="常用专注时长建议" style={[styles.infoCard, dark && styles.surfaceDark]}>
-              <Text style={[styles.infoTitle, dark && styles.textDark]}>常用专注时长</Text>
-              {focusDurationRecommendation === null ? (
-                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                  本地专注样本还不够，暂时不做结论。
-                </Text>
-              ) : (
+              ) : focusDurationRecommendation !== null ? (
                 <>
                   <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
-                    你完成 {focusDurationRecommendation.candidateMinutes} 分钟专注的比例更高。要把 {focusDurationRecommendation.candidateMinutes} 分钟设为常用时长吗？
+                    你完成 {focusDurationRecommendation.candidateMinutes} 分钟专注的比例更高。
                   </Text>
                   <View style={styles.segmentedRow}>
-                    <Action label="设为常用" onPress={acceptFocusDurationRecommendation} />
+                    <Action label={`设为常用 ${focusDurationRecommendation.candidateMinutes} 分钟`} onPress={acceptFocusDurationRecommendation} />
                     <Action label="暂时不用" onPress={dismissFocusDurationRecommendation} secondary />
                   </View>
                 </>
+              ) : (
+                <Text style={[styles.subtitle, dark && styles.textMutedDark]}>
+                  本地样本还不够，暂时不做结论。
+                </Text>
               )}
             </View>
           </View>
@@ -3791,50 +3924,100 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
         {tab === 'mine' ? (
           <View style={styles.tabPage}>
-            <Text accessibilityRole="header" style={[styles.title, dark && styles.textDark]}>我的</Text>
-            <View style={[styles.infoCard, dark && styles.surfaceDark]}>
-              <Text style={[styles.infoTitle, dark && styles.textDark]}>数据与偏好</Text>
-              <Action label="已完成任务" onPress={() => openOrganizer('completed')} secondary />
-              <Action label="整理一下" onPress={() => openOrganizer('backlog')} secondary />
-              <Action label="今日回顾" onPress={() => setSummaryOpen(true)} secondary />
-              {props.localBackup !== undefined && props.backupFileBridge !== undefined ? (
-                <Action label="数据与备份" onPress={() => setBackupOpen(true)} secondary />
-              ) : null}
-              <Text style={[styles.fieldLabel, dark && styles.textDark]}>主题</Text>
-              <View style={styles.segmentedRow}>
-                {(['system', 'light', 'dark'] as const).map(theme => (
-                  <SegmentedButton
-                    key={theme}
-                    label={theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}
-                    onPress={() => updateSettings({theme})}
-                    selected={settings.theme === theme}
-                  />
-                ))}
-              </View>
-              <Pressable
-                accessibilityLabel="减少动画"
-                accessibilityRole="switch"
-                accessibilityState={{checked: settings.reduceMotion}}
-                onPress={() => updateSettings({reduceMotion: !settings.reduceMotion})}
-                style={styles.settingRow}>
-                <Text style={[styles.infoTitle, dark && styles.textDark]}>减少动画</Text>
-                <Text style={styles.settingValue}>{settings.reduceMotion ? '已开启' : '已关闭'}</Text>
-              </Pressable>
-              <View style={styles.settingRow}>
-                <View style={styles.headerCopy}>
-                  <Text style={[styles.infoTitle, dark && styles.textDark]}>今天轻一点</Text>
-                  <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>
-                    只在今天降低使用压力，不是医疗功能；不会修改任务或扣成长值。
-                  </Text>
-                </View>
-                <Action
-                  compact
-                  label={lowEnergyMode.enabled ? '恢复通常节奏' : '今天轻一点'}
-                  onPress={() => lowEnergyMode.enabled
-                    ? disableLowEnergyMode()
-                    : setLowEnergySheetOpen(true)}
-                  secondary
+            <PageHeader dark={dark} title="我的" />
+            <Pressable
+              accessibilityLabel="查看数据去向"
+              accessibilityRole="button"
+              onPress={() => setSystemNotice('任务、专注和偏好默认只保存在这台设备上。仅在你主动导出时生成文件。')}>
+              <Text style={[styles.privacyIntro, dark && styles.textMutedDark]}>
+                你的任务默认只保存在这台设备上。查看数据去向 ›
+              </Text>
+            </Pressable>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="我的节奏" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow dark={dark} label="常用专注时长" onPress={() => setSettingsSheet('focus-duration')} value={`${settings.preferredFocusMinutes} 分钟 ›`} />
+                <SettingsRow dark={dark} label="常用工作日" value="暂未设置" />
+                <SettingsRow dark={dark} label="更容易开始的时间" value="暂未设置" />
+                <SettingsRow
+                  dark={dark}
+                  label="今天只推进一小步"
+                  onPress={() => setLowEnergySheetOpen(true)}
+                  value={lowEnergyMode.enabled ? `${lowEnergyMode.defaultFocusMinutes} 分钟 ›` : '未启用 ›'}
                 />
+              </View>
+            </View>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="任务与象限" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow dark={dark} label="截止临近时提高紧急度" value="随截止变化" />
+                <SettingsRow dark={dark} label="待整理任务" onPress={() => openOrganizer('backlog')} value="›" />
+                <SettingsRow dark={dark} label="已完成任务" onPress={() => openOrganizer('completed')} value="›" />
+                <SettingsRow dark={dark} label="今日回顾" onPress={() => setSummaryOpen(true)} value="›" />
+              </View>
+            </View>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="提醒与专注保护" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow
+                  dark={dark}
+                  label="通知权限"
+                  onPress={props.tomorrowFirstReminder === undefined ? undefined : openTomorrowReminderSettings}
+                  value={tomorrowReminderStatus === 'scheduled' ? '已开启 ›' : tomorrowReminderStatus === 'denied' ? '未开启 ›' : '按需开启 ›'}
+                />
+                <SettingsRow dark={dark} label="提醒强度" value="标准" />
+                <SettingsRow dark={dark} label="专注时减少干扰" value="暂未设置" />
+              </View>
+            </View>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="外观与无障碍" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow
+                  dark={dark}
+                  label="外观"
+                  onPress={() => setSettingsSheet('theme')}
+                  value={`${settings.theme === 'system' ? '跟随系统' : settings.theme === 'light' ? '浅色' : '深色'} ›`}
+                />
+                <SettingsRow
+                  checked={settings.reduceMotion}
+                  dark={dark}
+                  label="减少动态"
+                  onPress={() => updateSettings({reduceMotion: !settings.reduceMotion})}
+                  role="switch"
+                  value={settings.reduceMotion ? '开启' : '关闭'}
+                />
+                <SettingsRow dark={dark} label="屏幕阅读器优化" value="自动" />
+              </View>
+            </View>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="数据与隐私" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow dark={dark} label="本机任务数据" value={`${snapshot.tasks.length} 项`} />
+                <SettingsRow
+                  dark={dark}
+                  label="备份与恢复"
+                  onPress={props.localBackup !== undefined && props.backupFileBridge !== undefined ? () => setBackupOpen(true) : undefined}
+                  value={props.localBackup !== undefined && props.backupFileBridge !== undefined ? '›' : '不可用'}
+                />
+                <SettingsRow
+                  dark={dark}
+                  label="导出数据"
+                  onPress={props.localBackup !== undefined && props.backupFileBridge !== undefined ? () => setBackupOpen(true) : undefined}
+                  value={props.localBackup !== undefined && props.backupFileBridge !== undefined ? '›' : '不可用'}
+                />
+              </View>
+            </View>
+
+            <View style={styles.pageSection}>
+              <SectionHeader dark={dark} title="帮助与关于" />
+              <View style={[styles.settingsGroup, dark && styles.surfaceDark]}>
+                <SettingsRow dark={dark} label="使用帮助" onPress={() => setTipsVisible(true)} value="›" />
+                <SettingsRow dark={dark} label="关于先做 5 分钟" value="1.0" />
               </View>
             </View>
           </View>
@@ -3869,7 +4052,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         )}
       </ScrollView>
 
-      {editorMode === null && progressTask === null && organizerMode === null && !lowEnergySheetOpen ? (
+      {editorMode === null &&
+      progressTask === null &&
+      organizerMode === null &&
+      !lowEnergySheetOpen &&
+      settingsSheet === null &&
+      focus?.snapshot.state !== 'running' ? (
       <View accessibilityLabel="底部导航" style={[styles.bottomNav, dark && styles.surfaceDark]}>
         {([
           ['quadrants', '象限'],
@@ -4024,20 +4212,71 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       )}
 
       {lowEnergySheetOpen ? (
-        <View accessibilityViewIsModal style={styles.sheetBackdrop}>
-          <View style={[styles.dragSheet, dark && styles.surfaceDark]}>
-            <Text accessibilityRole="header" style={[styles.sheetTitle, dark && styles.textDark]}>
-              今天把压力降下来
-            </Text>
-            <Text style={[styles.sheetSubtitle, dark && styles.textMutedDark]}>
-              只在今天生效，明天自动恢复。它用于降低使用压力，不是医疗功能；任务、截止日期和成长值都不会改变。
-            </Text>
+        <AppBottomSheet
+          dark={dark}
+          onDismissAttempt={() => {
+            setLowEnergySheetOpen(false);
+            return true;
+          }}
+          reduceMotion={settings.reduceMotion}
+          subtitle="只在今天生效，明天自动恢复；不会修改任务、截止日期或成长值。"
+          title="今天只推进一小步">
+          <View style={styles.sheetActions}>
             <Action label="今天默认先做 2 分钟" onPress={() => setLowEnergyMode(2)} />
             <Action label="今天默认先做 5 分钟" onPress={() => setLowEnergyMode(5)} secondary />
-            <Action label="暂时不用" onPress={() => setLowEnergySheetOpen(false)} secondary />
+            <Action
+              label="改到精力更好的时间"
+              onPress={() => {
+                setLowEnergySheetOpen(false);
+                openOrganizer('backlog');
+              }}
+              secondary
+            />
+            {!lowEnergyMode.enabled ? null : (
+              <Action label="恢复普通安排" onPress={disableLowEnergyMode} secondary />
+            )}
           </View>
-        </View>
+        </AppBottomSheet>
       ) : null}
+
+      {settingsSheet === null ? null : (
+        <AppBottomSheet
+          dark={dark}
+          onDismissAttempt={() => {
+            setSettingsSheet(null);
+            return true;
+          }}
+          reduceMotion={settings.reduceMotion}
+          title={settingsSheet === 'theme' ? '选择外观' : '常用专注时长'}>
+          <View style={styles.sheetActions}>
+            {settingsSheet === 'theme' ? (
+              (['system', 'light', 'dark'] as const).map(theme => (
+                <Action
+                  key={theme}
+                  label={theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}
+                  onPress={() => {
+                    updateSettings({theme});
+                    setSettingsSheet(null);
+                  }}
+                  secondary={settings.theme !== theme}
+                />
+              ))
+            ) : (
+              ([5, 15, 25, 45] as const).map(minutes => (
+                <Action
+                  key={minutes}
+                  label={`${minutes} 分钟`}
+                  onPress={() => {
+                    updateSettings({preferredFocusMinutes: minutes});
+                    setSettingsSheet(null);
+                  }}
+                  secondary={settings.preferredFocusMinutes !== minutes}
+                />
+              ))
+            )}
+          </View>
+        </AppBottomSheet>
+      )}
 
       {tipsVisible ? (
         <View accessibilityLiveRegion="polite" style={[styles.tipsCard, dark && styles.surfaceDark]}>
@@ -4103,13 +4342,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 }
 
 const styles = StyleSheet.create({
-  safeArea: {flex: 1, backgroundColor: '#F5F7F6'},
-  safeAreaDark: {backgroundColor: '#0F1F1C'},
-  surfaceDark: {backgroundColor: '#18312C'},
-  surfaceRaisedDark: {backgroundColor: '#24423C'},
-  borderDark: {borderColor: '#48645E'},
-  textDark: {color: '#F2FAF7'},
-  textMutedDark: {color: '#B7CAC5'},
+  safeArea: {flex: 1, backgroundColor: APP_PAGE_TOKENS.light.background},
+  safeAreaDark: {backgroundColor: APP_PAGE_TOKENS.dark.background},
+  surfaceDark: {backgroundColor: APP_PAGE_TOKENS.dark.surface},
+  surfaceRaisedDark: {backgroundColor: APP_PAGE_TOKENS.dark.surfaceSubtle},
+  borderDark: {borderColor: APP_PAGE_TOKENS.dark.border},
+  textDark: {color: APP_PAGE_TOKENS.dark.text},
+  textMutedDark: {color: APP_PAGE_TOKENS.dark.textMuted},
   centered: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24},
   content: {paddingHorizontal: 18, paddingTop: 18, paddingBottom: 110, gap: 16},
   headerRow: {flexDirection: 'row', alignItems: 'center', gap: 14},
@@ -4215,6 +4454,17 @@ const styles = StyleSheet.create({
   navText: {color: '#71817D', fontSize: 14, fontWeight: '800'},
   navTextSelected: {color: '#1F7466'},
   tabPage: {gap: 16},
+  pageSection: {gap: 10},
+  durationGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  textLink: {color: APP_PAGE_TOKENS.light.primary, fontSize: 14, fontWeight: '900', paddingVertical: 6},
+  agendaRow: {minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopColor: APP_PAGE_TOKENS.light.border, borderTopWidth: StyleSheet.hairlineWidth},
+  agendaTime: {width: 48, color: APP_PAGE_TOKENS.light.text, fontSize: 14, fontWeight: '900'},
+  agendaTitle: {flex: 1, color: APP_PAGE_TOKENS.light.text, fontSize: 14, fontWeight: '700'},
+  agendaMinutes: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 12},
+  settingsGroup: {backgroundColor: APP_PAGE_TOKENS.light.surface, borderRadius: APP_PAGE_TOKENS.radius.lg, paddingHorizontal: 16, overflow: 'hidden'},
+  metricRow: {flexDirection: 'row', gap: 12, backgroundColor: APP_PAGE_TOKENS.light.surface, borderRadius: APP_PAGE_TOKENS.radius.lg, padding: 16},
+  privacyIntro: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 14, lineHeight: 21},
+  lowEnergyStatus: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 13, fontWeight: '800'},
   infoCard: {backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, gap: 12},
   infoTitle: {color: '#204D46', fontSize: 18, fontWeight: '900'},
   settingRow: {minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12},
@@ -4239,6 +4489,7 @@ const styles = StyleSheet.create({
   growthFlowerCore: {width: 9, height: 9, borderRadius: 5, backgroundColor: '#D98C2F'},
   growthLevel: {color: '#1F7466', fontSize: 18, fontWeight: '900'},
   growthTotal: {color: '#153C37', fontSize: 58, fontWeight: '900'},
+  growthScoreWithUnit: {color: APP_PAGE_TOKENS.light.text, fontSize: 20, fontWeight: '900'},
   progressCaption: {color: '#59706A', fontSize: 13},
   sheetBackdrop: {position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end', backgroundColor: 'rgba(18, 42, 38, 0.42)', zIndex: 20},
   sheet: {maxHeight: '91%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 12},

@@ -26,7 +26,7 @@ describe('quadrant home vertical slice', () => {
     const screen = await render(React.createElement(harness.composition.AppRoot));
 
     try {
-      await waitFor(() => expect(screen.getByText('今天先推进一小步')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('今天先开始一次')).toBeTruthy());
       expect(screen.getByRole('tab', {name: '象限'}).props.accessibilityState).toMatchObject({
         selected: true,
       });
@@ -56,7 +56,7 @@ describe('quadrant home vertical slice', () => {
       await fireEvent.press(screen.getByRole('button', {name: '成长区任务：准备周五答辩'}));
       await fireEvent.press(screen.getByRole('button', {name: '先做 5 分钟'}));
       await flushUi();
-      await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       expect(screen.getByText('准备周五答辩')).toBeTruthy();
       expect(screen.getByLabelText('5分钟剩余时间')).toHaveTextContent('5:00');
 
@@ -288,17 +288,18 @@ describe('quadrant home vertical slice', () => {
     );
     const screen = await render(React.createElement(first.composition.AppRoot));
     try {
-      await waitFor(() => expect(screen.getByText('今天先推进一小步')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('今天先开始一次')).toBeTruthy());
       await fireEvent.press(screen.getByRole('tab', {name: '我的'}));
-      await fireEvent.press(screen.getByRole('tab', {name: '深色'}));
+      await fireEvent.press(screen.getByRole('button', {name: '外观'}));
+      await fireEvent.press(screen.getByRole('button', {name: '深色'}));
       await waitFor(() =>
         expect(screen.getByLabelText('先做5分钟应用')).toHaveStyle({
           backgroundColor: '#0F1F1C',
         }),
       );
-      await fireEvent.press(screen.getByRole('switch', {name: '减少动画'}));
+      await fireEvent.press(screen.getByRole('switch', {name: '减少动态'}));
       expect(
-        screen.getByRole('switch', {name: '减少动画'}).props.accessibilityState,
+        screen.getByRole('switch', {name: '减少动态'}).props.accessibilityState,
       ).toMatchObject({checked: true});
     } finally {
       await screen.unmount();
@@ -320,7 +321,7 @@ describe('quadrant home vertical slice', () => {
       );
       await fireEvent.press(restartedScreen.getByRole('tab', {name: '我的'}));
       expect(
-        restartedScreen.getByRole('switch', {name: '减少动画'}).props
+        restartedScreen.getByRole('switch', {name: '减少动态'}).props
           .accessibilityState,
       ).toMatchObject({checked: true});
       await expect(restarted.composition.repository.list()).resolves.toEqual([]);

@@ -47,7 +47,7 @@ describe('P9 direct product experience', () => {
       await fireEvent.changeText(screen.getByLabelText('2到10分钟动作'), '先写三条结论');
       await fireEvent.press(screen.getByRole('button', {name: '保存并先做5分钟'}));
       await flushUi();
-      await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       const saved = await harness.composition.repository.getById(task.id) as TaskWithSupport;
       expect(saved).toMatchObject({
         status: 'in_progress',
@@ -73,10 +73,11 @@ describe('P9 direct product experience', () => {
     const before = await harness.composition.repository.getById(task.id);
     const screen = await render(React.createElement(harness.composition.AppRoot));
     try {
-      await waitFor(() => expect(screen.getByRole('button', {name: '今天轻一点'})).toBeTruthy());
-      await fireEvent.press(screen.getByRole('button', {name: '今天轻一点'}));
+      await waitFor(() => expect(screen.getByRole('tab', {name: '我的'})).toBeTruthy());
+      await fireEvent.press(screen.getByRole('tab', {name: '我的'}));
+      await fireEvent.press(screen.getByRole('button', {name: '今天只推进一小步'}));
       await fireEvent.press(screen.getByRole('button', {name: '今天默认先做 2 分钟'}));
-      expect(screen.getByLabelText('今天轻一点已开启')).toBeTruthy();
+      expect(screen.getByText('2 分钟 ›')).toBeTruthy();
       expect(await harness.composition.repository.getById(task.id)).toEqual(before);
     } finally {
       await screen.unmount();
@@ -100,7 +101,7 @@ describe('P9 direct product experience', () => {
       await fireEvent.press(screen.getByRole('tab', {name: '15 分钟'}));
       await fireEvent.press(screen.getByRole('button', {name: '保存最低版本并开始15分钟'}));
       await flushUi();
-      await waitFor(() => expect(screen.getByText('正在先做 15 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       const tasks = await harness.lifecycle.list();
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject({

@@ -163,7 +163,7 @@ describe('P7 direct product experience', () => {
       await waitFor(() => expect(screen.getByRole('button', {name: `返回正在进行的专注：${task.title}`})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: `返回正在进行的专注：${task.title}`}));
       await flushUi();
-      await waitFor(() => expect(screen.getByText('正在先做 5 分钟')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
       expect(port.snapshot().filter(event => event.name === 'focus_resumed')).toHaveLength(1);
       expect(port.snapshot().filter(event => event.name === 'focus_started')).toHaveLength(0);
       expect(await restartedBackend.getItem(FOCUS_SESSION_STORAGE_KEY)).toBe(before);

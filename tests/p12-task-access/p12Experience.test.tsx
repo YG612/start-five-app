@@ -70,7 +70,7 @@ describe('P12 direct task access experience', () => {
       await waitFor(() => expect(screen.getByRole('button', {name: '查找任务'})).toBeTruthy());
       await fireEvent.press(screen.getByRole('tab', {name: '我的'}));
       expect(screen.getByRole('button', {name: '已完成任务'})).toBeTruthy();
-      expect(screen.getByRole('button', {name: '整理一下'})).toBeTruthy();
+      expect(screen.getByRole('button', {name: '待整理任务'})).toBeTruthy();
       expect(screen.queryByText('第五象限')).toBeNull();
     } finally {
       await screen.unmount();

@@ -28,7 +28,15 @@
 | P15R-08 | DONE | `src/components/AppBottomSheet.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 同类 Sheet 迁移完成 |
 | P15R-09 SOURCE_GATE | DONE | `tests/p15r-core-interaction`、`tests/gap-p0-06r3/taskWorkspaceMutationRecovery.contract.test.tsx` | 自动化、TypeScript、Android lint/build 通过 |
 | P15R-09 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；UTEST 未执行 |
-| P15 | NOT_STARTED | — | SOURCE_GATE 后续阶段，尚未开始 |
+| P15-00 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/components/AppPage.tsx`、`src/domain/pageExperience.ts` | 页面角色与现有数据入口映射完成 |
+| P15-01 | DONE | `src/components/AppPage.tsx` | 页面、标题、主视觉、分区、设置行、指标、提示、按钮与底部行动组件完成 |
+| P15-02 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 象限页移除常驻成长条与常驻低能量入口，保留单一主行动 |
+| P15-03 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/pageExperience.ts` | 专注页活动状态、下一项、快捷时长、今日三项与折叠入口完成 |
+| P15-04 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/pageExperience.ts` | 成长页主视觉、今日/本周指标、单条建议与折叠记录完成 |
+| P15-05 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 我的页六组设置与二级设置 Sheet 完成 |
+| P15-06 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`tests/p15-page-architecture/p15Experience.test.tsx` | 四项底部导航与活动专注隐藏导航通过自动化；DEVICE 待测 |
+| P15 SOURCE_GATE | DONE | `tests/p15-page-architecture` | P15 定点、合并回归、TypeScript、Android lint/build 通过 |
+| P15 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；Android DEVICE / UTEST 未执行 |
 | P16 | NOT_STARTED | — | 尚未开始 |
 | P17 | NOT_STARTED | — | 尚未开始 |
 | P18 | NOT_STARTED | — | 尚未开始 |
@@ -40,12 +48,15 @@
 - 备份版本：保持 version `1` / schemaVersion `1`。
 - 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
 - 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
+- P15 页面体验：复用现有任务、计划、专注历史、成长与设置数据；无新增持久化字段、迁移或 schema 版本。
 
 ## 测试
 
 - P15R 定点：2 suites、7/7 tests PASS。
 - 原 P0–P14：40 suites、247/247 tests PASS；历史恢复契约入口已迁移到当前四象限 UI，业务断言保留。
-- 当前合并回归：42 suites、254/254 tests PASS。
+- P15R 合并回归：42 suites、254/254 tests PASS。
+- P15 定点：2 suites、6/6 tests PASS。
+- 当前合并回归：44 suites、260/260 tests PASS。
 - TypeScript：`tsc --noEmit` PASS。
 - Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
 - Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
@@ -56,8 +67,8 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,094,719` bytes
-- SHA-256：`b1ea9b9782db276892803fe8ace9f8986241bf15bb0e8e77738f1cbcae05eab6`
+- size：`20,109,399` bytes
+- SHA-256：`fcb65ffcf83cf6c22247fde0aa48efb30ea4df52aeb63076a0c23abf9d21226d`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`
