@@ -48,7 +48,7 @@ describe('P16 focus schedule experience', () => {
         }),
       ]);
       const backup = await harness.composition.localBackup.exportBackup();
-      expect(backup.preview.schemaVersion).toBe(3);
+    expect(backup.preview.schemaVersion).toBe(4);
       expect(backup.preview.stores).toContainEqual({alias: 'focusSchedules', recordCount: 1});
     } finally {
       await screen.unmount();

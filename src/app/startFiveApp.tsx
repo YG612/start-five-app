@@ -70,6 +70,7 @@ import {hasExistingUserData} from '../data/userDataPresence';
 import {FirstActivationReadError} from '../screens/FirstActivationScreen';
 import {createCoordinatedBackend} from '../data/coordinatedBackend';
 import {createQuadrantHomePreferences} from '../data/quadrantHomePreferences';
+import {createQuadrantTaskLayoutRepository} from '../data/quadrantTaskLayoutStore';
 import {
   createLocalBackupService,
   type LocalBackupService,
@@ -147,6 +148,7 @@ export function createStartFiveApp(
   const quadrantHomePreferences = createQuadrantHomePreferences(
     coordinatedBackend,
   );
+  const quadrantTaskLayout = createQuadrantTaskLayoutRepository(coordinatedBackend);
   const taskDurablePresenceProbe =
     dependencies.public?.firstActivation?.taskDurablePresenceProbe ??
     createTaskDurablePresenceProbe(storage);
@@ -492,6 +494,7 @@ export function createStartFiveApp(
         focusSchedules={focusSchedules}
         now={dependencies.now}
         preferences={quadrantHomePreferences}
+        taskLayoutStore={quadrantTaskLayout}
         {...(dependencies.currentTimeZone === undefined
           ? {}
           : {currentTimeZone: dependencies.currentTimeZone})}

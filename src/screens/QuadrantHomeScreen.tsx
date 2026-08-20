@@ -3,7 +3,6 @@ import {
   AccessibilityInfo,
   AppState,
   Linking,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,13 +34,8 @@ import {useTaskWorkspaceRuntime} from '../app/taskWorkspaceRuntime';
 import type {Quadrant} from '../domain/quadrant';
 import {
   flagsForQuadrant,
-  projectTaskToQuadrantMap,
-  quadrantForMapDrop,
   QUADRANT_HOME_META,
   QUADRANT_LIST_ORDER,
-  QUADRANT_MAP_ROWS,
-  QUADRANT_NODE_SLOTS,
-  selectVisibleQuadrantTasks,
 } from '../domain/quadrantHome';
 import type {PlannedWorkSession, Task, TaskProgress} from '../domain/task';
 import {DayClosureScreen} from './DayClosureScreen';
@@ -60,6 +54,12 @@ import {
   AppBottomSheet,
   type SheetDismissReason,
 } from '../components/AppBottomSheet';
+import {QuadrantTaskMap} from '../components/QuadrantTaskMap';
+import type {QuadrantTaskLayoutStore} from '../data/quadrantTaskLayoutStore';
+import {
+  placementsDiffer,
+  type QuadrantPlacement,
+} from '../domain/quadrantTaskLayout';
 import {
   APP_PAGE_TOKENS,
   EmptyState,
@@ -84,14 +84,10 @@ import {
 } from '../application/productMetrics';
 import {USER_COPY, userFacingError} from '../presentation/userCopy';
 import {
-  deriveQuadrantFromPriority,
   effectiveQuadrantForTask,
   effectiveUrgencyForTask,
   legacyPriorityCoordinates,
   priorityCoordinatesForTask,
-  resolveMapNodeCollisions,
-  scoresForMapDrop,
-  isPointInsideMapBounds,
   TASK_PRIORITY_SCHEMA_VERSION,
   type RepeatRule,
   type TaskWithPriority,
@@ -205,6 +201,7 @@ type QuadrantHomeScreenProps = Readonly<{
   currentTimeZone?(): string;
   resolveLocalTrigger?(input: LocalTriggerInput): string;
   preferences: QuadrantHomePreferences;
+  taskLayoutStore: QuadrantTaskLayoutStore;
   localBackup?: LocalBackupService;
   backupFileBridge?: BackupFileBridge;
   notifications?: TomorrowFirstNotifications;
@@ -260,6 +257,8 @@ type MoveUndo = Readonly<{
   taskTitle: string;
   from: Quadrant;
   to: Quadrant;
+  fromPlacement?: QuadrantPlacement;
+  toPlacement?: QuadrantPlacement;
 }>;
 
 type CompletionUndo = Readonly<{
@@ -493,349 +492,6 @@ function TaskStatus(props: Readonly<{task: Task}>): React.JSX.Element {
         ? ''
         : ` · 第一小步：${props.task.firstStep}`}
     </Text>
-  );
-}
-
-function MapTaskNode(props: Readonly<{
-  disabled: boolean;
-  task: Task;
-  recommended: boolean;
-  reduceMotion: boolean;
-  selected: boolean;
-  largeText: boolean;
-  quadrantTaskCount: number;
-  slot: number;
-  nowInput: string;
-  onPress(): void;
-  onDragMove(x: number, y: number): void;
-  onDragEnd(): void;
-  onDrop(x: number, y: number): void;
-}>): React.JSX.Element {
-  const dark = React.useContext(DarkThemeContext);
-  const touchStartedAt = React.useRef(0);
-  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressActivatedRef = React.useRef(false);
-  const didDragRef = React.useRef(false);
-  const suppressPressRef = React.useRef(false);
-  const [dragging, setDragging] = React.useState(false);
-  const [dragOffset, setDragOffset] = React.useState({x: 0, y: 0});
-
-  function clearLongPressTimer(): void {
-    if (longPressTimerRef.current !== null) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }
-
-  React.useEffect(() => clearLongPressTimer, []);
-
-  const panResponder = React.useMemo(
-    () => PanResponder.create({
-      // Own the initial touch. Waiting until move-time lets the surrounding
-      // ScrollView or quadrant cell become responder first, which makes a
-      // genuine long-press drag impossible on Android.
-      onStartShouldSetPanResponder: () => !props.disabled,
-      onMoveShouldSetPanResponder: () => !props.disabled,
-      onPanResponderGrant: () => {
-        touchStartedAt.current = Date.now();
-        longPressActivatedRef.current = false;
-        didDragRef.current = false;
-        clearLongPressTimer();
-        longPressTimerRef.current = setTimeout(() => {
-          longPressActivatedRef.current = true;
-          setDragging(true);
-        }, 320);
-      },
-      onPanResponderMove: (_event, gesture) => {
-        if (
-          !longPressActivatedRef.current &&
-          Date.now() - touchStartedAt.current >= 320
-        ) {
-          clearLongPressTimer();
-          longPressActivatedRef.current = true;
-          setDragging(true);
-        }
-        if (!longPressActivatedRef.current) return;
-        if (Math.abs(gesture.dx) + Math.abs(gesture.dy) >= 4) {
-          didDragRef.current = true;
-        }
-        setDragOffset({x: gesture.dx, y: gesture.dy});
-        props.onDragMove(gesture.moveX, gesture.moveY);
-      },
-      onPanResponderRelease: (_event, gesture) => {
-        clearLongPressTimer();
-        suppressPressRef.current = longPressActivatedRef.current || didDragRef.current;
-        if (didDragRef.current) {
-          props.onDrop(gesture.moveX, gesture.moveY);
-        } else {
-          props.onDragEnd();
-        }
-        longPressActivatedRef.current = false;
-        didDragRef.current = false;
-        setDragging(false);
-        setDragOffset({x: 0, y: 0});
-        setTimeout(() => {
-          suppressPressRef.current = false;
-        }, 0);
-      },
-      onPanResponderTerminate: () => {
-        clearLongPressTimer();
-        props.onDragEnd();
-        longPressActivatedRef.current = false;
-        didDragRef.current = false;
-        setDragging(false);
-        setDragOffset({x: 0, y: 0});
-      },
-      onPanResponderTerminationRequest: () => !longPressActivatedRef.current,
-    }),
-    [props.disabled, props.onDragEnd, props.onDragMove, props.onDrop],
-  );
-  const point = projectTaskToQuadrantMap(props.task, props.nowInput);
-  const meta = QUADRANT_HOME_META[point.quadrant];
-  const fallbackSlot = QUADRANT_NODE_SLOTS[props.slot] ?? QUADRANT_NODE_SLOTS[0];
-  const collisionPoint = resolveMapNodeCollisions([{
-    taskId: props.task.id,
-    xPercent: point.xPercent,
-    yPercent: point.yPercent,
-  }])[0];
-  const localX = point.quadrant === 'Q1' || point.quadrant === 'Q2'
-    ? ((collisionPoint?.xPercent ?? point.xPercent) - 50) * 2
-    : (collisionPoint?.xPercent ?? point.xPercent) * 2;
-  const localY = point.quadrant === 'Q1' || point.quadrant === 'Q3'
-    ? (collisionPoint?.yPercent ?? point.yPercent) * 2
-    : ((collisionPoint?.yPercent ?? point.yPercent) - 50) * 2;
-  const nodeLeft = Math.min(62, Math.max(4, localX));
-  const nodeTop = Math.min(76, Math.max(22, localY));
-  const dueLabel = props.task.dueAt === null
-    ? '无截止时间'
-    : `截止 ${props.task.dueAt.slice(0, 16).replace('T', ' ')}`;
-  const firstStepLabel = props.task.firstStep == null || props.task.firstStep.trim() === ''
-    ? '未填写第一小步'
-    : `当前第一小步 ${props.task.firstStep}`;
-  return (
-    <Pressable
-      accessibilityLabel={`${meta.title}任务：${props.task.title}`}
-      accessibilityValue={{
-        text: `${props.task.title}，${meta.title}，${dueLabel}，${firstStepLabel}，进度 ${point.progress}%`,
-      }}
-      accessibilityHint="双击打开；长按约 0.3 秒后可直接拖到其他象限"
-      accessibilityRole="button"
-      accessibilityState={{disabled: props.disabled, selected: props.selected}}
-      disabled={props.disabled}
-      onPress={() => {
-        if (!suppressPressRef.current) props.onPress();
-      }}
-      {...panResponder.panHandlers}
-      style={[
-        styles.mapNode,
-        dark && styles.surfaceDark,
-        {
-          borderColor: meta.accent,
-          borderWidth: Math.max(1, Math.round(point.progress / 25)),
-          left: `${Number.isFinite(nodeLeft) ? nodeLeft : fallbackSlot?.left ?? 7}%`,
-          top: `${Number.isFinite(nodeTop) ? nodeTop : fallbackSlot?.top ?? 23}%`,
-        },
-        point.estimatedSize === 'small' && styles.mapNodeSmall,
-        point.estimatedSize === 'large' && styles.mapNodeLarge,
-        point.hasDeadline && styles.mapNodeDeadline,
-        props.recommended && styles.mapNodeRecommended,
-        props.selected && styles.mapNodeSelected,
-        dragging && {
-          elevation: 14,
-          opacity: 0.96,
-          transform: [
-            {translateX: dragOffset.x},
-            {translateY: dragOffset.y},
-            {scale: props.reduceMotion ? 1 : 1.06},
-          ],
-          zIndex: 15,
-        },
-      ]}>
-      <View style={[styles.nodeDot, {backgroundColor: point.hasDeadline ? '#D97706' : meta.accent}]} />
-      <Text
-        numberOfLines={compactTaskLabelConfig(
-          props.quadrantTaskCount,
-          props.selected || props.recommended,
-        ).numberOfLines}
-        style={[
-          styles.nodeTitle,
-          dark && styles.textDark,
-          {maxWidth: compactTaskLabelConfig(
-            props.quadrantTaskCount,
-            props.selected || props.recommended,
-          ).maxWidth},
-        ]}>
-        {getCompactTaskLabel(
-          props.task.title,
-          props.largeText
-            ? 14
-            : compactTaskLabelConfig(
-                props.quadrantTaskCount,
-                props.selected || props.recommended,
-              ).maxEquivalentChars,
-        )}
-      </Text>
-      {dragging ? (
-        <Text numberOfLines={2} style={[styles.dragCallout, dark && styles.textDark]}>
-          {props.task.title}
-        </Text>
-      ) : null}
-      {point.hasDeadline ? <Text style={styles.deadlineClock}>◷</Text> : null}
-    </Pressable>
-  );
-}
-
-function MapView(props: Readonly<{
-  actionPending: boolean;
-  tasks: readonly Task[];
-  recommendedId: string | null;
-  reduceMotion: boolean;
-  largeText: boolean;
-  selectedId: string | null;
-  nowInput: string;
-  onAdd(quadrant: Quadrant): void;
-  onTask(taskId: string): void;
-  onTaskDrop(
-    taskId: string,
-    scores: Readonly<{importanceScore: number; manualUrgencyScore: number}>,
-  ): void;
-  onShowList(quadrant: Quadrant): void;
-}>): React.JSX.Element {
-  const dark = React.useContext(DarkThemeContext);
-  const gridRef = React.useRef<React.ElementRef<typeof View>>(null);
-  const gridBoundsRef = React.useRef<Readonly<{
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  }> | null>(null);
-  const [dragTarget, setDragTarget] = React.useState<Quadrant | null>(null);
-
-  function measureGrid(): void {
-    gridRef.current?.measureInWindow((left, top, width, height) => {
-      gridBoundsRef.current = {left, top, width, height};
-    });
-  }
-
-  function moveDragTarget(x: number, y: number): void {
-    const bounds = gridBoundsRef.current;
-    if (bounds === null || bounds.width <= 0 || bounds.height <= 0) {
-      measureGrid();
-      return;
-    }
-    setDragTarget(quadrantForMapDrop(x, y, bounds));
-  }
-
-  function dropTask(taskId: string, x: number, y: number): void {
-    const bounds = gridBoundsRef.current;
-    setDragTarget(null);
-    if (bounds !== null && isPointInsideMapBounds(x, y, bounds)) {
-      props.onTaskDrop(taskId, scoresForMapDrop(x, y, bounds));
-      return;
-    }
-    if (bounds !== null) return;
-    gridRef.current?.measureInWindow((left, top, width, height) => {
-      if (!isPointInsideMapBounds(x, y, {left, top, width, height})) return;
-      props.onTaskDrop(
-        taskId,
-        scoresForMapDrop(x, y, {left, top, width, height}),
-      );
-    });
-  }
-
-  return (
-    <View accessibilityLabel="四象限任务地图" style={styles.mapShell}>
-      <Text style={[styles.urgencyAxis, dark && styles.textMutedDark]}>紧急程度 ↑</Text>
-      <View onLayout={measureGrid} ref={gridRef} style={styles.mapGrid}>
-        {QUADRANT_MAP_ROWS.map((row, rowIndex) => (
-          <View key={`row-${rowIndex}`} style={styles.mapRow}>
-            {row.map(quadrant => {
-              const meta = QUADRANT_HOME_META[quadrant];
-              const tasks = props.tasks.filter(
-                task =>
-                  projectTaskToQuadrantMap(task, props.nowInput).quadrant === quadrant,
-              );
-              const visible = selectVisibleQuadrantTasks(
-                tasks,
-                props.selectedId,
-                props.recommendedId,
-              );
-              return (
-                <View
-                  key={quadrant}
-                  style={[
-                    styles.mapCell,
-                    {backgroundColor: dark ? '#18312C' : meta.tint},
-                    dark && styles.borderDark,
-                    dragTarget === quadrant && styles.mapCellDragTarget,
-                  ]}>
-                  <View style={styles.cellHeading}>
-                    <View pointerEvents="none" style={styles.cellHeadingText}>
-                      <Text style={[styles.cellTitle, {color: meta.accent}]}>
-                        {meta.title} · {tasks.length}
-                      </Text>
-                      <Text style={[styles.cellDescription, dark && styles.textMutedDark]}>{meta.description}</Text>
-                    </View>
-                    <Pressable
-                      accessibilityLabel={`在${meta.title}添加任务`}
-                      accessibilityRole="button"
-                      disabled={props.actionPending}
-                      hitSlop={8}
-                      onPress={() => props.onAdd(quadrant)}
-                      style={[styles.cellAddButton, dark && styles.surfaceDark]}>
-                      <Text style={[styles.cellAddText, dark && styles.textDark]}>＋</Text>
-                    </Pressable>
-                  </View>
-                  {visible.map((task, index) => (
-                    <MapTaskNode
-                      disabled={props.actionPending}
-                      key={task.id}
-                      onDragEnd={() => setDragTarget(null)}
-                      onDragMove={moveDragTarget}
-                      onDrop={(x, y) => dropTask(task.id, x, y)}
-                      quadrantTaskCount={tasks.length}
-                      nowInput={props.nowInput}
-                      onPress={() => props.onTask(task.id)}
-                      recommended={props.recommendedId === task.id}
-                      reduceMotion={props.reduceMotion}
-                      largeText={props.largeText}
-                      selected={props.selectedId === task.id}
-                      slot={index}
-                      task={task}
-                    />
-                  ))}
-                  {tasks.length > visible.length ? (
-                    <Pressable
-                      accessibilityLabel={`查看${meta.title}其余${tasks.length - visible.length}项任务`}
-                      accessibilityRole="button"
-                      onPress={() => props.onShowList(quadrant)}
-                      style={[styles.overflowBadge, dark && styles.surfaceDark]}>
-                      <Text style={[styles.overflowText, dark && styles.textDark]}>+{tasks.length - visible.length} 项</Text>
-                    </Pressable>
-                  ) : null}
-                  {tasks.length === 0 ? (
-                    <Pressable
-                      accessibilityLabel={`${meta.title}暂无任务，点击添加`}
-                      accessibilityRole="button"
-                      disabled={props.actionPending}
-                      onPress={() => props.onAdd(quadrant)}
-                      style={styles.emptyCellButton}>
-                      <Text style={[styles.emptyCell, dark && styles.textMutedDark]}>点这里添加</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-      {dragTarget === null ? null : (
-        <Text accessibilityLiveRegion="polite" style={[styles.dragTargetText, dark && styles.textDark]}>
-          松手移到：{QUADRANT_HOME_META[dragTarget].title}
-        </Text>
-      )}
-      <Text style={[styles.importanceAxis, dark && styles.textMutedDark]}>重要程度 →</Text>
-    </View>
   );
 }
 
@@ -1570,6 +1226,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const {fontScale} = useWindowDimensions();
   const [tab, setTab] = React.useState<MainTab>('quadrants');
   const [viewMode, setViewMode] = React.useState<ViewMode>('map');
+  const [layoutDragging, setLayoutDragging] = React.useState(false);
+  const [layoutResetKey, setLayoutResetKey] = React.useState(0);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = React.useState(false);
   const [listTarget, setListTarget] = React.useState<Quadrant | null>(null);
   const [editorMode, setEditorMode] = React.useState<'create' | 'edit' | null>(null);
@@ -1683,6 +1341,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }, [props.metricClock, props.metricPort, props.metricSessionId]);
 
   const selectTab = React.useCallback((next: MainTab) => {
+    setLayoutDragging(false);
+    setLayoutResetKey(value => value + 1);
     setTab(next);
   }, []);
 
@@ -1690,6 +1350,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     mode: TaskOrganizerMode,
     taskId: string | null = null,
   ) => {
+    setLayoutDragging(false);
+    setLayoutResetKey(value => value + 1);
     setOrganizerTaskId(taskId);
     setOrganizerMode(mode);
   }, []);
@@ -2528,6 +2190,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const dark = settings.theme === 'dark' ||
     (settings.theme === 'system' && systemScheme === 'dark');
   function openCreate(quadrant?: Quadrant, source = 'quadrant'): void {
+    setLayoutDragging(false);
+    setLayoutResetKey(value => value + 1);
     pendingSheetMetricRef.current = {
       name: 'task_create_open',
       source,
@@ -2564,6 +2228,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     source = 'quadrant',
     initialLayer: TaskPanelLayer = 'action',
   ): void {
+    setLayoutDragging(false);
+    setLayoutResetKey(value => value + 1);
     pendingSheetMetricRef.current = {
       name: 'task_sheet_open',
       source,
@@ -3723,22 +3389,19 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       .finally(() => setActionPending(false));
   }
 
-  function dropTaskOnQuadrant(
-    taskId: string,
-    scores: Readonly<{importanceScore: number; manualUrgencyScore: number}>,
-  ): void {
-    const task = snapshot.tasks.find(candidate => candidate.id === taskId);
-    if (task === undefined || actionPending) {
-      return;
-    }
-    const from = effectiveQuadrantForTask(task, priorityNow);
-    const to = deriveQuadrantFromPriority(
-      scores.importanceScore,
-      scores.manualUrgencyScore,
-    );
-    setActionPending(true);
-    setActionError(null);
-    const flags = flagsForQuadrant(to);
+  async function commitTaskLayout(input: Readonly<{
+    taskId: string;
+    originQuadrant: Quadrant;
+    originPlacement: QuadrantPlacement;
+    targetQuadrant: Quadrant;
+    targetPlacement: QuadrantPlacement;
+  }>): Promise<void> {
+    const task = snapshot.tasks.find(candidate => candidate.id === input.taskId);
+    if (task === undefined || actionPending) throw new Error('TASK_LAYOUT_COMMIT_UNAVAILABLE');
+    const quadrantChanged = input.originQuadrant !== input.targetQuadrant;
+    if (!quadrantChanged && !placementsDiffer(input.originPlacement, input.targetPlacement)) return;
+    const previousCoordinates = priorityCoordinatesForTask(task);
+    const previousFlags = flagsForQuadrant(input.originQuadrant);
     const updatePriority = runtime.updateTask as unknown as (
       id: string,
       patch: Readonly<{
@@ -3747,29 +3410,56 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         prioritySchemaVersion: 1;
         importanceScore: number;
         manualUrgencyScore: number;
-        urgencyMode: 'manual';
+        urgencyMode: UrgencyMode;
       }>,
     ) => Promise<Task>;
-    void updatePriority(task.id, {
-      ...flags,
-      prioritySchemaVersion: TASK_PRIORITY_SCHEMA_VERSION,
-      importanceScore: scores.importanceScore,
-      manualUrgencyScore: scores.manualUrgencyScore,
-      urgencyMode: 'manual',
-    })
-      .then(updated => {
-        recordMetric('task_move_committed', {
-          source: 'drag',
-          success: true,
-          taskRef: updated.id,
+    setActionPending(true);
+    setActionError(null);
+    let semanticUpdated = false;
+    try {
+      let updated = task;
+      if (quadrantChanged) {
+        updated = await updatePriority(task.id, priorityPatchForQuadrant(input.targetQuadrant));
+        semanticUpdated = true;
+      }
+      try {
+        await props.taskLayoutStore.upsert(task.id, input.targetPlacement);
+      } catch (layoutError: unknown) {
+        if (semanticUpdated) {
+          await updatePriority(task.id, {
+            ...previousFlags,
+            prioritySchemaVersion: TASK_PRIORITY_SCHEMA_VERSION,
+            importanceScore: previousCoordinates.importanceScore,
+            manualUrgencyScore: previousCoordinates.manualUrgencyScore,
+            urgencyMode: previousCoordinates.urgencyMode,
+          }).catch(() => undefined);
+          await runtime.refreshProjection().catch(() => undefined);
+        }
+        throw layoutError;
+      }
+      recordMetric('task_move_committed', {
+        source: quadrantChanged ? 'drag_cross_quadrant' : 'drag_same_quadrant',
+        success: true,
+        taskRef: updated.id,
+      });
+      if (quadrantChanged) {
+        rememberMove({
+          taskId: updated.id,
+          taskTitle: updated.title,
+          from: input.originQuadrant,
+          to: input.targetQuadrant,
+          fromPlacement: input.originPlacement,
+          toPlacement: input.targetPlacement,
         });
-        rememberMove({taskId: updated.id, taskTitle: updated.title, from, to});
-        runtime.closeTask();
-      })
-      .catch(reason => {
-        setActionError(userFacingError(reason, USER_COPY.taskMoveFailed));
-      })
-      .finally(() => setActionPending(false));
+      }
+      runtime.closeTask();
+    } catch (reason: unknown) {
+      setActionError(userFacingError(reason, USER_COPY.taskMoveFailed));
+      await runtime.refreshProjection().catch(() => undefined);
+      throw reason;
+    } finally {
+      setActionPending(false);
+    }
   }
 
   function undoLastMove(): void {
@@ -3781,7 +3471,14 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     setActionPending(true);
     setActionError(null);
     void runtime.updateTask(pendingUndo.taskId, flags)
-      .then(() => {
+      .then(async () => {
+        if (pendingUndo.fromPlacement !== undefined) {
+          await props.taskLayoutStore.upsert(
+            pendingUndo.taskId,
+            pendingUndo.fromPlacement,
+          );
+          setLayoutResetKey(value => value + 1);
+        }
         recordMetric('task_move_undone', {
           source: 'undo',
           success: true,
@@ -3872,6 +3569,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   });
 
   function selectViewMode(mode: ViewMode): void {
+    setLayoutDragging(false);
+    setLayoutResetKey(value => value + 1);
     setViewMode(mode);
     setSettings(current => ({
       ...current,
@@ -4263,7 +3962,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     <View
       accessibilityLabel="先做5分钟应用"
       style={[styles.safeArea, dark && styles.safeAreaDark]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} scrollEnabled={!layoutDragging}>
         {tab === 'quadrants' ? (
           <>
             <PageHeader
@@ -4487,17 +4186,20 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
               <SegmentedButton label="清单" onPress={() => selectViewMode('list')} selected={viewMode === 'list'} />
             </View>
             {!viewPreferenceLoaded ? null : viewMode === 'map' ? (
-              <MapView
+              <QuadrantTaskMap
                 actionPending={actionPending}
+                dark={dark}
+                key={layoutResetKey}
                 onAdd={openCreate}
+                onCommit={commitTaskLayout}
+                onDraggingChange={setLayoutDragging}
                 onShowList={showQuadrantList}
-                onTaskDrop={dropTaskOnQuadrant}
                 onTask={openTask}
-                 nowInput={priorityNow}
+                nowInput={priorityNow}
+                repository={props.taskLayoutStore}
                 recommendedId={snapshot.recommendation?.id ?? null}
                 reduceMotion={settings.reduceMotion}
                 largeText={fontScale >= 1.5}
-                selectedId={selectedTask?.id ?? null}
                 tasks={tasks}
               />
             ) : (

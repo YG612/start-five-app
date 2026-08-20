@@ -1,6 +1,6 @@
 # CODEX P15R–P18 Progress
 
-更新时间：2026-08-17（Asia/Shanghai）
+更新时间：2026-08-21（Asia/Shanghai）
 
 ## 基线
 
@@ -9,7 +9,7 @@
 - 截图：`references/current_quick_add.jpg`、`references/current_quick_edit.jpg`
 - Task Repository envelope：version `1`
 - priority/support/growth schema：version `1`
-- backup schema：version `3`（version `1`、`2` 导入兼容保留）
+- backup schema：version `4`（version `1`、`2`、`3` 导入兼容保留）
 - P0–P14：40 suites、247/247 tests PASS
 - P14 APK SHA-256：`cd720dd410bfede498d6f9fdaf9f67fcb2b714b87e69577911575797e627270d`
 
@@ -22,6 +22,7 @@
 | P15R-02 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/app/taskWorkspaceRuntime.tsx` | 固定主按钮、安全退出保存、稳定 draft 幂等键 |
 | P15R-03 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 编辑主次、状态修正、低频动作收纳 |
 | P15R-04 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/taskPriority.ts` | 长按直接拖动与越界取消；DEVICE 待测 |
+| P15R-04B TASK PERSISTENT LAYOUT MODE | DONE_AUTO | `src/components/QuadrantTaskMap.tsx`、`src/domain/quadrantTaskLayout.ts`、`src/data/quadrantTaskLayoutStore.ts` | 1000ms 持续选中、同手势/二次触碰拖动、象限内位置、跨象限提交与 v4 备份完成；DEVICE 待测 |
 | P15R-05 | DONE | `src/domain/taskDisplay.ts`、`src/screens/QuadrantHomeScreen.tsx` | 紧凑语义标签与拖动态完整标题 |
 | P15R-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 重复入口和顶部密度收口 |
 | P15R-07 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/components/AppBottomSheet.tsx` | 深色选中面与用户语言收口；DEVICE 待测 |
@@ -68,7 +69,8 @@
 
 - 持久化任务模型：无字段变化。
 - 专注日程存储：`start-five.focus-schedules.v2`，envelope schema `start-five.focus-schedules` / version `2`；单条坏日程或事件隔离。
-- 备份版本：schemaVersion `3`，新增 `quadrantHomePreferences` store；schemaVersion `1`、`2` 解析兼容保留。
+- 备份版本：schemaVersion `4`，新增 `quadrantTaskLayout` store；schemaVersion `1`、`2`、`3` 解析兼容保留。
+- 四象限任务布局：key `start-five.quadrant-task-layout.v1`，envelope version `1`；按 `taskId` 保存目标象限内容区内归一化中心坐标，单条坏记录隔离，孤儿记录惰性清理。
 - 日程事件幂等键：`focus-schedule-event:${scheduleId}:${localDateKey}:${type}`；启动键：`focus-schedule-start:${scheduleId}:${localDateKey}`。
 - 专注会话存储：key 保持 `start-five.focus-sessions.v1`；envelope version `2`，新增可选 `FocusContextSnapshot`；version `1` 读取与备份恢复兼容保留。
 - 象限首页偏好：version `7`，新增 P18 专注、任务、提醒、无障碍和备份日期偏好；version `1`–`6` 读取迁移保留，旧 `45` 分钟默认迁移为 `50`。
@@ -88,6 +90,7 @@
 - P17 定点：3 suites、11/11 tests PASS。
 - P0–P17 当前合并回归：51 suites、283/283 tests PASS。
 - P18 定点：3 suites、9/9 tests PASS。
+- P15R-04B 定点：1 suite、9/9 tests PASS；包含 schemaVersion 1～4 备份兼容。
 - 原 P0–P14：40 suites、247/247 tests PASS。
 - P15R–P18 新增：45/45 tests PASS。
 - P0–P18 当前合并回归：54 suites、292/292 tests PASS。
@@ -101,8 +104,8 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,206,123` bytes
-- SHA-256：`1cffa39c0b7f03a69c5b4e7b78197e7b7edb4a467883e227aabad92c58fd9166`
+- size：`20,232,475` bytes
+- SHA-256：`0020bcb4e4348bfa6009720d8cf673d878adaeb92fa3f0b61a9c4864e8045d17`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`
@@ -123,9 +126,29 @@
 | Android internal APK | PASS | `android/app/build/outputs/apk/internal/app-internal.apk`；20206123 bytes；SHA-256 `1cffa39c0b7f03a69c5b4e7b78197e7b7edb4a467883e227aabad92c58fd9166` |
 | Android DEVICE | PENDING_EXTERNAL | 待连接设备验证长按 320ms、跨四象限拖放、进度保存与专注恢复 |
 
+## 2026-08-21 P15R-04B TASK PERSISTENT LAYOUT MODE
+
+| 项目 | 状态 | 真实路径 / 结果 |
+| --- | --- | --- |
+| 旧行为保留记录 | HISTORICAL | P15R-04 为 320ms 长按后直接拖动，松手退出，无象限内位置持久化 |
+| 集中状态机 | DONE_AUTO | `src/domain/quadrantTaskLayout.ts`；`idle / armed / dragging / committing`，1000ms 长按、10dp 预选取消、6dp 拖动阈值 |
+| 双阶段拖动 | DONE_AUTO | `src/components/QuadrantTaskMap.tsx`；长按后同一手势继续拖动，或松手保持选中后再次触碰拖动 |
+| 地图覆盖层与命中 | DONE_AUTO | 地图统一坐标、四象限真实测量、任务中心命中、原位占位、地图级覆盖层、拖动时关闭父滚动 |
+| 象限内布局 | DONE_AUTO | 归一化中心坐标、内容区边界、网格吸附、确定性最近空位、同象限只写布局 |
+| 跨象限提交 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`；通过既有 `runtime.updateTask` 更新语义，布局写入失败时回滚优先级并刷新真实状态 |
+| 持久化 | DONE_AUTO | `src/data/quadrantTaskLayoutStore.ts`；独立 version 1 envelope、坏记录隔离、孤儿过滤 |
+| 备份 | DONE_AUTO | `src/application/localBackupService.ts`；当前导出 schemaVersion 4，version 1～3 合法备份继续通过解析 |
+| 减少动态 / 无障碍 | DONE_AUTO | 减少动态使用静态选中效果；`accessibilityState.selected`、完整任务语义和四象限移动 action 保留 |
+| 定点测试 | PASS | `tests/p15r-task-layout-mode/quadrantTaskLayout.test.ts`；1 suite、9/9 tests |
+| P7–P18 / P15R / 四象限合并回归 | PASS | 45 suites、212/212 tests |
+| TypeScript | PASS | `tsc --noEmit` |
+| Android lint | PASS | `:app:lintInternal`；`BUILD SUCCESSFUL` |
+| Android internal APK | PASS | `android/app/build/outputs/apk/internal/app-internal.apk`；20,232,475 bytes；SHA-256 `0020bcb4e4348bfa6009720d8cf673d878adaeb92fa3f0b61a9c4864e8045d17` |
+| Android DEVICE / UTEST | PENDING_EXTERNAL | `adb devices -l` 返回设备数 0；1000ms 选中、两条拖动路径、滚动竞争、TalkBack 和多尺寸尚未真机执行 |
+
 ## 未完成与风险
 
-- Android 真机拖动、键盘、系统返回、TalkBack、最大字体、通知动作、常亮/反馈和首次用户 UTEST 尚无设备执行；执行脚本见 `docs/P18_DEVICE_UTEST_ACCEPTANCE.md`。
+- Android 真机 1000ms 持续选中、同手势/二次触碰拖动、滚动竞争、键盘、系统返回、TalkBack、最大字体、通知动作、常亮/反馈和首次用户 UTEST 尚无设备执行；执行脚本见 P15R-04B 指令与 `docs/P18_DEVICE_UTEST_ACCEPTANCE.md`。
 - iOS 编译、VoiceOver 和真机验证需要 macOS/Xcode。
 - Gradle 9.3.1 报告 deprecated features；当前 lint/build 通过，Gradle 10 升级兼容性未处理。
 - P14-02B 仍为 `BLOCKED_SPEC_GUARD`，本阶段未改动备份合并语义。

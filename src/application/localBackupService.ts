@@ -17,6 +17,10 @@ import {
   QUADRANT_HOME_PREFERENCES_KEY,
   validateQuadrantHomePreferencesBackup,
 } from '../data/quadrantHomePreferences';
+import {
+  QUADRANT_TASK_LAYOUT_STORAGE_KEY,
+  validateQuadrantTaskLayoutBackup,
+} from '../data/quadrantTaskLayoutStore';
 
 export type BackupPreview = Readonly<{
   backupDate: string | null;
@@ -68,6 +72,7 @@ const STORES: readonly Store[] = [
   {alias: 'focusSchedules', key: FOCUS_SCHEDULE_STORAGE_KEY},
   {alias: 'postFocusReview', key: POST_FOCUS_REVIEW_STORAGE_KEY},
   {alias: 'quadrantHomePreferences', key: QUADRANT_HOME_PREFERENCES_KEY},
+  {alias: 'quadrantTaskLayout', key: QUADRANT_TASK_LAYOUT_STORAGE_KEY},
   {alias: 'reminderScheduling', key: 'start-five/reminder-scheduling/v1'},
   {alias: 'tasks', key: TASK_STORAGE_KEY},
   {alias: 'tomorrowFirstPreference', key: 'start-five/tomorrow-first-reminder/v1'},
@@ -336,6 +341,8 @@ function validateLogicalStore(alias: string, raw: string | null): number {
         return validatePostFocusReviewBackup(raw);
       case 'quadrantHomePreferences':
         return validateQuadrantHomePreferencesBackup(raw);
+      case 'quadrantTaskLayout':
+        return validateQuadrantTaskLayoutBackup(raw);
       case 'reminderScheduling':
         return validateReminderSchedulingBackup(raw);
       case 'tomorrowFirstPreference':
@@ -406,7 +413,7 @@ async function parseWire(
   }
   if (
     !isRecord(value) ||
-    (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3) ||
+    (value.schemaVersion !== 1 && value.schemaVersion !== 2 && value.schemaVersion !== 3 && value.schemaVersion !== 4) ||
     !isRecord(value.manifest) ||
     !Array.isArray(value.manifest.stores) ||
     !Array.isArray(value.manifest.references) ||
@@ -438,11 +445,18 @@ async function parseWire(
   }
   const expectedStores = value.schemaVersion === 1
     ? STORES.filter(store =>
-        store.alias !== 'focusSchedules' && store.alias !== 'quadrantHomePreferences',
+        store.alias !== 'focusSchedules' &&
+        store.alias !== 'quadrantHomePreferences' &&
+        store.alias !== 'quadrantTaskLayout',
       )
     : value.schemaVersion === 2
-      ? STORES.filter(store => store.alias !== 'quadrantHomePreferences')
-      : STORES;
+      ? STORES.filter(store =>
+          store.alias !== 'quadrantHomePreferences' &&
+          store.alias !== 'quadrantTaskLayout',
+        )
+      : value.schemaVersion === 3
+        ? STORES.filter(store => store.alias !== 'quadrantTaskLayout')
+        : STORES;
   if (
     stores.length !== expectedStores.length ||
     expectedStores.some(store => !aliases.has(store.alias)) ||
@@ -648,7 +662,7 @@ export function createLocalBackupService(options: Readonly<{
     if (!Number.isFinite(createdAtMs)) return fail('LOCAL_BACKUP_CLOCK_INVALID');
     const createdAt = new Date(createdAtMs).toISOString();
     const unsigned = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       createdAt,
       applicationVersion: BACKUP_APPLICATION_VERSION,
       manifest: {
@@ -674,7 +688,7 @@ export function createLocalBackupService(options: Readonly<{
       preview: previewFor(stores, taskMetadata, {
         backupDate: createdAt,
         applicationVersion: BACKUP_APPLICATION_VERSION,
-        schemaVersion: 3,
+        schemaVersion: 4,
       }),
     };
   }

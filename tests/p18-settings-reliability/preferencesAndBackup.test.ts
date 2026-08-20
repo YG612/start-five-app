@@ -41,7 +41,7 @@ describe('P18 preferences, backup and destructive reliability', () => {
     expect(persisted).toMatchObject({version: 7, preferredWeekdays: [2, 4, 6]});
   });
 
-  it('backs up v7 preferences in schema v3 without mutating an existing schedule', async () => {
+  it('backs up v7 preferences in schema v4 without mutating an existing schedule', async () => {
     const sourceBackend = new WorkspaceBackend();
     const source = createStartFiveApp({
       storageBackend: sourceBackend,
@@ -66,7 +66,7 @@ describe('P18 preferences, backup and destructive reliability', () => {
     ]);
 
     const artifact = await source.localBackup.exportBackup();
-    expect(artifact.preview.schemaVersion).toBe(3);
+    expect(artifact.preview.schemaVersion).toBe(4);
     expect(artifact.preview.stores).toContainEqual({
       alias: 'quadrantHomePreferences',
       recordCount: 1,
