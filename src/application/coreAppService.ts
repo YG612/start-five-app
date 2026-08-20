@@ -170,6 +170,7 @@ export type TaskLifecycleTaskInput = {
   dueAt?: string | null;
   estimatedMinutes?: number | null;
   firstStep?: string | null;
+  progress?: TaskProgress;
   placementState?: TaskPlacementState;
 };
 
@@ -191,6 +192,7 @@ export type TaskLifecycleTaskPatch = Partial<
     | 'lastMeaningfulActivityAt'
     | 'completionRewardConsumed'
     | 'completionDefinition'
+    | 'progress'
     | 'progressSource'
     | 'steps'
     | 'plannedWorkSessions'
@@ -952,12 +954,9 @@ function normalizeLifecycleCreateInput(
     input.firstStep === undefined
       ? null
       : normalizedFirstStep(input.firstStep);
-  const progress =
-    (input as TaskLifecycleTaskInput & {progress?: TaskProgress}).progress === undefined
-      ? undefined
-      : normalizedProgress(
-          (input as TaskLifecycleTaskInput & {progress: TaskProgress}).progress,
-        );
+  const progress = input.progress === undefined
+    ? undefined
+    : normalizedProgress(input.progress);
   const scheduledStartAt = planned.present ? planned.value : null;
   validateLifecycleTimeRange(scheduledStartAt, dueAt);
   return {
@@ -1021,9 +1020,8 @@ function normalizeLifecyclePatch(
   if (hasOwn(patch, 'firstStep') && patch.firstStep !== undefined) {
     normalized.firstStep = normalizedFirstStep(patch.firstStep);
   }
-  const progressPatch = patch as TaskLifecycleTaskPatch & {progress?: TaskProgress};
-  if (hasOwn(progressPatch, 'progress') && progressPatch.progress !== undefined) {
-    normalized.progress = normalizedProgress(progressPatch.progress);
+  if (hasOwn(patch, 'progress') && patch.progress !== undefined) {
+    normalized.progress = normalizedProgress(patch.progress);
   }
   if (
     hasOwn(normalized, 'scheduledStartAt') &&
@@ -1504,6 +1502,9 @@ export function createTaskLifecycleService(
             dueAt: normalized.dueAt,
             estimatedMinutes: normalized.estimatedMinutes,
             firstStep: normalized.firstStep,
+            ...(normalized.progress === undefined
+              ? {}
+              : {progress: normalized.progress}),
             createdAt,
             updatedAt: createdAt,
             startedAt: null,
@@ -1513,9 +1514,6 @@ export function createTaskLifecycleService(
             scoreAwardedAt: null,
             subtasks: [],
           };
-          if (normalized.progress !== undefined) {
-            (task as Task & {progress?: TaskProgress}).progress = normalized.progress;
-          }
           return repository.create(decorateNewLifecycleTask(task, normalized));
         },
         async (transaction, reserveClock) => {
@@ -1533,6 +1531,9 @@ export function createTaskLifecycleService(
             dueAt: normalized.dueAt,
             estimatedMinutes: normalized.estimatedMinutes,
             firstStep: normalized.firstStep,
+            ...(normalized.progress === undefined
+              ? {}
+              : {progress: normalized.progress}),
             createdAt,
             updatedAt: createdAt,
             startedAt: null,
@@ -1542,9 +1543,6 @@ export function createTaskLifecycleService(
             scoreAwardedAt: null,
             subtasks: [],
           };
-          if (normalized.progress !== undefined) {
-            (task as Task & {progress?: TaskProgress}).progress = normalized.progress;
-          }
           return transaction.create(decorateNewLifecycleTask(task, normalized));
         },
         cloneLifecycleTask,
@@ -1639,7 +1637,7 @@ export function createTaskLifecycleService(
               ? normalized.dueAt ?? null
               : current.dueAt;
             validateLifecycleTimeRange(scheduledStartAt, dueAt);
-            const patch: Partial<Omit<Task, 'id'>> & {progress?: TaskProgress} = {
+            const patch: Partial<Omit<Task, 'id'>> = {
               startAt: scheduledStartAt,
               scheduledStartAt,
               updatedAt: reserveClock(),

@@ -99,8 +99,7 @@ export function projectedFirstStep(task: Task): string | null {
 
 export function taskStepProgress(task: Task): TaskProgress {
   if (task.progressSource !== 'STEPS' || (task.steps?.length ?? 0) === 0) {
-    const candidate = (task as Task & {progress?: TaskProgress}).progress;
-    return candidate ?? 0;
+    return task.progress ?? 0;
   }
   const steps = task.steps ?? [];
   const weighted = steps.every(step => step.estimatedMinutes !== undefined);
@@ -130,7 +129,7 @@ function projectStepState(task: Task, steps: TaskStep[]): Task {
   const projected = steps.find(step => step.status === 'ACTIVE')?.title ?? null;
   const next: Task = {...task, steps, firstStep: projected};
   if (task.progressSource === 'STEPS') {
-    (next as Task & {progress?: TaskProgress}).progress = taskStepProgress(next);
+    next.progress = taskStepProgress(next);
   }
   return next;
 }

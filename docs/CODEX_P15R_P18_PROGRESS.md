@@ -101,12 +101,27 @@
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,203,487` bytes
-- SHA-256：`aeb2fd1f04cb98853ec6c0659e3609824510750cbbffae90847c8353e6b8e513`
+- size：`20,206,123` bytes
+- SHA-256：`1cffa39c0b7f03a69c5b4e7b78197e7b7edb4a467883e227aabad92c58fd9166`
 - applicationId：`com.startfive.app`
 - versionCode：`1`
 - versionName：`1.0`
 - 签名：debug key，仅供 internal 测试。
+
+## 2026-08-20 四象限交互可靠性修复
+
+| 项目 | 状态 | 真实路径 / 结果 |
+| --- | --- | --- |
+| 地图任务长按拖动 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`；任务节点触摸起始响应器、独立象限添加按钮、拖动目标与松手更新链路 |
+| 任务弹层标题去重 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`；标题与象限/截止信息只由 `AppBottomSheet` 头部渲染 |
+| 进度保存链路 | DONE_AUTO | `src/domain/task.ts`、`src/application/coreAppService.ts`、`src/domain/taskExecutionPlan.ts`、`src/domain/taskSupport.ts`、`src/domain/quadrantHome.ts`、`src/screens/TaskProgressSheet.tsx`、`src/screens/QuadrantHomeScreen.tsx` |
+| 专注启动冲突 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`；已有同任务专注恢复、活动会话冲突恢复 |
+| 错误提示收口 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`；页面级任务错误合并为单个固定横幅，关闭弹层清理历史错误 |
+| 回归测试 | PASS | `tests/p7-user-metrics/p7Experience.test.tsx`、`tests/quadrant-refactor/quadrantHomeScreen.test.tsx`；P7–P18 与四象限合并回归 44 suites、203/203 tests |
+| TypeScript | PASS | `tsc --noEmit` |
+| Android lint | PASS | `android/app/build/reports/lint-results-internal.html` |
+| Android internal APK | PASS | `android/app/build/outputs/apk/internal/app-internal.apk`；20206123 bytes；SHA-256 `1cffa39c0b7f03a69c5b4e7b78197e7b7edb4a467883e227aabad92c58fd9166` |
+| Android DEVICE | PENDING_EXTERNAL | 待连接设备验证长按 320ms、跨四象限拖放、进度保存与专注恢复 |
 
 ## 未完成与风险
 

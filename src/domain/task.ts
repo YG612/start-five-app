@@ -59,6 +59,7 @@ export type Task = {
   estimatedMinutes?: number | null;
   firstStep?: string | null;
   completionDefinition?: string | null;
+  progress?: TaskProgress;
   progressSource?: TaskProgressSource;
   steps?: TaskStep[];
   plannedWorkSessions?: PlannedWorkSession[];

@@ -65,7 +65,7 @@ function nextExecutionId(taskId: string, kind: string): string {
 }
 
 function patchFor(task: Task): P13TaskPatch {
-  const progress = (task as Task & {progress?: TaskProgress}).progress;
+  const progress = task.progress;
   const nextStartAt = (task as Task & {nextStartAt?: string | null}).nextStartAt;
   return {
     completionDefinition: task.completionDefinition ?? null,

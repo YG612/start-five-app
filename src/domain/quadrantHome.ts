@@ -156,7 +156,7 @@ export function projectTaskToQuadrantMap(
   const importanceScore = coordinates.importanceScore;
   const quadrant = deriveQuadrantFromPriority(importanceScore, urgencyScore);
   const estimatedMinutes = task.estimatedMinutes ?? 30;
-  const storedProgress = (task as Task & {progress?: 0 | 25 | 50 | 75 | 100}).progress;
+  const storedProgress = task.progress;
   return {
     quadrant,
     importanceScore,

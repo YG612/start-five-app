@@ -47,6 +47,9 @@ describe('P7 direct product experience', () => {
       await waitFor(() => expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: `成长区任务：${task.title}`}));
       expect(screen.getByRole('header', {name: task.title})).toBeTruthy();
+      // The dimmed home recommendation and map node remain mounted behind the
+      // sheet, plus one sheet header. The action body must not add another copy.
+      expect(screen.getAllByText(task.title)).toHaveLength(3);
       expect(screen.queryByLabelText('任务标题')).toBeNull();
       expect(screen.getByRole('button', {name: '先做 5 分钟'})).toBeTruthy();
       expect(screen.getByRole('button', {name: '完成任务'})).toBeTruthy();
@@ -55,7 +58,10 @@ describe('P7 direct product experience', () => {
 
       await fireEvent.press(screen.getByRole('radio', {name: '更新进度为 50%'}));
       await waitFor(() =>
-        expect(harness.composition.repository.getById(task.id)).resolves.toMatchObject({progress: 50}),
+        expect(harness.composition.repository.getById(task.id)).resolves.toMatchObject({
+          progress: 50,
+          progressSource: 'MANUAL',
+        }),
       );
       expect(screen.getByRole('radio', {name: '更新进度为 50%'}).props.accessibilityState)
         .toMatchObject({selected: true});
@@ -63,8 +69,13 @@ describe('P7 direct product experience', () => {
       backend.failNextSet(new Error('P7_PROGRESS_WRITE_FAILED'));
       await fireEvent.press(screen.getByRole('radio', {name: '更新进度为 75%'}));
       await waitFor(() => expect(screen.getByText('进度没有保存成功，原来的进度仍然保留，请重试。')).toBeTruthy());
+      expect(screen.getAllByText('进度没有保存成功，原来的进度仍然保留，请重试。')).toHaveLength(1);
       await expect(harness.composition.repository.getById(task.id)).resolves.toMatchObject({progress: 50});
       expect(screen.getByRole('header', {name: task.title})).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', {name: '关闭'}));
+      await waitFor(() =>
+        expect(screen.queryByText('进度没有保存成功，原来的进度仍然保留，请重试。')).toBeNull(),
+      );
     } finally {
       await screen.unmount();
     }

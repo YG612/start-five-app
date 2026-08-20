@@ -43,8 +43,14 @@ describe('quadrant home vertical slice', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', {name: '成长区任务：准备下周答辩'})).toBeTruthy(),
       );
+      const mapTask = screen.getByRole('button', {name: '成长区任务：准备下周答辩'});
+      expect(typeof mapTask.props.onStartShouldSetResponder).toBe('function');
+      expect(mapTask.props.onStartShouldSetResponder(
+        {nativeEvent: {touches: []}},
+        {},
+      )).toBe(true);
 
-      await fireEvent.press(screen.getByRole('button', {name: '成长区任务：准备下周答辩'}));
+      await fireEvent.press(mapTask);
       await waitFor(() => expect(screen.getByRole('header', {name: '准备下周答辩'})).toBeTruthy());
       await fireEvent.press(screen.getByRole('button', {name: '编辑更多'}));
       await fireEvent.changeText(screen.getByLabelText('任务标题'), '准备周五答辩');

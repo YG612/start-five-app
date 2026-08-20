@@ -304,8 +304,6 @@ function startWindowLabel(window: QuadrantHomeSettings['preferredStartWindow']):
   return window === null ? '暂未设置' : `${window.startLocalTime}–${window.endLocalTime}`;
 }
 
-type TaskWithProgress = Task & Readonly<{progress?: TaskProgress}>;
-
 type FocusScheduleTiming = 'today' | 'daily' | 'workdays' | 'custom';
 type FocusScheduleTargetChoice = 'current' | 'growth' | 'auto';
 type FocusScheduleEditorDraft = Readonly<{
@@ -319,8 +317,7 @@ type FocusScheduleEditorDraft = Readonly<{
 }>;
 
 function progressForTask(task: Task): TaskProgress {
-  const persisted = (task as TaskWithProgress).progress;
-  return persisted ?? (task.status === 'in_progress' ? 25 : 0);
+  return task.progress ?? (task.status === 'in_progress' ? 25 : 0);
 }
 
 type SheetMetricRequest = Readonly<{
@@ -516,35 +513,80 @@ function MapTaskNode(props: Readonly<{
 }>): React.JSX.Element {
   const dark = React.useContext(DarkThemeContext);
   const touchStartedAt = React.useRef(0);
+  const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressActivatedRef = React.useRef(false);
   const didDragRef = React.useRef(false);
+  const suppressPressRef = React.useRef(false);
   const [dragging, setDragging] = React.useState(false);
   const [dragOffset, setDragOffset] = React.useState({x: 0, y: 0});
+
+  function clearLongPressTimer(): void {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  React.useEffect(() => clearLongPressTimer, []);
+
   const panResponder = React.useMemo(
     () => PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_event, gesture) =>
-        !props.disabled &&
-        Date.now() - touchStartedAt.current >= 320 &&
-        Math.abs(gesture.dx) + Math.abs(gesture.dy) >= 8,
+      // Own the initial touch. Waiting until move-time lets the surrounding
+      // ScrollView or quadrant cell become responder first, which makes a
+      // genuine long-press drag impossible on Android.
+      onStartShouldSetPanResponder: () => !props.disabled,
+      onMoveShouldSetPanResponder: () => !props.disabled,
       onPanResponderGrant: () => {
-        didDragRef.current = true;
-        setDragging(true);
+        touchStartedAt.current = Date.now();
+        longPressActivatedRef.current = false;
+        didDragRef.current = false;
+        clearLongPressTimer();
+        longPressTimerRef.current = setTimeout(() => {
+          longPressActivatedRef.current = true;
+          setDragging(true);
+        }, 320);
       },
       onPanResponderMove: (_event, gesture) => {
+        if (
+          !longPressActivatedRef.current &&
+          Date.now() - touchStartedAt.current >= 320
+        ) {
+          clearLongPressTimer();
+          longPressActivatedRef.current = true;
+          setDragging(true);
+        }
+        if (!longPressActivatedRef.current) return;
+        if (Math.abs(gesture.dx) + Math.abs(gesture.dy) >= 4) {
+          didDragRef.current = true;
+        }
         setDragOffset({x: gesture.dx, y: gesture.dy});
         props.onDragMove(gesture.moveX, gesture.moveY);
       },
       onPanResponderRelease: (_event, gesture) => {
-        props.onDrop(gesture.moveX, gesture.moveY);
+        clearLongPressTimer();
+        suppressPressRef.current = longPressActivatedRef.current || didDragRef.current;
+        if (didDragRef.current) {
+          props.onDrop(gesture.moveX, gesture.moveY);
+        } else {
+          props.onDragEnd();
+        }
+        longPressActivatedRef.current = false;
+        didDragRef.current = false;
         setDragging(false);
         setDragOffset({x: 0, y: 0});
+        setTimeout(() => {
+          suppressPressRef.current = false;
+        }, 0);
       },
       onPanResponderTerminate: () => {
+        clearLongPressTimer();
         props.onDragEnd();
+        longPressActivatedRef.current = false;
+        didDragRef.current = false;
         setDragging(false);
         setDragOffset({x: 0, y: 0});
       },
-      onPanResponderTerminationRequest: () => false,
+      onPanResponderTerminationRequest: () => !longPressActivatedRef.current,
     }),
     [props.disabled, props.onDragEnd, props.onDragMove, props.onDrop],
   );
@@ -581,13 +623,7 @@ function MapTaskNode(props: Readonly<{
       accessibilityState={{disabled: props.disabled, selected: props.selected}}
       disabled={props.disabled}
       onPress={() => {
-        if (!didDragRef.current) {
-          props.onPress();
-        }
-      }}
-      onTouchStart={() => {
-        touchStartedAt.current = Date.now();
-        didDragRef.current = false;
+        if (!suppressPressRef.current) props.onPress();
       }}
       {...panResponder.panHandlers}
       style={[
@@ -725,22 +761,30 @@ function MapView(props: Readonly<{
                 props.recommendedId,
               );
               return (
-                <Pressable
-                  accessibilityLabel={`在${meta.title}添加任务`}
-                  accessibilityRole="button"
+                <View
                   key={quadrant}
-                  onPress={() => props.onAdd(quadrant)}
                   style={[
                     styles.mapCell,
                     {backgroundColor: dark ? '#18312C' : meta.tint},
                     dark && styles.borderDark,
                     dragTarget === quadrant && styles.mapCellDragTarget,
                   ]}>
-                  <View pointerEvents="none" style={styles.cellHeading}>
-                    <Text style={[styles.cellTitle, {color: meta.accent}]}>
-                      {meta.title} · {tasks.length}
-                    </Text>
-                    <Text style={[styles.cellDescription, dark && styles.textMutedDark]}>{meta.description}</Text>
+                  <View style={styles.cellHeading}>
+                    <View pointerEvents="none" style={styles.cellHeadingText}>
+                      <Text style={[styles.cellTitle, {color: meta.accent}]}>
+                        {meta.title} · {tasks.length}
+                      </Text>
+                      <Text style={[styles.cellDescription, dark && styles.textMutedDark]}>{meta.description}</Text>
+                    </View>
+                    <Pressable
+                      accessibilityLabel={`在${meta.title}添加任务`}
+                      accessibilityRole="button"
+                      disabled={props.actionPending}
+                      hitSlop={8}
+                      onPress={() => props.onAdd(quadrant)}
+                      style={[styles.cellAddButton, dark && styles.surfaceDark]}>
+                      <Text style={[styles.cellAddText, dark && styles.textDark]}>＋</Text>
+                    </Pressable>
                   </View>
                   {visible.map((task, index) => (
                     <MapTaskNode
@@ -770,9 +814,16 @@ function MapView(props: Readonly<{
                     </Pressable>
                   ) : null}
                   {tasks.length === 0 ? (
-                    <Text pointerEvents="none" style={[styles.emptyCell, dark && styles.textMutedDark]}>点这里添加</Text>
+                    <Pressable
+                      accessibilityLabel={`${meta.title}暂无任务，点击添加`}
+                      accessibilityRole="button"
+                      disabled={props.actionPending}
+                      onPress={() => props.onAdd(quadrant)}
+                      style={styles.emptyCellButton}>
+                      <Text style={[styles.emptyCell, dark && styles.textMutedDark]}>点这里添加</Text>
+                    </Pressable>
                   ) : null}
-                </Pressable>
+                </View>
               );
             })}
           </View>
@@ -806,7 +857,13 @@ function ListView(props: Readonly<{
           task => effectiveQuadrantForTask(task, props.nowInput) === quadrant,
         );
         return (
-          <View key={quadrant} style={[styles.listSection, dark && styles.surfaceDark]}>
+          <View
+            key={quadrant}
+            style={[
+              styles.listSection,
+              tasks.length === 0 && styles.listSectionEmpty,
+              dark && styles.surfaceDark,
+            ]}>
             <View style={styles.sectionHeadingRow}>
               <View style={styles.sectionHeadingText}>
                 <Text style={[styles.sectionTitle, {color: meta.accent}]}>
@@ -814,13 +871,13 @@ function ListView(props: Readonly<{
                 </Text>
                 <Text style={[styles.cellDescription, dark && styles.textMutedDark]}>{meta.description}</Text>
               </View>
-              <Action
-                compact
-                displayLabel="添加"
-                label={`在${meta.title}添加任务`}
+              <Pressable
+                accessibilityLabel={`在${meta.title}添加任务`}
+                accessibilityRole="button"
                 onPress={() => props.onAdd(quadrant)}
-                secondary
-              />
+                style={[styles.listAddButton, dark && styles.surfaceRaisedDark]}>
+                <Text style={[styles.listAddText, dark && styles.textDark]}>＋ 添加</Text>
+              </Pressable>
             </View>
             {tasks.map(task => (
               <View key={task.id} style={[styles.taskRow, dark && styles.borderDark]}>
@@ -992,12 +1049,6 @@ function TaskEditor(props: Readonly<{
           keyboardShouldPersistTaps="handled">
         {props.mode === 'edit' && layer === 'action' && props.task !== null ? (
           <View style={styles.actionLayer}>
-            <Text numberOfLines={2} style={[styles.actionTaskTitle, dark && styles.textDark]}>
-              {props.task.title}
-            </Text>
-            <Text style={[styles.actionTaskMeta, dark && styles.textMutedDark]}>
-              {quadrant.title} · {dueLabel(props.task.dueAt)}
-            </Text>
             <View style={[styles.firstStepCard, dark && styles.surfaceRaisedDark]}>
               <Text style={[styles.fieldLabel, dark && styles.textDark]}>
                 {props.task.firstStep == null || props.task.firstStep.trim() === ''
@@ -2544,6 +2595,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     setEditorMode(null);
     setEditorInitialLayer(undefined);
     setActionError(null);
+    runtime.clearError();
     runtime.closeTask();
     currentSheetOpenedAtRef.current = null;
   }
@@ -2710,6 +2762,29 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     if (task === null || focus === null || actionPending) {
       return;
     }
+    const activeSession = focus.snapshot.activeSession;
+    if (activeSession !== null) {
+      setActionError(null);
+      if (activeSession.taskId !== task.id) {
+        const activeTitle = activeTasks.find(
+          candidate => candidate.id === activeSession.taskId,
+        )?.title;
+        setSystemNotice(
+          activeTitle === undefined
+            ? '已有一段专注正在进行，请先返回专注页结束后再开始这项任务。'
+            : `“${activeTitle}”仍在专注中，请先结束后再开始“${task.title}”。`,
+        );
+      } else {
+        recordMetric('focus_resumed', {
+          source,
+          success: true,
+          taskRef: task.id,
+        });
+      }
+      closeEditor();
+      setTab('focus');
+      return;
+    }
     setActionPending(true);
     setActionError(null);
     const alreadyRewarded = growthRewardsForTask(task).some(
@@ -2793,6 +2868,15 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         setTab('focus');
       })
       .catch(reason => {
+        const code = reason instanceof Error
+          ? ((reason as Error & {code?: string}).code ?? reason.message)
+          : null;
+        if (code === 'FOCUS_SESSION_ACTIVE_CONFLICT') {
+          focus.retryRestore();
+          closeEditor();
+          setTab('focus');
+          return;
+        }
         setActionError(userFacingError(reason, USER_COPY.taskStartFailed));
       })
       .finally(() => setActionPending(false));
@@ -3116,9 +3200,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     const patch: P13TaskPatch = {
       steps: next.steps ?? [],
       firstStep: next.firstStep ?? null,
-      ...((next as Task & {progress?: TaskProgress}).progress === undefined
+      ...(next.progress === undefined
         ? {}
-        : {progress: (next as Task & {progress: TaskProgress}).progress}),
+        : {progress: next.progress}),
     };
     void runtime.updateTask(task.id, patch as never)
       .then(() => setPostFocusTaskId(null))
@@ -3135,9 +3219,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           const patch: P13TaskPatch = {
             steps: next.steps ?? [],
             firstStep: next.firstStep ?? null,
-            ...((next as Task & {progress?: TaskProgress}).progress === undefined
+            ...(next.progress === undefined
               ? {}
-              : {progress: (next as Task & {progress: TaskProgress}).progress}),
+              : {progress: next.progress}),
           };
           return runtime.updateTask(task.id, patch as never).then(() => undefined);
         })();
@@ -3559,11 +3643,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     }
     setActionPending(true);
     setActionError(null);
-    const updateProgress = runtime.updateTask as unknown as (
-      taskId: string,
-      patch: {progress: TaskProgress},
-    ) => Promise<Task>;
-    void updateProgress(selectedTask.id, {progress})
+    void runtime.updateTask(selectedTask.id, {
+      progress,
+      progressSource: 'MANUAL',
+    })
       .catch(reason => {
         setActionError(userFacingError(reason, USER_COPY.progressSaveFailed));
       })
@@ -4171,6 +4254,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     now: priorityNow,
     timeZone: props.currentTimeZone?.() ?? 'UTC',
   });
+  const pageTaskError = actionError ?? (
+    snapshot.errorText === null ? null : USER_COPY.taskSaveFailed
+  );
 
   return (
     <DarkThemeContext.Provider value={dark}>
@@ -4880,12 +4966,6 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </View>
         ) : null}
 
-        {snapshot.errorText === null || editorMode !== null ? null : (
-          <Text accessibilityLiveRegion="assertive" style={styles.error}>{USER_COPY.taskSaveFailed}</Text>
-        )}
-        {editorMode !== null || actionError === null ? null : (
-          <Text accessibilityLiveRegion="assertive" style={styles.error}>{actionError}</Text>
-        )}
         {snapshot.refreshErrorText === null ? null : (
           <View style={[styles.infoCard, dark && styles.surfaceDark]}>
             <Text accessibilityLiveRegion="assertive" style={styles.error}>{USER_COPY.refreshFailed}</Text>
@@ -4908,6 +4988,28 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           </View>
         )}
       </ScrollView>
+
+      {editorMode !== null || pageTaskError === null ? null : (
+        <View
+          accessibilityLiveRegion="assertive"
+          style={[
+            styles.errorBanner,
+            styles.errorBannerFloating,
+            dark && styles.surfaceDark,
+          ]}>
+          <Text style={styles.errorBannerText}>{pageTaskError}</Text>
+          <Pressable
+            accessibilityLabel="关闭错误提示"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => {
+              setActionError(null);
+              runtime.clearError();
+            }}>
+            <Text style={styles.errorBannerDismiss}>关闭</Text>
+          </Pressable>
+        </View>
+      )}
 
       {editorMode === null &&
       progressTask === null &&
@@ -5459,9 +5561,12 @@ const styles = StyleSheet.create({
   mapRow: {flex: 1, flexDirection: 'row'},
   mapCell: {flex: 1, borderWidth: StyleSheet.hairlineWidth, borderColor: '#A9B9B5', minHeight: 200, overflow: 'visible'},
   mapCellDragTarget: {borderWidth: 3, borderColor: '#1F7466'},
-  cellHeading: {position: 'absolute', left: 10, top: 9, right: 6, zIndex: 1},
+  cellHeading: {position: 'absolute', left: 10, top: 8, right: 7, zIndex: 4, flexDirection: 'row', alignItems: 'flex-start', gap: 4},
+  cellHeadingText: {flex: 1},
   cellTitle: {fontSize: 14, fontWeight: '900'},
   cellDescription: {color: '#63736F', fontSize: 11, marginTop: 2},
+  cellAddButton: {width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.82)'},
+  cellAddText: {color: '#244D46', fontSize: 20, lineHeight: 22, fontWeight: '800'},
   mapNode: {
     position: 'absolute',
     width: '35%',
@@ -5488,13 +5593,17 @@ const styles = StyleSheet.create({
   deadlineClock: {color: '#D97706', fontSize: 12, fontWeight: '900'},
   overflowBadge: {position: 'absolute', right: 8, bottom: 8, borderRadius: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 5},
   overflowText: {color: '#35534E', fontSize: 11, fontWeight: '800'},
-  emptyCell: {position: 'absolute', bottom: 12, alignSelf: 'center', color: '#71817D', fontSize: 12, fontWeight: '700'},
+  emptyCellButton: {position: 'absolute', left: 8, right: 8, top: 52, bottom: 8, alignItems: 'center', justifyContent: 'flex-end'},
+  emptyCell: {color: '#71817D', fontSize: 12, fontWeight: '700', paddingBottom: 4},
   listStack: {gap: 14},
   listTargetNotice: {color: '#244D46', fontSize: 13, fontWeight: '800', backgroundColor: '#E5F2EE', borderRadius: 12, padding: 12},
   listSection: {borderRadius: 16, backgroundColor: '#FFFFFF', padding: 14, gap: 10},
+  listSectionEmpty: {paddingVertical: 11, gap: 6},
   sectionHeadingRow: {flexDirection: 'row', alignItems: 'center', gap: 10},
   sectionHeadingText: {flex: 1},
   sectionTitle: {fontSize: 18, fontWeight: '900'},
+  listAddButton: {minHeight: 40, borderRadius: 11, backgroundColor: '#E7EFED', paddingHorizontal: 11, alignItems: 'center', justifyContent: 'center'},
+  listAddText: {color: '#244D46', fontSize: 13, fontWeight: '900'},
   taskRow: {flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#D7E0DE', paddingTop: 10},
   taskRowMain: {flex: 1, minHeight: 52, justifyContent: 'center', gap: 4},
   taskTitle: {color: '#193F39', fontSize: 15, fontWeight: '800'},
@@ -5574,8 +5683,6 @@ const styles = StyleSheet.create({
   inputDark: {borderColor: '#6D8982', color: '#F2FAF7', backgroundColor: '#24423C'},
   fieldLabel: {color: '#35534E', fontSize: 13, fontWeight: '900'},
   actionLayer: {gap: 13, paddingTop: 2},
-  actionTaskTitle: {color: '#173F3A', fontSize: 21, lineHeight: 28, fontWeight: '900'},
-  actionTaskMeta: {color: '#657672', fontSize: 13, lineHeight: 19},
   firstStepCard: {borderRadius: 14, backgroundColor: '#EEF5F3', padding: 14, gap: 6},
   firstStepText: {color: '#244D46', fontSize: 15, lineHeight: 22},
   progressSummary: {borderRadius: 12, borderWidth: 1, borderColor: '#D4E1DE', padding: 12, gap: 4},
@@ -5594,6 +5701,10 @@ const styles = StyleSheet.create({
   stickyActions: {flexDirection: 'row', gap: 8, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#CAD5D2'},
   deleteConfirmation: {gap: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(201, 80, 61, 0.10)'},
   error: {color: '#A33A2C', fontSize: 14, lineHeight: 20},
+  errorBanner: {borderRadius: 14, borderWidth: 1, borderColor: '#E7B4AA', backgroundColor: '#FFF4F1', paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10},
+  errorBannerFloating: {position: 'absolute', left: 18, right: 18, bottom: 92, zIndex: 18, elevation: 9, shadowColor: '#173F3A', shadowOpacity: 0.15, shadowRadius: 8},
+  errorBannerText: {flex: 1, color: '#8E3327', fontSize: 13, lineHeight: 18},
+  errorBannerDismiss: {color: '#8E3327', fontSize: 13, fontWeight: '900', paddingVertical: 4},
   rewardOverlay: {position: 'absolute', left: 18, right: 18, top: 16, borderRadius: 18, backgroundColor: '#FFFFFF', padding: 14, gap: 11, flexDirection: 'row', alignItems: 'center', zIndex: 30, shadowColor: '#173F3A', shadowOpacity: 0.22, shadowRadius: 14, elevation: 10},
   rewardScoreBadge: {width: 54, height: 54, borderRadius: 18, backgroundColor: '#E0F0EC', alignItems: 'center', justifyContent: 'center'},
   rewardCopy: {flex: 1, gap: 2},

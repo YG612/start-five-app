@@ -212,8 +212,7 @@ export function createTaskRescuePlan(input: Readonly<{
 }
 
 export function taskProgress(task: Task): TaskProgress {
-  const progress = (task as Task & {progress?: TaskProgress}).progress;
-  return progress ?? (task.status === 'in_progress' ? 25 : 0);
+  return task.progress ?? (task.status === 'in_progress' ? 25 : 0);
 }
 
 export function isTaskEligibleForRescue(task: Task, nowInput: string): boolean {
