@@ -1,5 +1,7 @@
 # “先做 5 分钟”下一对话交接
 
+> 当前状态提示（2026-08-22）：本文保留 P0–P6 历史交接背景，不再代表项目最新阶段。P19 已进入发布前可靠性收口；请先阅读 `docs/CURRENT_RESEARCH_ROUTE.md`、`docs/P19_RELEASE_CONVERGENCE_AUDIT.md` 和 `docs/CODEX_P15R_P18_PROGRESS.md`。
+
 更新时间：2026-08-14（Asia/Shanghai）
 
 ## 0. 最新完成状态
