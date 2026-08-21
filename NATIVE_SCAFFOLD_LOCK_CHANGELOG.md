@@ -1,5 +1,14 @@
 # Native Scaffold Test Lock Changelog
 
+## 2026-08-22 — R20-01 generated Android inventory isolation amendment
+
+- Disposition: `R20-C006 / ISOLATE`. The production isolation scan already excludes standard generated roots such as `.cxx` and `build`, but the current internal build uses the equivalent custom cache roots `android/.cxx-short` and `android/.short-app-build` to keep Windows native paths below toolchain limits.
+- Failure evidence: the unchanged scanner reported 18 findings, all inside those two generated roots; no finding came from tracked source, configuration, native project source, lock files, C/C++ source, podspecs or another project.
+- Scope: only the generated-directory ignore set in `tests/native-scaffold/isolationAndPreservation.contract.test.ts`, this manifest, the registry self binding and this excluded changelog change. The hostile-source patterns, scanned extensions, canonical report exceptions, source sentinels and every other assertion remain unchanged.
+- Test identity: `tests/native-scaffold/isolationAndPreservation.contract.test.ts` changed from `e516b80dcb064b606b0b655c99b1ac41d31f744c3c39e6bf929bb1a6bd5fe48b` to `ff1d3a10bd7b6de5d8670ef189d6f8576206ec01974c980f6f22ce39bb5bf7b9`.
+- Manifest identity: `NATIVE_SCAFFOLD_LOCK.sha256` changed from accepted predecessor `12958a547ebb739bb0d4dafe7029e3dc6274f9bfef763994afd892b249bb23db` to `d8e63bd9031e0373425f1ac9f08aeb7a0e009e519ce17597a87f49e530bd8fe1`; `quality-gate.acceptance.json` binds the replacement identity.
+- Product behavior: unchanged. No generated directory is committed or treated as product source, and no user-visible behavior, schema, storage or native build configuration changes.
+
 ## 2026-08-05T00:11:17+08:00 — CEO-authorized controlled consistency amendment candidate
 
 - Standing authorization: the CEO directed, “让项目继续推进，这种不重要的事情不需要我授权，我要的是高质量APP，请不断推进给出高质量内容” and “接下来不断推进，大部分正常情况和可解决报错的问题下都不用问我”. This authorization covers low-risk, provable locked-test consistency corrections; it does not waive fresh independent audit.

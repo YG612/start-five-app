@@ -30,7 +30,7 @@ P14-02B 的“合并式恢复”未做猜测实现：当前数据层还没有覆
 | --- | --- |
 | P15R/P19 本轮定点复验 | 6 suites，28/28 tests 通过（2026-08-22） |
 | P15R–P19 当前定点回归 | 19 suites，61/61 tests 通过；含原生入口/构建契约为 21 suites，70/70 tests |
-| 全量历史质量门 | 77 suites / 839 tests；59 suites、807 tests 通过，18 suites、32 tests 待兼容性收口 |
+| R20-01 全量历史质量门 | accepted inventory 连续两次 77/77 suites、839/839 tests 通过 |
 | TypeScript | `tsc --noEmit` 通过（2026-08-22 重跑） |
 | Android lint | `:app:lintInternal` 通过 |
 | Android Internal 构建 | `:app:assembleInternal` 通过 |
@@ -42,8 +42,8 @@ P14-02B 的“合并式恢复”未做猜测实现：当前数据层还没有覆
 - versionCode：`1`
 - applicationId：`com.startfive.app.internal`
 - versionName：`1.0-internal`
-- 大小：`20,246,659 bytes`
-- SHA-256：`f8ad0dc4a5b507212494dd4ba1649cdbfbe47b2385f1c9c66af45dc32a9a48d9`
+- 大小：`20,294,203 bytes`
+- SHA-256：`611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df`
 
 APK 属于构建产物，不提交进 Git；可从源码重新生成。
 
@@ -70,6 +70,7 @@ ios/             iOS 原生工程
 ## 研究与重构资料
 
 - [`docs/CURRENT_RESEARCH_ROUTE.md`](docs/CURRENT_RESEARCH_ROUTE.md)：当前研究路线、最新进展教程、阅读顺序和下一阶段门禁；新读者从这里开始。
+- [`docs/R20_01_CONTRACT_DISPOSITION.md`](docs/R20_01_CONTRACT_DISPOSITION.md)：R20-01 当前契约与历史质量门的逐根因裁决及最终证据。
 - [`docs/P19_RELEASE_CONVERGENCE_AUDIT.md`](docs/P19_RELEASE_CONVERGENCE_AUDIT.md)：P19 全局交互可靠性与发布收口审计。
 - [`docs/P19_DEVICE_UTEST_ACCEPTANCE.md`](docs/P19_DEVICE_UTEST_ACCEPTANCE.md)：Android 完整设备与首次用户测试验收表。
 - [`docs/NEXT_CHAT_HANDOFF.md`](docs/NEXT_CHAT_HANDOFF.md)：阶段交接与当前工作上下文。
@@ -82,7 +83,7 @@ ios/             iOS 原生工程
 - [`docs/P11_P14_DEVICE_UTEST_PROTOCOL.md`](docs/P11_P14_DEVICE_UTEST_PROTOCOL.md)：仍需在真实设备完成的验证协议。
 - [`docs/SOURCE_先做5分钟_APP_Codex完整重构指令.docx`](docs/SOURCE_%E5%85%88%E5%81%9A5%E5%88%86%E9%92%9F_APP_Codex%E5%AE%8C%E6%95%B4%E9%87%8D%E6%9E%84%E6%8C%87%E4%BB%A4.docx)：原始重构指令归档。
 
-仓库还保留各轮测试规格、契约锁文件及变更记录，用于追踪从早期冻结契约到 P14 当前基线的演进。部分历史“精确表面”质量门禁针对旧 API/旧生成目录状态，和已完成的 P0–P10 重构存在预期冲突；当前有效基线与历史结果均如实记录在阶段进度文件中。
+仓库还保留各轮测试规格、契约锁文件及变更记录，用于追踪从早期冻结契约到当前基线的演进。历史“精确表面”质量门已在 R20-01 中逐项裁决并全绿；历史阶段文档保留原始记录，不替代当前路线。
 
 ## 本地开发
 
@@ -103,7 +104,7 @@ cd ios && pod install && cd ..
 pnpm ios
 ```
 
-当前 `pnpm test` 指向完整历史质量门脚本，其中包含已冻结的旧精确表面断言。阶段进度文档中的 P0–P14 当前兼容基线，是本轮重构实际执行并通过的聚合测试范围。
+当前 `pnpm test` 指向完整历史质量门脚本。R20-01 未弱化其中的冻结断言；在规范化 Windows TEMP 并按 `quality-gate.acceptance.json` 的 authoritative roots 执行时，完整 77 suites / 839 tests 已连续两次通过。当前 Codex 环境的 pnpm 包装结构仍不满足 V2 自包含 companion 预检，处置与可重复命令见 R20-01 台账和当前路线。
 
 ## 隐私与发布边界
 

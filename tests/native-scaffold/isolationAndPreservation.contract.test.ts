@@ -30,11 +30,13 @@ const sourceSentinels: ReadonlyArray<readonly [string, RegExp]> = [
 
 const ignoredGeneratedDirectories = new Set([
   '.cxx',
+  '.cxx-short',
   '.externalNativeBuild',
   '.git',
   '.gradle',
   '.idea',
   '.kotlin',
+  '.short-app-build',
   'DerivedData',
   'Pods',
   'build',

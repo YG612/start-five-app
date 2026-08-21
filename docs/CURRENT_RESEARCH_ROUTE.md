@@ -1,12 +1,13 @@
 # Start Five 当前研究路线与阅读指南
 
 更新时间：2026-08-22（Asia/Shanghai）  
-代码基线：`f2a79b0 fix: reconcile interaction reliability and legacy gates`  
+R20-01 启动 HEAD：`418b785f62c4bc71e48d56317a90d033ffa6d75b`
+兼容修复基线：`f2a79b0 fix: reconcile interaction reliability and legacy gates`
 仓库：`https://github.com/YG612/start-five-app`
 
 ## 1. 当前结论
 
-Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。P0–P18 的产品能力和 P19 的共享交互可靠性源码已经落地；当前不能标记 `RELEASE_READY`，因为完整 Android 人工验收、iOS 构建与真机、首次用户测试，以及 18 个历史精确契约套件的兼容性收口仍未完成。
+Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。P0–P18 的产品能力、P19 的共享交互可靠性源码和 R20-01 历史契约收口均已落地；当前仍不能标记 `RELEASE_READY`，因为完整 Android 人工验收、iOS 构建与真机、首次用户测试尚未完成。
 
 当前有效状态：
 
@@ -21,7 +22,9 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 | Android 完整人工验收 | `PENDING_EXTERNAL` | `docs/P19_DEVICE_UTEST_ACCEPTANCE.md` |
 | iOS 构建、VoiceOver、真机 | `PENDING_MACOS_XCODE` | 尚无 macOS/Xcode 证据 |
 | 首次用户测试 | `PENDING_EXTERNAL` | 尚无至少 5 名目标用户的无指导记录 |
-| 全量历史质量门 | BLOCKED | 77 suites / 839 tests 中 59 suites、807 tests PASS；18 suites、32 tests 为历史精确契约失败 |
+| R20-01 契约处置 | PASS | `docs/R20_01_CONTRACT_DISPOSITION.md`；KEEP 1、MIGRATE 3、RETIRE 0、ISOLATE 4 |
+| 全量历史质量门 | PASS | authoritative accepted roots 连续两次：77/77 suites、839/839 tests PASS |
+| Android internal 构建 | PASS | `:app:assembleInternal`；APK SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df` |
 
 ## 2. 先用哪条阅读路线
 
@@ -71,7 +74,8 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 | P7–P10 | 如何用本地证据改善开始率而不制造打扰 | 指标、推荐、提醒预算、延后/跳过治理 | 作为效果证据层维护，不扩展云端分析 |
 | P11–P14 | 长期使用是否可靠、可恢复、可访问 | 长任务、计划、恢复事务、5000 条规模、无障碍 | 备份合并仍受 P14-02B 安全门阻断 |
 | P15R–P18 | 页面和交互是否围绕核心行动统一 | 四页架构、日程、语义成长、设置、1000ms 持续布局 | 已完成自动门；保持 schema 兼容 |
-| P19 | 能否安全退出、恢复、避免重复提交并进入发布验收 | 统一 Sheet、返回优先级、脏状态、草稿恢复、本地日期、独立 internal 包 | 当前主线；从自动证据转向设备与用户证据 |
+| P19 | 能否安全退出、恢复、避免重复提交并进入发布验收 | 统一 Sheet、返回优先级、脏状态、草稿恢复、本地日期、独立 internal 包 | 自动能力已落地；继续设备与用户证据 |
+| R20-01 | 当前契约与历史质量门能否在不弱化断言的前提下统一 | 8 个根因有审计裁决；17 个 accepted roots 全绿 | PASS；下一门为 R20-02 Android 完整设备矩阵 |
 
 ## 4. P19 最新进展学习教程
 
@@ -154,16 +158,17 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 
 ### R20-01：历史契约兼容性收口
 
-目标：解释并处理当前 18 suites / 32 tests 的历史失败，不通过删除断言或降低质量门获得绿色结果。
+状态：`PASS`（2026-08-22）。完整处置证据见 `docs/R20_01_CONTRACT_DISPOSITION.md`。
 
-研究步骤：
+完成结果：
 
-1. 将失败分为旧 API 表面、旧 schema/storage、共享存储并发、过期 lock inventory。
-2. 对每项判定：仍应兼容、应迁移，或应作为有版本证据的历史契约退役。
-3. 兼容修复优先放在 adapter / migration，不反向污染当前领域模型。
-4. 重新运行完整 77 suites / 839 tests，记录新的真实总数。
+1. 原始 18 suites / 32 tests 已逐项映射到 5 个稳定根因；本轮运行环境另识别 3 个隔离根因。
+2. 最终裁决为 KEEP 1、MIGRATE 3、RETIRE 0、ISOLATE 4；没有删除断言、跳过测试或恢复过时产品行为。
+3. Android 自定义生成目录只在测试 inventory 层隔离，生产源码扫描和污染断言保持不变。
+4. 17 个 accepted roots 的完整 77 suites / 839 tests 在规范化 Windows TEMP 下连续两次全绿。
+5. TypeScript 与 Android internal 构建均通过。
 
-结束条件：每个失败都有可审计处置；若不能全绿，剩余阻断必须有独立 ID 和证据。
+结束结论：R20-01 已关闭；当前主线转入 R20-02，不能把自动回归结果替代设备矩阵。
 
 ### R20-02：Android 完整设备矩阵
 
@@ -225,13 +230,17 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 在项目根目录执行：
 
 ```powershell
+$env:TEMP = 'D:\CodexData\Temp'
+$env:TMP = 'D:\CodexData\Temp'
+$registry = Get-Content .\quality-gate.acceptance.json -Raw | ConvertFrom-Json
+$roots = @($registry.locks | Where-Object status -eq 'accepted' | ForEach-Object testRoots | Sort-Object -Unique)
+node .\node_modules\jest\bin\jest.js --runInBand --ci --coverage=false --roots $roots
 node .\node_modules\typescript\bin\tsc --noEmit
-node .\node_modules\jest\bin\jest.js --config .\jest.config.js --runInBand --roots .\tests\p15r-task-layout-mode .\tests\p19-release-convergence
 powershell -ExecutionPolicy Bypass -File .\scripts\build-android-internal.ps1
 adb devices -l
 ```
 
-2026-08-22 本轮已重新执行前两项：TypeScript PASS；6 suites、28/28 tests PASS。Android lint/build 和设备证据沿用 `docs/P19_RELEASE_CONVERGENCE_AUDIT.md` 中 2026-08-21 的已记录结果，本轮没有伪造重新执行。
+2026-08-22 本轮已重新执行：完整 accepted inventory 连续两次均为 77/77 suites、839/839 tests PASS；TypeScript PASS；`:app:lintInternal` PASS；`:app:assembleInternal` PASS。新 APK 为 `android/app/build/outputs/apk/internal/app-internal.apk`，大小 `20,294,203 bytes`，SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df`。构建时本轮变更尚未提交，证据类型为 `WORKTREE_BUILD`，不得描述为绑定正式 commit 的发布候选。设备证据仍沿用 `docs/P19_RELEASE_CONVERGENCE_AUDIT.md` 中已明确标注范围的记录，本轮未把构建成功写成真机通过。
 
 ## 8. 文档权威顺序
 

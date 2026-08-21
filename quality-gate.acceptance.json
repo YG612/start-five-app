@@ -45,7 +45,7 @@
       "specPath": "NATIVE_SCAFFOLD_TEST_SPEC.md",
       "inventoryRoots": ["NATIVE_SCAFFOLD_TEST_SPEC.md", "tests/native-scaffold"],
       "testRoots": ["tests/native-scaffold"],
-      "expectedSelfSha256": "12958a547ebb739bb0d4dafe7029e3dc6274f9bfef763994afd892b249bb23db"
+      "expectedSelfSha256": "d8e63bd9031e0373425f1ac9f08aeb7a0e009e519ce17597a87f49e530bd8fe1"
     },
     {
       "manifest": "PHASE4_LOCK.sha256",

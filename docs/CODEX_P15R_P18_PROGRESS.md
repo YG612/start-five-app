@@ -1,3 +1,7 @@
+> **HISTORICAL SNAPSHOT / SUPERSEDED**
+>
+> 本文保留 P15R–P19 当时的阶段事实、真实路径与测试记录，不再代表当前质量门状态。当前权威路线与 R20-01 结果分别见 `docs/CURRENT_RESEARCH_ROUTE.md` 和 `docs/R20_01_CONTRACT_DISPOSITION.md`；以下历史内容不回写改造。
+
 # CODEX P15R–P18 Progress
 
 更新时间：2026-08-21（Asia/Shanghai）
