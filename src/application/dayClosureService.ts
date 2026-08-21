@@ -8,13 +8,13 @@ import type {FocusSessionService} from './focusSessionService';
 import type {DayClosureRepository} from '../data/dayClosureRepository';
 import {
   createDayClosureRecord,
-  dayKeyAt,
   transitionDayClosure,
   type DayClosureRecord,
 } from '../domain/dayClosure';
 import type {FocusSession} from '../domain/focusSession';
 import {recommendNextTask} from '../domain/recommendation';
 import type {Task} from '../domain/task';
+import {dateKeyInTimeZone, systemTimeZone} from '../domain/localDate';
 
 export type DayClosureSnapshot = Readonly<{
   currentDay: string;
@@ -49,6 +49,7 @@ export type CreateDayClosureServiceDependencies = Readonly<{
     listReceiptHistory(): Promise<ReceiptHistorySnapshot>;
   }>;
   now(): string;
+  currentTimeZone?(): string;
   startSelectedTask(taskId: string, operationId: string): Promise<Task>;
 }>;
 
@@ -63,6 +64,7 @@ export function createDayClosureService(
   dependencies: CreateDayClosureServiceDependencies,
 ): DayClosureService {
   const {repository, tasks, focus, history, now, startSelectedTask} = dependencies;
+  const currentTimeZone = dependencies.currentTimeZone ?? systemTimeZone;
   let startInFlight: Promise<DayClosureSnapshot> | null = null;
 
   async function reconcile(): Promise<DayClosureRecord | null> {
@@ -117,7 +119,7 @@ export function createDayClosureService(
   }
 
   async function snapshot(): Promise<DayClosureSnapshot> {
-    const currentDay = dayKeyAt(now());
+    const currentDay = dateKeyInTimeZone(now(), currentTimeZone());
     const [record, allTasks, receiptHistory] = await Promise.all([
       reconcile(),
       tasks.list({includeDeleted: true}),
@@ -153,7 +155,11 @@ export function createDayClosureService(
       throw new Error('DAY_CLOSURE_TARGET_UNAVAILABLE');
     }
     const timestamp = now();
-    const next = createDayClosureRecord(dayKeyAt(timestamp), task.id, timestamp);
+    const next = createDayClosureRecord(
+      dateKeyInTimeZone(timestamp, currentTimeZone()),
+      task.id,
+      timestamp,
+    );
     await repository.update(() => ({next, result: undefined}));
     return snapshot();
   }

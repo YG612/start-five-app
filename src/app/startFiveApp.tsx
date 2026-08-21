@@ -71,6 +71,7 @@ import {FirstActivationReadError} from '../screens/FirstActivationScreen';
 import {createCoordinatedBackend} from '../data/coordinatedBackend';
 import {createQuadrantHomePreferences} from '../data/quadrantHomePreferences';
 import {createQuadrantTaskLayoutRepository} from '../data/quadrantTaskLayoutStore';
+import {createTaskDraftStore} from '../data/taskDraftStore';
 import {
   createLocalBackupService,
   type LocalBackupService,
@@ -149,6 +150,7 @@ export function createStartFiveApp(
     coordinatedBackend,
   );
   const quadrantTaskLayout = createQuadrantTaskLayoutRepository(coordinatedBackend);
+  const taskDrafts = createTaskDraftStore(coordinatedBackend);
   const taskDurablePresenceProbe =
     dependencies.public?.firstActivation?.taskDurablePresenceProbe ??
     createTaskDurablePresenceProbe(storage);
@@ -330,6 +332,7 @@ export function createStartFiveApp(
     focusService,
     taskLifecycle,
     now: dependencies.now,
+    currentTimeZone: focusScheduleTimeZone,
   });
   const reviewHistory = {
     listReceiptHistory: () => postFocusReviewService.listReceiptHistory(),
@@ -340,6 +343,7 @@ export function createStartFiveApp(
     focus: focusService,
     history: reviewHistory,
     now: dependencies.now,
+    currentTimeZone: focusScheduleTimeZone,
     startSelectedTask,
   });
   const focusRuntimeClock =
@@ -495,6 +499,7 @@ export function createStartFiveApp(
         now={dependencies.now}
         preferences={quadrantHomePreferences}
         taskLayoutStore={quadrantTaskLayout}
+        taskDrafts={taskDrafts}
         {...(dependencies.currentTimeZone === undefined
           ? {}
           : {currentTimeZone: dependencies.currentTimeZone})}

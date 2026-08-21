@@ -26,19 +26,15 @@ type StartFiveNotificationsNativeModule = Readonly<{
   removeListeners(count: number): void;
 }>;
 
-const nativeModule = NativeModules.StartFiveNotifications as
+const nativeModule = NativeModules?.StartFiveNotifications as
   | StartFiveNotificationsNativeModule
   | undefined;
 
-function requireNativeModule(): StartFiveNotificationsNativeModule {
-  if (nativeModule === undefined) {
-    throw new Error('START_FIVE_NOTIFICATIONS_UNAVAILABLE');
-  }
-  return nativeModule;
-}
-
-export function createNativeTomorrowFirstNotifications(): TomorrowFirstNotifications {
-  const module = requireNativeModule();
+export function createNativeTomorrowFirstNotifications():
+  | TomorrowFirstNotifications
+  | undefined {
+  if (nativeModule === undefined) return undefined;
+  const module = nativeModule;
   const emitter = new NativeEventEmitter(module);
   return {
     getPermission: () => module.getPermission(),

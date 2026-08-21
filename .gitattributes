@@ -1,0 +1,5 @@
+# V2 bootstrap hashes raw bytes before the registry can load. Keep its
+# bootstrap inventory deterministic even when core.autocrlf=true.
+QUALITY_GATE_V2_LOCK.sha256 text eol=lf
+QUALITY_GATE_V2_TEST_SPEC.md text eol=lf
+tests/quality-gate-v2/** text eol=lf

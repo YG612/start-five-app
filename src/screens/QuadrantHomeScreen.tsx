@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AccessibilityInfo,
   AppState,
+  BackHandler,
   Linking,
   Pressable,
   ScrollView,
@@ -52,10 +53,15 @@ import type {
 } from '../application/tomorrowFirstNotifications';
 import {
   AppBottomSheet,
+  AppBottomSheetScrollView,
   type SheetDismissReason,
 } from '../components/AppBottomSheet';
 import {QuadrantTaskMap} from '../components/QuadrantTaskMap';
 import type {QuadrantTaskLayoutStore} from '../data/quadrantTaskLayoutStore';
+import {
+  TASK_DRAFT_TTL_MS,
+  type TaskDraftStore,
+} from '../data/taskDraftStore';
 import {
   placementsDiffer,
   type QuadrantPlacement,
@@ -170,6 +176,7 @@ import {
   createGrowthPageSummarySelector,
   type FocusAgendaItem,
 } from '../domain/pageExperience';
+import {dateKeyInTimeZone, systemTimeZone} from '../domain/localDate';
 
 type MainTab = 'quadrants' | 'focus' | 'growth' | 'mine';
 type ViewMode = QuadrantHomeViewMode;
@@ -202,6 +209,7 @@ type QuadrantHomeScreenProps = Readonly<{
   resolveLocalTrigger?(input: LocalTriggerInput): string;
   preferences: QuadrantHomePreferences;
   taskLayoutStore: QuadrantTaskLayoutStore;
+  taskDrafts: TaskDraftStore;
   localBackup?: LocalBackupService;
   backupFileBridge?: BackupFileBridge;
   notifications?: TomorrowFirstNotifications;
@@ -243,6 +251,49 @@ type CreateDraftContext = {
   quadrantTouched: boolean;
   persistedTaskId: string | null;
 };
+
+type StoredTaskDraftPayload = Readonly<{
+  version: 1;
+  mode: 'create' | 'edit';
+  initialLayer?: TaskPanelLayer;
+  draft: TaskDraft;
+  createContext: CreateDraftContext;
+}>;
+
+function decodeTaskDraftPayload(payload: string): StoredTaskDraftPayload | null {
+  try {
+    const value = JSON.parse(payload) as unknown;
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    const candidate = value as Record<string, unknown>;
+    const draft = candidate.draft;
+    const context = candidate.createContext;
+    if (
+      candidate.version !== 1 ||
+      (candidate.mode !== 'create' && candidate.mode !== 'edit') ||
+      typeof draft !== 'object' || draft === null || Array.isArray(draft) ||
+      typeof context !== 'object' || context === null || Array.isArray(context)
+    ) return null;
+    const draftValue = draft as Record<string, unknown>;
+    const contextValue = context as Record<string, unknown>;
+    if (
+      typeof draftValue.quickInput !== 'string' ||
+      typeof draftValue.title !== 'string' ||
+      typeof draftValue.firstStep !== 'string' ||
+      !(['Q1', 'Q2', 'Q3', 'Q4'] as const).includes(draftValue.quadrant as Quadrant) ||
+      !(['none', 'today', 'tomorrow'] as const).includes(draftValue.due as DueShortcut) ||
+      !(draftValue.dueAt === null || typeof draftValue.dueAt === 'string') ||
+      !(draftValue.estimatedMinutes === null || typeof draftValue.estimatedMinutes === 'number') ||
+      typeof draftValue.confidence !== 'number' ||
+      typeof contextValue.draftId !== 'string' ||
+      !(contextValue.sourceQuadrant === null || (['Q1', 'Q2', 'Q3', 'Q4'] as const).includes(contextValue.sourceQuadrant as Quadrant)) ||
+      typeof contextValue.quadrantTouched !== 'boolean' ||
+      !(contextValue.persistedTaskId === null || typeof contextValue.persistedTaskId === 'string')
+    ) return null;
+    return value as StoredTaskDraftPayload;
+  } catch {
+    return null;
+  }
+}
 
 type RewardFeedback = Readonly<{
   kicker: string;
@@ -673,6 +724,7 @@ function TaskEditor(props: Readonly<{
   return (
     <AppBottomSheet
       dark={dark}
+      dismissPolicy="flushBeforeClose"
       footer={
         layer === 'action' || layer === 'details' ? (
           <View style={styles.stickyActions}>
@@ -700,7 +752,7 @@ function TaskEditor(props: Readonly<{
       reduceMotion={props.reduceMotion}
       subtitle={sheetSubtitle}
       title={sheetTitle}>
-        <ScrollView
+        <AppBottomSheetScrollView
           contentContainerStyle={styles.sheetScroll}
           keyboardShouldPersistTaps="handled">
         {props.mode === 'edit' && layer === 'action' && props.task !== null ? (
@@ -1214,7 +1266,7 @@ function TaskEditor(props: Readonly<{
         {props.error === null ? null : (
           <Text accessibilityLiveRegion="assertive" style={styles.error}>{props.error}</Text>
         )}
-        </ScrollView>
+        </AppBottomSheetScrollView>
     </AppBottomSheet>
   );
 }
@@ -1240,6 +1292,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     persistedTaskId: null,
   });
   const draftSaveInFlightRef = React.useRef<Promise<boolean> | null>(null);
+  const draftRestoreAttemptedRef = React.useRef(false);
+  const restoredEditTaskIdRef = React.useRef<string | null>(null);
   const [actionPending, setActionPending] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [reward, setReward] = React.useState<RewardFeedback | null>(null);
@@ -1284,6 +1338,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     taskId: null,
     protectionLevel: 'REMINDER_ONLY',
   });
+  const focusScheduleInitialRef = React.useRef('');
   const [focusReturnNotice, setFocusReturnNotice] = React.useState(false);
   const [activeFocusProtection, setActiveFocusProtection] =
     React.useState<FocusProtectionLevel>('REMINDER_ONLY');
@@ -1356,7 +1411,119 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     setOrganizerMode(mode);
   }, []);
 
+  React.useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (historyOpen) {
+        setHistoryOpen(false);
+        return true;
+      }
+      if (summaryOpen) {
+        setSummaryOpen(false);
+        return true;
+      }
+      if (backupOpen) {
+        setBackupOpen(false);
+        return true;
+      }
+      if (tipsVisible) {
+        setTipsVisible(false);
+        return true;
+      }
+      if (reward !== null) {
+        setReward(null);
+        return true;
+      }
+      if (tab !== 'quadrants') {
+        selectTab('quadrants');
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [backupOpen, historyOpen, reward, selectTab, summaryOpen, tab, tipsVisible]);
+
   const selectedTask = workspace?.selectedTask ?? null;
+
+  React.useEffect(() => {
+    if (workspace === null || !workspace.snapshot.loaded || draftRestoreAttemptedRef.current) return;
+    draftRestoreAttemptedRef.current = true;
+    let current = true;
+    void props.taskDrafts.clearExpired(props.now())
+      .then(() => props.taskDrafts.latest(props.now()))
+      .then(record => {
+        if (!current || record === null) return;
+        const restored = decodeTaskDraftPayload(record.payload);
+        if (restored === null) {
+          void props.taskDrafts.remove(record.id).catch(() => undefined);
+          return;
+        }
+        if (restored.mode === 'edit') {
+          const task = record.taskId === null
+            ? undefined
+            : workspace.snapshot.tasks.find(candidate => candidate.id === record.taskId);
+          if (task === undefined || task.deletedAt !== null) {
+            void props.taskDrafts.remove(record.id).catch(() => undefined);
+            return;
+          }
+          restoredEditTaskIdRef.current = task.id;
+          workspace.selectTask(task.id);
+        } else {
+          workspace.closeTask();
+        }
+        createDraftRef.current = restored.createContext;
+        setDraft(restored.draft);
+        setEditorInitialLayer(restored.initialLayer ?? 'details');
+        setEditorMode(restored.mode);
+        setSystemNotice('已恢复上次未完成的任务草稿。');
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [props.now, props.taskDrafts, workspace]);
+
+  React.useEffect(() => {
+    if (editorMode === null) return;
+    const taskId = editorMode === 'edit' ? selectedTask?.id ?? null : null;
+    const id = editorMode === 'create'
+      ? createDraftRef.current.draftId
+      : taskId === null ? null : `task-edit:${taskId}`;
+    if (id === null) return;
+    const meaningful = editorMode === 'create'
+      ? draft.title.trim() !== '' || draft.quickInput.trim() !== '' || draft.firstStep.trim() !== ''
+      : selectedTask !== null && (
+          draft.title !== selectedTask.title ||
+          draft.firstStep !== (selectedTask.firstStep ?? '') ||
+          draft.quadrant !== effectiveQuadrantForTask(selectedTask, priorityNow) ||
+          draft.dueAt !== selectedTask.dueAt ||
+          draft.estimatedMinutes !== (selectedTask.estimatedMinutes ?? null) ||
+          JSON.stringify(draft.repeatRule) !== JSON.stringify((selectedTask as TaskWithPriority).repeatRule ?? null)
+        );
+    if (!meaningful) {
+      void props.taskDrafts.remove(id).catch(() => undefined);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const updatedAt = props.now();
+      const updatedAtMs = Date.parse(updatedAt);
+      if (!Number.isFinite(updatedAtMs)) return;
+      const payload: StoredTaskDraftPayload = {
+        version: 1,
+        mode: editorMode,
+        ...(editorInitialLayer === undefined ? {} : {initialLayer: editorInitialLayer}),
+        draft,
+        createContext: createDraftRef.current,
+      };
+      void props.taskDrafts.upsert({
+        id,
+        taskId,
+        payload: JSON.stringify(payload),
+        updatedAt,
+        expiresAt: new Date(updatedAtMs + TASK_DRAFT_TTL_MS).toISOString(),
+      }).catch(() => undefined);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [draft, editorInitialLayer, editorMode, priorityNow, props.now, props.taskDrafts, selectedTask]);
   const postFocusTask =
     postFocusTaskId === null
       ? null
@@ -2160,6 +2327,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     if (editorMode !== 'edit' || selectedTask === null) {
       return;
     }
+    if (restoredEditTaskIdRef.current === selectedTask.id) {
+      restoredEditTaskIdRef.current = null;
+      return;
+    }
     setDraft({
       quickInput: selectedTask.title,
       title: selectedTask.title,
@@ -2258,6 +2429,12 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }
 
   function closeEditor(): void {
+    const storedDraftId = editorMode === 'create'
+      ? createDraftRef.current.draftId
+      : selectedTask === null ? null : `task-edit:${selectedTask.id}`;
+    if (storedDraftId !== null) {
+      void props.taskDrafts.remove(storedDraftId).catch(() => undefined);
+    }
     setEditorMode(null);
     setEditorInitialLayer(undefined);
     setActionError(null);
@@ -2570,7 +2747,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   function openFocusScheduleEditor(task: Task | null = null): void {
     setEditingFocusScheduleId(null);
     setFocusScheduleError(null);
-    setFocusScheduleDraft({
+    const next: FocusScheduleEditorDraft = {
       timing: 'today',
       localTime: settings.preferredStartWindow?.startLocalTime ?? '20:30',
       weekdays: settings.preferredWeekdays,
@@ -2578,7 +2755,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       target: task === null ? 'growth' : 'current',
       taskId: task?.id ?? null,
       protectionLevel: settings.defaultProtectionLevel,
-    });
+    };
+    focusScheduleInitialRef.current = JSON.stringify(next);
+    setFocusScheduleDraft(next);
     setFocusScheduleEditorOpen(true);
   }
 
@@ -2591,7 +2770,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         : recurrence.weekdays.join(',') === '1,2,3,4,5' ? 'workdays' : 'custom';
     setEditingFocusScheduleId(schedule.id);
     setFocusScheduleError(null);
-    setFocusScheduleDraft({
+    const next: FocusScheduleEditorDraft = {
       timing,
       localTime: recurrence.kind === 'ONCE'
         ? formatAgendaTime(recurrence.startsAt)
@@ -2603,7 +2782,9 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       target: schedule.target.kind === 'TASK' ? 'current' : schedule.target.kind === 'AUTO' ? 'auto' : 'growth',
       taskId: schedule.target.kind === 'TASK' ? schedule.target.taskId : null,
       protectionLevel: schedule.protectionLevel,
-    });
+    };
+    focusScheduleInitialRef.current = JSON.stringify(next);
+    setFocusScheduleDraft(next);
     setFocusScheduleEditorOpen(true);
   }
 
@@ -3500,7 +3681,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   if (historyOpen) {
     return (
       <FocusHistoryScreen
-        day={props.now().slice(0, 10)}
+        day={dateKeyInTimeZone(
+          props.now(),
+          props.currentTimeZone?.() ?? systemTimeZone(),
+        )}
         history={props.reviewHistory}
         onBack={() => setHistoryOpen(false)}
         onEndToday={() => {
@@ -4899,6 +5083,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       {focusScheduleEditorOpen ? (
         <AppBottomSheet
           dark={dark}
+          dirty={JSON.stringify(focusScheduleDraft) !== focusScheduleInitialRef.current}
+          dismissPolicy="confirmDirty"
           onDismissAttempt={() => {
             if (focusSchedulePending) return false;
             setFocusScheduleEditorOpen(false);
@@ -4907,7 +5093,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
           reduceMotion={settings.reduceMotion}
           subtitle="只保留开始需要的四项设置；重复时段不会复制任务。"
           title={editingFocusScheduleId === null ? '安排一段专注' : '编辑专注时段'}>
-          <ScrollView contentContainerStyle={styles.focusScheduleEditor}>
+          <AppBottomSheetScrollView contentContainerStyle={styles.focusScheduleEditor}>
             <Text style={[styles.fieldLabel, dark && styles.textDark]}>什么时候？</Text>
             <View style={styles.segmentedRow}>
               {(['today', 'daily', 'workdays', 'custom'] as const).map(timing => (
@@ -5054,7 +5240,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 />
               </>
             )}
-          </ScrollView>
+          </AppBottomSheetScrollView>
         </AppBottomSheet>
       ) : null}
 

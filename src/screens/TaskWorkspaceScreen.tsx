@@ -31,6 +31,7 @@ import {
   LocalBackupScreen,
   type BackupFileBridge,
 } from './LocalBackupScreen';
+import {formatFocusSummary} from '../presentation/focusSummary';
 
 type TaskWorkspaceScreenProps = Readonly<{
   service: CoreAppService;
@@ -970,8 +971,10 @@ export function TaskWorkspaceScreen({
         {reviewRuntime?.snapshot.todaySummary !== null &&
         reviewRuntime?.snapshot.todaySummary !== undefined ? (
           <Text style={styles.subtitle}>
-            今日专注：{reviewRuntime.snapshot.todaySummary.count}次 /{' '}
-            {reviewRuntime.snapshot.todaySummary.minutes}分钟
+            今日专注：{formatFocusSummary(
+              reviewRuntime.snapshot.todaySummary.count,
+              reviewRuntime.snapshot.todaySummary.minutes,
+            )}
           </Text>
         ) : null}
 

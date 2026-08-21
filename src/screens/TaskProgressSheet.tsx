@@ -1,13 +1,15 @@
 import React from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import {AppBottomSheet} from '../components/AppBottomSheet';
+import {
+  AppBottomSheet,
+  AppBottomSheetScrollView,
+} from '../components/AppBottomSheet';
 import type {
   DeliveryRiskDismissedBand,
   PlannedWorkSession,
@@ -174,6 +176,9 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
   const [startText, setStartText] = React.useState(() => defaultStart(props.now(), 0));
   const [preview, setPreview] = React.useState<readonly string[]>([]);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const savedDefinitionRef = React.useRef(props.task.completionDefinition ?? '');
+  const savedStepDraftRef = React.useRef(stepDraft);
+  const savedProgressSourceRef = React.useRef(props.task.progressSource ?? 'STEPS');
   const currentStep = (props.task.steps ?? []).find(step => step.status === 'ACTIVE');
   const quality = currentStep === undefined
     ? null
@@ -204,7 +209,10 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
       return;
     }
     void props.onUpdate({completionDefinition: normalized})
-      .then(() => setNotice('完成标准已保存在本机。'))
+      .then(() => {
+        savedDefinitionRef.current = definition;
+        setNotice('完成标准已保存在本机。');
+      })
       .catch(() => setNotice('保存失败，草稿已保留。'));
   }
 
@@ -234,7 +242,11 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
         idGenerator: () => nextExecutionId(props.task.id, 'step'),
       });
       void props.onUpdate(patchFor(next))
-        .then(() => setNotice('推进步骤已保存，首页会显示当前一步。'))
+        .then(() => {
+          savedStepDraftRef.current = stepDraft;
+          savedProgressSourceRef.current = progressSource;
+          setNotice('推进步骤已保存，首页会显示当前一步。');
+        })
         .catch(() => setNotice('保存失败，步骤草稿已保留。'));
     } catch {
       setNotice('请输入 1–12 个非空步骤；预计分钟需为正整数。');
@@ -296,13 +308,20 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
 
   return (
     <AppBottomSheet
+      dirty={
+        definition !== savedDefinitionRef.current ||
+        stepDraft !== savedStepDraftRef.current ||
+        progressSource !== savedProgressSourceRef.current ||
+        preview.length > 0
+      }
+      dismissPolicy="confirmDirty"
       onDismissAttempt={() => {
         props.onClose();
         return true;
       }}
       subtitle={props.task.title}
       title="长期任务计划">
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <AppBottomSheetScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <Text style={styles.label}>做到这里就算完成</Text>
             <TextInput
@@ -485,7 +504,7 @@ export function TaskProgressSheet(props: Props): React.JSX.Element {
           {props.error === null ? null : (
             <Text accessibilityLiveRegion="assertive" style={styles.error}>保存失败，请重试；当前草稿仍保留。</Text>
           )}
-        </ScrollView>
+        </AppBottomSheetScrollView>
     </AppBottomSheet>
   );
 }

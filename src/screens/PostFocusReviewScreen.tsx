@@ -1,22 +1,28 @@
 import React, {useEffect, useState} from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import {
+  AppBottomSheet,
+  AppBottomSheetScrollView,
+} from '../components/AppBottomSheet';
 import {usePostFocusReviewRuntime} from '../app/postFocusReviewRuntime';
 import {useAppFocusSessionRuntime} from '../app/focusSessionRuntime';
 import {useTaskWorkspaceRuntime} from '../app/taskWorkspaceRuntime';
 import type {PostFocusReviewOutcome} from '../domain/postFocusReview';
+import {formatFocusSummary} from '../presentation/focusSummary';
 
 type ActionButtonProps = Readonly<{
   label: string;
   displayLabel?: string;
   onPress(): void;
   disabled?: boolean;
+  secondary?: boolean;
+  textOnly?: boolean;
 }>;
 
 function ActionButton({
@@ -24,6 +30,8 @@ function ActionButton({
   displayLabel,
   onPress,
   disabled = false,
+  secondary = false,
+  textOnly = false,
 }: ActionButtonProps): React.JSX.Element {
   return (
     <Pressable
@@ -32,8 +40,16 @@ function ActionButton({
       accessibilityState={{disabled}}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.button, disabled && styles.disabledButton]}>
-      <Text style={styles.buttonText}>{displayLabel ?? label}</Text>
+      style={[
+        styles.button,
+        secondary && styles.secondaryButton,
+        textOnly && styles.textButton,
+        disabled && styles.disabledButton,
+      ]}>
+      <Text style={[
+        styles.buttonText,
+        (secondary || textOnly) && styles.secondaryButtonText,
+      ]}>{displayLabel ?? label}</Text>
     </Pressable>
   );
 }
@@ -102,12 +118,18 @@ export function PostFocusReviewScreen(props: Readonly<{
         ? '重试刷新象限'
         : '回到象限';
     return (
-      <View accessibilityViewIsModal style={styles.sheetBackdrop}>
-      <View style={styles.sheet}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text accessibilityRole="header" style={styles.title}>
-            本次专注已记录
-          </Text>
+      <AppBottomSheet
+        onDismissAttempt={() => runtime
+          .returnToWorkspace(async () => {
+            await workspace.refreshProjection();
+          }, workspace.closeTask)
+          .then(() => {
+            props.onReturned?.();
+            return true;
+          })
+          .catch(() => false)}
+        title="本次专注已记录">
+        <AppBottomSheetScrollView contentContainerStyle={styles.content}>
           <Text style={styles.kicker}>这几分钟推进得怎么样？</Text>
           <View style={styles.panel}>
             <Text style={styles.fact}>本次任务：{receipt.taskTitle}</Text>
@@ -115,7 +137,7 @@ export function PostFocusReviewScreen(props: Readonly<{
             <Text style={styles.fact}>本次成长值：{receipt.awardedPoints}</Text>
             <Text style={styles.fact}>成长值原因：{receipt.reason}</Text>
             <Text style={styles.fact}>
-              今日专注：{receipt.todayFocusCount}次 / {receipt.todayFocusMinutes}分钟
+              今日专注：{formatFocusSummary(receipt.todayFocusCount, receipt.todayFocusMinutes)}
             </Text>
           </View>
           {runtime.snapshot.workspaceRefreshFailed ? (
@@ -141,9 +163,8 @@ export function PostFocusReviewScreen(props: Readonly<{
                 .catch(() => undefined);
             }}
           />
-        </ScrollView>
-      </View>
-      </View>
+        </AppBottomSheetScrollView>
+      </AppBottomSheet>
     );
   }
 
@@ -153,12 +174,13 @@ export function PostFocusReviewScreen(props: Readonly<{
 
   const pending = runtime.snapshot.settlementPending;
   return (
-    <View accessibilityViewIsModal style={styles.sheetBackdrop}>
-    <View style={styles.sheet}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          5 分钟结束
-        </Text>
+    <AppBottomSheet
+      dirty={outcome !== null || note.trim() !== ''}
+      dismissPolicy="confirmDirty"
+      onDismissAttempt={() => runtime.dismissReview().then(() => true).catch(() => false)}
+      subtitle="选择本次结果，再决定下一步。"
+      title="5 分钟结束">
+      <AppBottomSheetScrollView contentContainerStyle={styles.content}>
         <Text style={styles.kicker}>这几分钟推进得怎么样？</Text>
         <View style={styles.panel}>
           <Text style={styles.fact}>复盘任务：{review.taskTitle}</Text>
@@ -210,6 +232,7 @@ export function PostFocusReviewScreen(props: Readonly<{
         />
         <ActionButton
           label="继续15分钟"
+          secondary
           disabled={pending}
           onPress={() => {
             void runtime
@@ -227,6 +250,7 @@ export function PostFocusReviewScreen(props: Readonly<{
         />
         <ActionButton
           label="稍后继续"
+          textOnly
           disabled={pending}
           onPress={() => {
             void runtime.dismissReview().catch(() => undefined);
@@ -241,37 +265,15 @@ export function PostFocusReviewScreen(props: Readonly<{
             }}
           />
         ) : null}
-      </ScrollView>
-    </View>
-    </View>
+      </AppBottomSheetScrollView>
+    </AppBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheetBackdrop: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(18, 42, 38, 0.42)',
-    zIndex: 40,
-  },
-  sheet: {
-    maxHeight: '78%',
-    backgroundColor: '#f7f5ef',
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-  },
   content: {
     padding: 24,
     gap: 16,
-  },
-  title: {
-    color: '#1f2a24',
-    fontSize: 28,
-    fontWeight: '800',
   },
   kicker: {
     color: '#5e716c',
@@ -340,10 +342,19 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  secondaryButton: {
+    backgroundColor: '#e7f3ed',
+  },
+  textButton: {
+    backgroundColor: 'transparent',
+  },
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
+  },
+  secondaryButtonText: {
+    color: '#176b4d',
   },
   error: {
     color: '#a72d24',

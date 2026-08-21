@@ -1,9 +1,9 @@
 Start Five Quality Gate V2
-runId: 42519f1b-5528-408b-bc3b-e331da9c48ce
+runId: 5c39476c-dacb-42b5-a6fe-7cbb60d983a9
 mode: test
 status: failed
 result: FAILED
-projectRoot: D:\CodexData\Workspaces\Codex\2026-07-20\android-ios-app-readme-md-prd\outputs\start-five
+projectRoot: D:\BugCode\4for\start-five-app
 formal-tests: failed
 lock-manifests: skipped
 stageId: formal-tests
@@ -11,29 +11,338 @@ exitCode: 1
 signal: null
 timedOut: false
 timeoutSource: null
-stdout: 
-stderr: PASS tests/quality-gate-v2/manifestValidation.contract.test.ts (5.111 s)
-PASS tests/quality-gate-v2/realCliChild.contract.test.ts (18.475 s)
-PASS tests/gap-p0-02b/repositoryPersistence.contract.test.ts
-PASS tests/review4/repeatSession.screen.regression.test.tsx (10.474 s)
-PASS tests/quality-gate-v2/cliAndEntry.contract.test.ts
+stdout: Recreating D:\BugCode\4for\start-five-app\node_modules
+? Verifying lockfile against supply-chain policies (597 entries)...
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +596
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 596, reused 275, downloaded 0, added 0
+Progress: resolved 596, reused 591, downloaded 3, added 11
+Progress: resolved 596, reused 592, downloaded 3, added 69
+Progress: resolved 596, reused 592, downloaded 4, added 164
+Progress: resolved 596, reused 592, downloaded 4, added 278
+Progress: resolved 596, reused 592, downloaded 4, added 434
+✓ Lockfile passes supply-chain policies (597 entries in 7s)
+Progress: resolved 596, reused 592, downloaded 4, added 590
+Progress: resolved 596, reused 592, downloaded 4, added 594
+Progress: resolved 596, reused 592, downloaded 4, added 595
+Progress: resolved 596, reused 592, downloaded 4, added 596
+Progress: resolved 596, reused 592, downloaded 4, added 596, done
+
+dependencies:
++ @babel/runtime 7.29.7
++ @react-native-async-storage/async-storage 3.1.1
++ react 19.2.3
++ react-native 0.86.0
+
+devDependencies:
++ @babel/core 7.29.7
++ @react-native-community/cli 20.1.0
++ @react-native-community/cli-platform-android 20.1.0
++ @react-native-community/cli-platform-ios 20.1.0
++ @react-native/babel-preset 0.86.0
++ @react-native/codegen 0.86.0
++ @react-native/gradle-plugin 0.86.0
++ @react-native/jest-preset 0.86.0
++ @react-native/metro-config 0.86.0
++ @react-native/typescript-config 0.86.0
++ @testing-library/react-native 14.0.1
++ @types/jest 29.5.14
++ @types/react 19.2.17
++ babel-jest 29.7.0
++ jest 29.7.0
++ react-test-renderer 19.2.3
++ typescript 5.9.3
+
+Done in 20.2s using pnpm v11.22.0
+
+stderr: PASS tests/quality-gate-v2/manifestValidation.contract.test.ts
+PASS tests/quality-gate-v2/realCliChild.contract.test.ts (15.34 s)
+FAIL tests/gap-p0-02b/repositoryPersistence.contract.test.ts
+  ● GAP-P0-02B concrete focus-session repository persistence › owns stable repository/storage keys and a current versioned envelope identity
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "defaultRepositoryKey": "start-five.focus-sessions.v1",
+        "schema": "start-five.focus-sessions",
+        "storageKey": "start-five.focus-sessions.v1",
+    -   "version": 1,
+    +   "version": 2,
+      }
+
+    [0m [90m 37 |[39m     [36mconst[39m production [33m=[39m loadPersistentProduction()[33m;[39m
+     [90m 38 |[39m
+    [31m[1m>[22m[39m[90m 39 |[39m     expect(production)[33m.[39mtoMatchObject({
+     [90m    |[39m                        [31m[1m^[22m[39m
+     [90m 40 |[39m       defaultRepositoryKey[33m:[39m [32m'start-five.focus-sessions.v1'[39m[33m,[39m
+     [90m 41 |[39m       storageKey[33m:[39m [32m'start-five.focus-sessions.v1'[39m[33m,[39m
+     [90m 42 |[39m       schema[33m:[39m [32m'start-five.focus-sessions'[39m[33m,[39m[0m
+
+      at Object.toMatchObject (tests/gap-p0-02b/repositoryPersistence.contract.test.ts:39:24)
+
+PASS tests/review4/repeatSession.screen.regression.test.tsx (7.943 s)
+FAIL tests/quality-gate-v2/cliAndEntry.contract.test.ts
+  ● QUALITY-GATE-V2 CLI and default entrypoints › locks the complete accepted manifest/root inventory in the real registry
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: QUALITY_GATE_MANIFEST_SELF_HASH_MISMATCH: GAP_P0_01A_LOCK.sha256]
+
+    [0m [90m 575 |[39m       })[33m,[39m
+     [90m 576 |[39m     )[33m.[39mresolves[33m.[39mtoEqual(expectedRoots)[33m;[39m
+    [31m[1m>[22m[39m[90m 577 |[39m     [36mawait[39m expect(
+     [90m     |[39m           [31m[1m^[22m[39m
+     [90m 578 |[39m       production[33m.[39mvalidateLockManifests({
+     [90m 579 |[39m         projectRoot[33m:[39m root[33m,[39m
+     [90m 580 |[39m         registryPath[33m,[39m[0m
+
+      at expect (node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.expect (tests/quality-gate-v2/cliAndEntry.contract.test.ts:577:11)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
 PASS tests/review2/startLifecycle.regression.test.tsx
 PASS tests/gap-p0-02b/serviceTerminal.contract.test.ts
-PASS tests/gap-p0-02b/snapshotValidation.contract.test.ts
+FAIL tests/gap-p0-02b/snapshotValidation.contract.test.ts
+  ● GAP-P0-02B persistent snapshot validation and version boundary › rejects unsupported snapshot identity: future version
+
+    EXPECTED_REJECTION:FOCUS_SESSION_SNAPSHOT_UNSUPPORTED
+
+    [0m [90m 335 |[39m     [36mreturn[39m error[33m;[39m
+     [90m 336 |[39m   }
+    [31m[1m>[22m[39m[90m 337 |[39m   [36mthrow[39m [36mnew[39m [33mError[39m([32m`EXPECTED_REJECTION:${code}`[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 338 |[39m }
+     [90m 339 |[39m
+     [90m 340 |[39m [36mexport[39m type [33mRuntimeStartInput[39m [33m=[39m[0m
+
+      at tests/gap-p0-02b/focusSessionTestKit.ts:337:9
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
 PASS tests/native-scaffold/androidScaffold.contract.test.ts
 PASS tests/review1/CoreFlowTimer.integration.test.tsx
-PASS tests/gap-p0-02b/serviceStart.contract.test.ts
+FAIL tests/gap-p0-02b/serviceStart.contract.test.ts
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 2 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-2",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:02:00.000Z",
+        "plannedMinutes": 2,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 5 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-5",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:05:00.000Z",
+        "plannedMinutes": 5,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 15 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-15",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:15:00.000Z",
+        "plannedMinutes": 15,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 25 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-25",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:25:00.000Z",
+        "plannedMinutes": 25,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 50 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-50",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:50:00.000Z",
+        "plannedMinutes": 50,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
 PASS tests/review3/startSingleFlight.regression.test.tsx
 PASS tests/review1/operationRegistry.regression.test.ts
+FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts
+  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 164 |[39m     )[33m;[39m
+     [90m 165 |[39m
+    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 168 |[39m   })[33m;[39m
+     [90m 169 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
+
+  ● GAP-P0-01A-A1 public TypeScript foundation › exports the exact minimal lifecycle service, inputs, options, query result, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:108:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:109:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:126:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:128:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:14 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:20 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:62 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:68 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 317 |[39m     )[33m;[39m
+     [90m 318 |[39m
+    [31m[1m>[22m[39m[90m 319 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 320 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 321 |[39m   })[33m;[39m
+     [90m 322 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:319:43)
+
 PASS tests/phase4-review/snapshotSemanticValidation.regression.test.ts
-FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts (6.423 s)
+FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts
   ● GAP-P0-02A legacy compatibility controls › keeps CoreAppService and CoreFlow controller/screen public types exact
 
     expect(received).toBe(expected) // Object.is equality
 
     Expected: ""
-    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
-    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
 
     [0m [90m 210 |[39m     )[33m;[39m
      [90m 211 |[39m
@@ -96,59 +405,108 @@ FAIL tests/phase4/persistentTaskStorage.contract.test.ts
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
 FAIL tests/native-scaffold/isolationAndPreservation.contract.test.ts
-  ● NS-005 isolated-project and accepted-asset preservation contract › scans source/config/native YAML, locks, C/C++, and podspecs without scanning tests or generated vendors
+  ● NS-005 isolated-project and accepted-asset preservation contract › preserves all seven formal lock generations and their locked assets byte-for-byte
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "9cce965ce8632b5c9acdca84a3c8ea02d4fac1b923bfd9fb8822fb221b4403ca"
+    Received: "13489cb596132092dbc83a32b01290bd03924c3ae89aed2593b69997b6ab387f"
+
+    [0m [90m 228 |[39m     [36mfor[39m ([36mconst[39m [manifestPath[33m,[39m expected] [36mof[39m expectedManifests) {
+     [90m 229 |[39m       [36mconst[39m verification [33m=[39m verifyLockManifest(manifestPath)[33m;[39m
+    [31m[1m>[22m[39m[90m 230 |[39m       expect(sha256File(manifestPath))[33m.[39mtoBe(expected[33m.[39msha256)[33m;[39m
+     [90m     |[39m                                        [31m[1m^[22m[39m
+     [90m 231 |[39m       expect(verification[33m.[39mentryCount)[33m.[39mtoBe(expected[33m.[39mentryCount)[33m;[39m
+     [90m 232 |[39m       expect(verification[33m.[39merrors)[33m.[39mtoEqual([])[33m;[39m
+     [90m 233 |[39m     }[0m
+
+      at Object.toBe (tests/native-scaffold/isolationAndPreservation.contract.test.ts:230:40)
+
+PASS tests/phase4-review3/externalQueueAndCrossFacade.regression.test.ts
+PASS tests/locked/domain/task.test.ts
+PASS tests/locked/data/taskRepository.test.ts
+FAIL tests/gap-p0-02a/publicFoundation.contract.test.ts
+  ● GAP-P0-02A public focus-session foundation › exports exact readonly session, input, patch, duration, status, and query-result types
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:56:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:59:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:60:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:63:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:14 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:26 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:32 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:44 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 115 |[39m     )[33m;[39m
+     [90m 116 |[39m
+    [31m[1m>[22m[39m[90m 117 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 118 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 119 |[39m   })[33m;[39m
+     [90m 120 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/publicFoundation.contract.test.ts:117:43)
+
+  ● GAP-P0-02A public focus-session foundation › exports the exact seven-method service, options, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:39:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:41:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:43:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:46:11 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:47:11 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:48:11 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 256 |[39m     )[33m;[39m
+     [90m 257 |[39m
+    [31m[1m>[22m[39m[90m 258 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 259 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 260 |[39m   })[33m;[39m
+     [90m 261 |[39m })[33m;[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/publicFoundation.contract.test.ts:258:43)
+
+FAIL tests/phase4/startFiveApp.contract.test.tsx (6.794 s)
+  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  -  1
-    + Received  + 18
+    - Expected  -  0
+    + Received  + 14
 
-    - Array []
-    + Array [
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cache-v2-5aa0806b52682965b186.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-f0126f5a6017d1c7535e.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-c3773668a06428667c4a.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/directory-AsyncStorageSpec_autolinked_build-RelWithDebInfo-26b04d5fbbe6314abe33.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/index-2026-08-13T08-07-57-0263.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-appmodules-RelWithDebInfo-74e83ccdccc74af813c9.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_AsyncStorageSpec-RelWithDebInfo-88f029ae2992eb96a52a.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.ninja_log",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build_mini.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/.ninja_deps",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/compile_commands.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/prefab_config.json",
-    +   "android/.cxx-short/tools/internal/arm64-v8a/compile_commands.json",
-    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/build_model.json",
-    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/metadata_generation_record.json",
-    + ]
+      Array [
+    +   "start-five.local-backup.restore-journal.v1",
+        "start-five.tasks.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+      ]
 
-    [0m [90m 252 |[39m     }
-     [90m 253 |[39m
-    [31m[1m>[22m[39m[90m 254 |[39m     expect(findings)[33m.[39mtoEqual([])[33m;[39m
-     [90m     |[39m                      [31m[1m^[22m[39m
-     [90m 255 |[39m   })[33m;[39m
-     [90m 256 |[39m
-     [90m 257 |[39m   it([32m'exempts only the two exact root POSIX quality-gate reports without creating a scan blind spot'[39m[33m,[39m () [33m=>[39m {[0m
+    [0m [90m 63 |[39m     )[33m;[39m
+     [90m 64 |[39m
+    [31m[1m>[22m[39m[90m 65 |[39m     expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m;[39m
+     [90m    |[39m                              [31m[1m^[22m[39m
+     [90m 66 |[39m     [36mawait[39m screen[33m.[39munmount()[33m;[39m
+     [90m 67 |[39m   })[33m;[39m
+     [90m 68 |[39m[0m
 
-      at Object.toEqual (tests/native-scaffold/isolationAndPreservation.contract.test.ts:254:22)
-
-PASS tests/phase4-review3/externalQueueAndCrossFacade.regression.test.ts
-PASS tests/gap-p0-02a/publicFoundation.contract.test.ts
-FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
-  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
-
-    Found multiple elements with text: /Hydrated Phase 4 task/
-
-    [0m [90m 59 |[39m
-     [90m 60 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
-    [31m[1m>[22m[39m[90m 61 |[39m     [36mawait[39m waitFor(() [33m=>[39m
-     [90m    |[39m                  [31m[1m^[22m[39m
-     [90m 62 |[39m       expect(screen[33m.[39mgetByText([35m/Hydrated Phase 4 task/[39m))[33m.[39mtoBeTruthy()[33m,[39m
-     [90m 63 |[39m     )[33m;[39m
-     [90m 64 |[39m[0m
-
-      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:61:18)
+      at Object.toEqual (tests/phase4/startFiveApp.contract.test.tsx:65:30)
       at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
@@ -156,15 +514,25 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  - 0
-    + Received  + 4
+    - Expected  -  0
+    + Received  + 14
 
       Array [
         "start-five.tasks.v1",
     +   "start-five.local-backup.restore-journal.v1",
     +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
     +   "start-five.day-closure.v1",
     +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
       ]
 
     [0m [90m 79 |[39m     [36mconst[39m firstRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
@@ -179,35 +547,29 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
       at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
-  ● P4-BOOT application composition and hydration contract › keeps service mutations, the exposed repository, the root, and a later app instance on one durable state
-
-    Found multiple elements with text: /One shared durable state/
-
-    [0m [90m 112 |[39m       [33mReact[39m[33m.[39mcreateElement(firstComposition[33m.[39m[33mAppRoot[39m)[33m,[39m
-     [90m 113 |[39m     )[33m;[39m
-    [31m[1m>[22m[39m[90m 114 |[39m     [36mawait[39m waitFor(() [33m=>[39m
-     [90m     |[39m                  [31m[1m^[22m[39m
-     [90m 115 |[39m       expect(firstRoot[33m.[39mgetByText([35m/One shared durable state/[39m))[33m.[39mtoBeTruthy()[33m,[39m
-     [90m 116 |[39m     )[33m;[39m
-     [90m 117 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m[0m
-
-      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:114:18)
-      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
-      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
-
   ● P4-BOOT application composition and hydration contract › boots and hydrates locally without invoking an injected network adapter or global fetch
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  - 0
-    + Received  + 4
+    - Expected  -  0
+    + Received  + 14
 
       Array [
     +   "start-five.local-backup.restore-journal.v1",
         "start-five.tasks.v1",
     +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
     +   "start-five.day-closure.v1",
     +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
       ]
 
     [0m [90m 181 |[39m       })[33m;[39m
@@ -227,8 +589,8 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
     expect(received).toHaveLength(expected)
 
     Expected length: 2
-    Received length: 6
-    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.day-closure.v1", "start-five.post-focus-review.v1"]
+    Received length: 16
+    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.focus-schedules.v2", "start-five.day-closure.v1", "start-five.post-focus-review.v1", "start-five.focus-schedules.v2", "start-five.focus-schedules.v2", "start-five.quadrant-task-layout.v1", …]
 
     [0m [90m 211 |[39m
      [90m 212 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
@@ -242,14 +604,15 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
       at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
-PASS tests/quality-gate-v2/orchestratorExecution.contract.test.ts
+PASS tests/locked/application/coreAppService.test.ts
 PASS tests/gap-p0-02b/serviceQueryRestart.contract.test.ts
 PASS tests/gap-p0-02b/sharedPersistenceConcurrency.contract.test.ts
-PASS tests/quality-gate-v2/reportWriter.contract.test.ts
+PASS tests/quality-gate-v2/orchestratorExecution.contract.test.ts
 PASS tests/native-scaffold/toolchainConfig.contract.test.ts
-PASS tests/quality-gate-v2/processRunner.contract.test.ts (11.286 s)
-PASS tests/quality-gate-v2/orchestratorPlan.contract.test.ts
+PASS tests/quality-gate-v2/reportWriter.contract.test.ts
+PASS tests/quality-gate-v2/processRunner.contract.test.ts (10.755 s)
 PASS tests/native-scaffold/iosScaffold.contract.test.ts
+PASS tests/quality-gate-v2/orchestratorPlan.contract.test.ts
 PASS tests/phase4-review3/transactionSurfaceLifetime.regression.test.ts
 PASS tests/native-review/fixtures/xcodeTargetGraph.invariant.test.ts
 PASS tests/review3/timerBoundaryAlignment.regression.test.ts
@@ -257,6 +620,24 @@ PASS tests/native-scaffold/fixtures/nativeProject.invariant.test.ts
 PASS tests/phase4-review2/lifecycleInvariantMatrix.regression.test.ts
 PASS tests/quality-gate-v2/publicSurface.contract.test.ts
 FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
+  ● GAP-P0-02B persistent public TypeScript and runtime surface › exports the exact persistent backend, constants, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02b/__virtual__/persistent-storage-public-surface.ts:29:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02b/__virtual__/persistent-storage-public-surface.ts:32:51 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 114 |[39m     )[33m;[39m
+     [90m 115 |[39m
+    [31m[1m>[22m[39m[90m 116 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 117 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 118 |[39m     expect(compilation[33m.[39memittedFileCount)[33m.[39mtoBe([35m0[39m)[33m;[39m
+     [90m 119 |[39m   })[33m;[39m[0m
+
+      at Object.toBe (tests/gap-p0-02b/persistentPublicSurface.contract.test.ts:116:43)
+
   ● GAP-P0-02B persistent public TypeScript and runtime surface › owns exact runtime namespaces and constructs both adapters with synchronous and deferred zero backend I/O
 
     expect(received).toEqual(expected) // deep equality
@@ -284,10 +665,71 @@ FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
       at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
       at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
 
+PASS tests/locked/services/fiveMinuteTimer.test.ts
 PASS tests/review2/defaultTimerCadence.regression.test.tsx
 PASS tests/phase4-review2/directSnapshotBoundary.regression.test.ts
 PASS tests/phase4-review2/transactionReentrancy.regression.test.ts
-PASS tests/gap-p0-02b/timerBoundary.control.test.ts
+FAIL tests/gap-p0-02b/timerBoundary.control.test.ts
+  ● GAP-P0-02B timer ownership and CoreFlow integration boundary › keeps focus service construction side-effect free through deferred microtasks
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 28 |[39m       idGenerator[33m:[39m ids[33m.[39mnext[33m,[39m
+     [90m 29 |[39m     })[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 31 |[39m       [32m'finish'[39m[33m,[39m
+     [90m 32 |[39m       [32m'getActive'[39m[33m,[39m
+     [90m 33 |[39m       [32m'getById'[39m[33m,[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/timerBoundary.control.test.ts:30:41)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● GAP-P0-02B timer ownership and CoreFlow integration boundary › keeps the legacy default controller as a five-minute UI clock with no implicit focus-service I/O
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 128 |[39m       remainingMs[33m:[39m [35m300[39m_000[33m,[39m
+     [90m 129 |[39m     })[33m;[39m
+    [31m[1m>[22m[39m[90m 130 |[39m     expect([33mObject[39m[33m.[39mkeys(focusService)[33m.[39msort())[33m.[39mtoEqual([
+     [90m     |[39m                                              [31m[1m^[22m[39m
+     [90m 131 |[39m       [32m'finish'[39m[33m,[39m
+     [90m 132 |[39m       [32m'getActive'[39m[33m,[39m
+     [90m 133 |[39m       [32m'getById'[39m[33m,[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/timerBoundary.control.test.ts:130:46)
+
 PASS tests/phase4-review2/plainDataMutationAtomicity.regression.test.ts
 PASS tests/phase4-review3/parentSubtaskTemporalBounds.regression.test.ts
 FAIL tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts
@@ -369,15 +811,15 @@ FAIL tests/native-scaffold/rootRegistration.contract.test.tsx
 
     TypeError: Cannot read properties of undefined (reading 'StartFiveNotifications')
 
-    [0m [90m 23 |[39m }[33m>[39m[33m;[39m
-     [90m 24 |[39m
-    [31m[1m>[22m[39m[90m 25 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
+    [0m [90m 27 |[39m }[33m>[39m[33m;[39m
+     [90m 28 |[39m
+    [31m[1m>[22m[39m[90m 29 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
      [90m    |[39m                                    [31m[1m^[22m[39m
-     [90m 26 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
-     [90m 27 |[39m   [33m|[39m undefined[33m;[39m
-     [90m 28 |[39m[0m
+     [90m 30 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
+     [90m 31 |[39m   [33m|[39m undefined[33m;[39m
+     [90m 32 |[39m[0m
 
-      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:25:36)
+      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:29:36)
       at Object.require (App.tsx:5:1)
       at requireActual (tests/native-scaffold/rootRegistration.contract.test.tsx:101:24)
       at Object.isolateModules (tests/native-scaffold/rootRegistration.contract.test.tsx:92:10)
@@ -391,67 +833,39 @@ PASS tests/review1/terminalFirstStep.regression.test.tsx
 PASS tests/phase4-review3/adversarialPlainData.regression.test.ts
 PASS tests/phase4-review5/helperInvariant.contract.test.ts
 PASS tests/phase4-review5/sharedDagTransactionAndCycle.regression.test.ts
-PASS tests/phase4-review5/sharedDagFacade.regression.test.ts
-PASS tests/phase4-review3/scorelessCompletionBoundary.regression.test.ts
-PASS tests/gap-p0-02a/runtimeSurface.contract.test.ts
-PASS tests/review4/repeatSession.timerLifecycle.regression.test.ts
-PASS tests/quality-gate-v2/iosStaticAudit.contract.test.ts
-PASS tests/gap-p0-02b/servicePersistentFaults.contract.test.ts
-PASS tests/gap-p0-02b/helperInvariant.control.test.ts
-PASS tests/phase4-review/nonFiniteScoreAtomicity.regression.test.ts
-PASS tests/phase4/phase4Fixtures.invariant.test.ts
-FAIL tests/phase4-review5/storageBoundary.control.test.ts
-  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
-
-    expect(received).toHaveLength(expected)
-
-    Expected length: 1
-    Received length: 2
-    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
-
-    [0m [90m 28 |[39m     })[33m;[39m
-     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
-    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
-     [90m    |[39m                                 [31m[1m^[22m[39m
-     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
-     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
-     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
-
-      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
-      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
-      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
-
-PASS tests/gap-p0-02a/inMemoryTypecheck.invariant.test.ts
-PASS tests/phase4-review4/proxyFixture.invariant.test.ts
-PASS tests/gap-p0-02b/inMemoryTypecheck.invariant.test.ts
-FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts (5.114 s)
-  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
-
-    expect(received).toBe(expected) // Object.is equality
-
-    Expected: ""
-    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
-    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
-
-    [0m [90m 164 |[39m     )[33m;[39m
-     [90m 165 |[39m
-    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
-     [90m     |[39m                                           [31m[1m^[22m[39m
-     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
-     [90m 168 |[39m   })[33m;[39m
-     [90m 169 |[39m[0m
-
-      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
-
-PASS tests/gap-p0-01a/inMemoryTypecheck.invariant.test.ts
 PASS tests/locked/application/CoreFlowScreen.test.tsx
-PASS tests/locked/services/fiveMinuteTimer.test.ts
-PASS tests/locked/data/taskRepository.test.ts
-PASS tests/locked/domain/task.test.ts
-PASS tests/locked/application/coreAppService.test.ts
-PASS tests/locked/domain/nextStep.test.ts
-PASS tests/locked/domain/quadrant.test.ts
+PASS tests/locked/domain/recommendation.test.ts
+PASS tests/phase4-review5/sharedDagFacade.regression.test.ts
 FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
+  ● GAP-P0-01A-A1 runtime export surface › exports a constructable lifecycle factory with exact own method keys
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+    @@ -6,8 +6,10 @@
+        "getQuadrantProjection",
+        "getQueryResult",
+        "getRecommendation",
+        "list",
+        "reschedule",
+    +   "restoreCompleted",
+        "softDelete",
+    +   "undoComplete",
+        "update",
+      ]
+
+    [0m [90m 93 |[39m     }
+     [90m 94 |[39m
+    [31m[1m>[22m[39m[90m 95 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_LIFECYCLE_METHODS[39m)[33m;[39m
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 96 |[39m     [36mfor[39m ([36mconst[39m methodName [36mof[39m [33mEXPECTED_LIFECYCLE_METHODS[39m) {
+     [90m 97 |[39m       expect([36mtypeof[39m [33mReflect[39m[33m.[39m[36mget[39m(service[33m,[39m methodName))[33m.[39mtoBe([32m'function'[39m)[33m;[39m
+     [90m 98 |[39m     }[0m
+
+      at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:95:41)
+
   ● GAP-P0-01A-A1 runtime export surface › keeps the legacy createCoreAppService own method surface exact
 
     expect(received).toEqual(expected) // deep equality
@@ -481,18 +895,352 @@ FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
 
       at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:112:47)
 
+PASS tests/phase4-review3/scorelessCompletionBoundary.regression.test.ts
+FAIL tests/gap-p0-02a/runtimeSurface.contract.test.ts
+  ● GAP-P0-02A runtime factory surface › owns one constructable factory, returns exactly seven methods, and performs zero synchronous or microtask construction I/O
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 81 |[39m     }
+     [90m 82 |[39m
+    [31m[1m>[22m[39m[90m 83 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_SERVICE_METHODS[39m)[33m;[39m
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 84 |[39m     [36mfor[39m ([36mconst[39m methodName [36mof[39m [33mEXPECTED_SERVICE_METHODS[39m) {
+     [90m 85 |[39m       expect([36mtypeof[39m [33mReflect[39m[33m.[39m[36mget[39m(service[33m,[39m methodName))[33m.[39mtoBe([32m'function'[39m)[33m;[39m
+     [90m 86 |[39m     }[0m
+
+      at Object.toEqual (tests/gap-p0-02a/runtimeSurface.contract.test.ts:83:41)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+PASS tests/review4/repeatSession.timerLifecycle.regression.test.ts
+PASS tests/quality-gate-v2/iosStaticAudit.contract.test.ts
+PASS tests/gap-p0-02b/servicePersistentFaults.contract.test.ts
+PASS tests/gap-p0-02b/helperInvariant.control.test.ts
+PASS tests/phase4-review/nonFiniteScoreAtomicity.regression.test.ts
+PASS tests/phase4/phase4Fixtures.invariant.test.ts
+FAIL tests/phase4-review5/storageBoundary.control.test.ts
+  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
 PASS tests/locked/domain/scoring.test.ts
-PASS tests/locked/domain/recommendation.test.ts
+PASS tests/locked/domain/nextStep.test.ts
+PASS tests/gap-p0-02a/inMemoryTypecheck.invariant.test.ts
+PASS tests/phase4-review4/proxyFixture.invariant.test.ts
+PASS tests/gap-p0-01a/inMemoryTypecheck.invariant.test.ts
+PASS tests/gap-p0-02b/inMemoryTypecheck.invariant.test.ts
+PASS tests/locked/domain/quadrant.test.ts
 
 Summary of all failing tests
-FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts (6.423 s)
+FAIL tests/gap-p0-02b/repositoryPersistence.contract.test.ts
+  ● GAP-P0-02B concrete focus-session repository persistence › owns stable repository/storage keys and a current versioned envelope identity
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "defaultRepositoryKey": "start-five.focus-sessions.v1",
+        "schema": "start-five.focus-sessions",
+        "storageKey": "start-five.focus-sessions.v1",
+    -   "version": 1,
+    +   "version": 2,
+      }
+
+    [0m [90m 37 |[39m     [36mconst[39m production [33m=[39m loadPersistentProduction()[33m;[39m
+     [90m 38 |[39m
+    [31m[1m>[22m[39m[90m 39 |[39m     expect(production)[33m.[39mtoMatchObject({
+     [90m    |[39m                        [31m[1m^[22m[39m
+     [90m 40 |[39m       defaultRepositoryKey[33m:[39m [32m'start-five.focus-sessions.v1'[39m[33m,[39m
+     [90m 41 |[39m       storageKey[33m:[39m [32m'start-five.focus-sessions.v1'[39m[33m,[39m
+     [90m 42 |[39m       schema[33m:[39m [32m'start-five.focus-sessions'[39m[33m,[39m[0m
+
+      at Object.toMatchObject (tests/gap-p0-02b/repositoryPersistence.contract.test.ts:39:24)
+
+FAIL tests/quality-gate-v2/cliAndEntry.contract.test.ts
+  ● QUALITY-GATE-V2 CLI and default entrypoints › locks the complete accepted manifest/root inventory in the real registry
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: QUALITY_GATE_MANIFEST_SELF_HASH_MISMATCH: GAP_P0_01A_LOCK.sha256]
+
+    [0m [90m 575 |[39m       })[33m,[39m
+     [90m 576 |[39m     )[33m.[39mresolves[33m.[39mtoEqual(expectedRoots)[33m;[39m
+    [31m[1m>[22m[39m[90m 577 |[39m     [36mawait[39m expect(
+     [90m     |[39m           [31m[1m^[22m[39m
+     [90m 578 |[39m       production[33m.[39mvalidateLockManifests({
+     [90m 579 |[39m         projectRoot[33m:[39m root[33m,[39m
+     [90m 580 |[39m         registryPath[33m,[39m[0m
+
+      at expect (node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.expect (tests/quality-gate-v2/cliAndEntry.contract.test.ts:577:11)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/gap-p0-02b/snapshotValidation.contract.test.ts
+  ● GAP-P0-02B persistent snapshot validation and version boundary › rejects unsupported snapshot identity: future version
+
+    EXPECTED_REJECTION:FOCUS_SESSION_SNAPSHOT_UNSUPPORTED
+
+    [0m [90m 335 |[39m     [36mreturn[39m error[33m;[39m
+     [90m 336 |[39m   }
+    [31m[1m>[22m[39m[90m 337 |[39m   [36mthrow[39m [36mnew[39m [33mError[39m([32m`EXPECTED_REJECTION:${code}`[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 338 |[39m }
+     [90m 339 |[39m
+     [90m 340 |[39m [36mexport[39m type [33mRuntimeStartInput[39m [33m=[39m[0m
+
+      at tests/gap-p0-02b/focusSessionTestKit.ts:337:9
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/gap-p0-02b/serviceStart.contract.test.ts
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 2 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-2",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:02:00.000Z",
+        "plannedMinutes": 2,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 5 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-5",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:05:00.000Z",
+        "plannedMinutes": 5,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 15 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-15",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:15:00.000Z",
+        "plannedMinutes": 15,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 25 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-25",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:25:00.000Z",
+        "plannedMinutes": 25,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● GAP-P0-02B focus-session start behavior › starts a canonical immutable running record for 50 minutes with one atomic commit
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -4,10 +4,11 @@
+        "endedAt": null,
+        "id": "focus-50",
+        "interruptionReason": null,
+        "plannedEndAt": "2026-08-05T08:50:00.000Z",
+        "plannedMinutes": 50,
+    +   "snapshot": null,
+        "startedAt": "2026-08-05T08:00:00.000Z",
+        "status": "running",
+        "taskId": "task-001",
+        "updatedAt": "2026-08-05T08:00:00.000Z",
+      }
+
+    [0m [90m 33 |[39m       [36mconst[39m result [33m=[39m [36mawait[39m service[33m.[39mstart(input([32m'task-001'[39m[33m,[39m plannedMinutes))[33m;[39m
+     [90m 34 |[39m
+    [31m[1m>[22m[39m[90m 35 |[39m       expect(result)[33m.[39mtoEqual({
+     [90m    |[39m                      [31m[1m^[22m[39m
+     [90m 36 |[39m         id[33m,[39m
+     [90m 37 |[39m         taskId[33m:[39m [32m'task-001'[39m[33m,[39m
+     [90m 38 |[39m         plannedMinutes[33m,[39m[0m
+
+      at toEqual (tests/gap-p0-02b/serviceStart.contract.test.ts:35:22)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts
+  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 164 |[39m     )[33m;[39m
+     [90m 165 |[39m
+    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 168 |[39m   })[33m;[39m
+     [90m 169 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
+
+  ● GAP-P0-01A-A1 public TypeScript foundation › exports the exact minimal lifecycle service, inputs, options, query result, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:108:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:109:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:126:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:128:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:14 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:20 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:62 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-01a/__virtual__/lifecycle-public-api.ts:142:68 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 317 |[39m     )[33m;[39m
+     [90m 318 |[39m
+    [31m[1m>[22m[39m[90m 319 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 320 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 321 |[39m   })[33m;[39m
+     [90m 322 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:319:43)
+
+FAIL tests/gap-p0-02a/legacyCompatibility.control.test.ts
   ● GAP-P0-02A legacy compatibility controls › keeps CoreAppService and CoreFlow controller/screen public types exact
 
     expect(received).toBe(expected) // Object.is equality
 
     Expected: ""
-    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
-    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:83:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/legacy-core-public-types.ts:93:11 Type 'true' is not assignable to type 'false'."
 
     [0m [90m 210 |[39m     )[33m;[39m
      [90m 211 |[39m
@@ -555,57 +1303,105 @@ FAIL tests/phase4/persistentTaskStorage.contract.test.ts
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
 FAIL tests/native-scaffold/isolationAndPreservation.contract.test.ts
-  ● NS-005 isolated-project and accepted-asset preservation contract › scans source/config/native YAML, locks, C/C++, and podspecs without scanning tests or generated vendors
+  ● NS-005 isolated-project and accepted-asset preservation contract › preserves all seven formal lock generations and their locked assets byte-for-byte
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "9cce965ce8632b5c9acdca84a3c8ea02d4fac1b923bfd9fb8822fb221b4403ca"
+    Received: "13489cb596132092dbc83a32b01290bd03924c3ae89aed2593b69997b6ab387f"
+
+    [0m [90m 228 |[39m     [36mfor[39m ([36mconst[39m [manifestPath[33m,[39m expected] [36mof[39m expectedManifests) {
+     [90m 229 |[39m       [36mconst[39m verification [33m=[39m verifyLockManifest(manifestPath)[33m;[39m
+    [31m[1m>[22m[39m[90m 230 |[39m       expect(sha256File(manifestPath))[33m.[39mtoBe(expected[33m.[39msha256)[33m;[39m
+     [90m     |[39m                                        [31m[1m^[22m[39m
+     [90m 231 |[39m       expect(verification[33m.[39mentryCount)[33m.[39mtoBe(expected[33m.[39mentryCount)[33m;[39m
+     [90m 232 |[39m       expect(verification[33m.[39merrors)[33m.[39mtoEqual([])[33m;[39m
+     [90m 233 |[39m     }[0m
+
+      at Object.toBe (tests/native-scaffold/isolationAndPreservation.contract.test.ts:230:40)
+
+FAIL tests/gap-p0-02a/publicFoundation.contract.test.ts
+  ● GAP-P0-02A public focus-session foundation › exports exact readonly session, input, patch, duration, status, and query-result types
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:56:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:59:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:60:34 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:63:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:14 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:26 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:32 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-public-types.ts:102:44 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 115 |[39m     )[33m;[39m
+     [90m 116 |[39m
+    [31m[1m>[22m[39m[90m 117 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 118 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 119 |[39m   })[33m;[39m
+     [90m 120 |[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/publicFoundation.contract.test.ts:117:43)
+
+  ● GAP-P0-02A public focus-session foundation › exports the exact seven-method service, options, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:39:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:41:36 Type 'false' does not satisfy the constraint 'true'.
+    TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:43:11 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:46:11 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:47:11 Type 'true' is not assignable to type 'false'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02a/__virtual__/focus-session-service-port.ts:48:11 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 256 |[39m     )[33m;[39m
+     [90m 257 |[39m
+    [31m[1m>[22m[39m[90m 258 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 259 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 260 |[39m   })[33m;[39m
+     [90m 261 |[39m })[33m;[39m[0m
+
+      at Object.toBe (tests/gap-p0-02a/publicFoundation.contract.test.ts:258:43)
+
+FAIL tests/phase4/startFiveApp.contract.test.tsx (6.794 s)
+  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  -  1
-    + Received  + 18
+    - Expected  -  0
+    + Received  + 14
 
-    - Array []
-    + Array [
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cache-v2-5aa0806b52682965b186.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/cmakeFiles-v1-f0126f5a6017d1c7535e.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/codemodel-v2-c3773668a06428667c4a.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/directory-AsyncStorageSpec_autolinked_build-RelWithDebInfo-26b04d5fbbe6314abe33.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/index-2026-08-13T08-07-57-0263.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-appmodules-RelWithDebInfo-74e83ccdccc74af813c9.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.cmake/api/v1/reply/target-react_codegen_AsyncStorageSpec-RelWithDebInfo-88f029ae2992eb96a52a.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/.ninja_log",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build_mini.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/android_gradle_build.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/.ninja_deps",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/compile_commands.json",
-    +   "android/.cxx-short/RelWithDebInfo/1c5b202h/arm64-v8a/prefab_config.json",
-    +   "android/.cxx-short/tools/internal/arm64-v8a/compile_commands.json",
-    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/build_model.json",
-    +   "android/.short-app-build/intermediates/cxx/RelWithDebInfo/244y731l/logs/arm64-v8a/metadata_generation_record.json",
-    + ]
+      Array [
+    +   "start-five.local-backup.restore-journal.v1",
+        "start-five.tasks.v1",
+    +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.day-closure.v1",
+    +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+      ]
 
-    [0m [90m 252 |[39m     }
-     [90m 253 |[39m
-    [31m[1m>[22m[39m[90m 254 |[39m     expect(findings)[33m.[39mtoEqual([])[33m;[39m
-     [90m     |[39m                      [31m[1m^[22m[39m
-     [90m 255 |[39m   })[33m;[39m
-     [90m 256 |[39m
-     [90m 257 |[39m   it([32m'exempts only the two exact root POSIX quality-gate reports without creating a scan blind spot'[39m[33m,[39m () [33m=>[39m {[0m
+    [0m [90m 63 |[39m     )[33m;[39m
+     [90m 64 |[39m
+    [31m[1m>[22m[39m[90m 65 |[39m     expect(backend[33m.[39mgetCalls)[33m.[39mtoEqual([[33mPHASE4_STORAGE_KEY[39m])[33m;[39m
+     [90m    |[39m                              [31m[1m^[22m[39m
+     [90m 66 |[39m     [36mawait[39m screen[33m.[39munmount()[33m;[39m
+     [90m 67 |[39m   })[33m;[39m
+     [90m 68 |[39m[0m
 
-      at Object.toEqual (tests/native-scaffold/isolationAndPreservation.contract.test.ts:254:22)
-
-FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
-  ● P4-BOOT application composition and hydration contract › hydrates a durable guest task into CoreFlowScreen through the composed root
-
-    Found multiple elements with text: /Hydrated Phase 4 task/
-
-    [0m [90m 59 |[39m
-     [90m 60 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
-    [31m[1m>[22m[39m[90m 61 |[39m     [36mawait[39m waitFor(() [33m=>[39m
-     [90m    |[39m                  [31m[1m^[22m[39m
-     [90m 62 |[39m       expect(screen[33m.[39mgetByText([35m/Hydrated Phase 4 task/[39m))[33m.[39mtoBeTruthy()[33m,[39m
-     [90m 63 |[39m     )[33m;[39m
-     [90m 64 |[39m[0m
-
-      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:61:18)
+      at Object.toEqual (tests/phase4/startFiveApp.contract.test.tsx:65:30)
       at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
@@ -613,15 +1409,25 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  - 0
-    + Received  + 4
+    - Expected  -  0
+    + Received  + 14
 
       Array [
         "start-five.tasks.v1",
     +   "start-five.local-backup.restore-journal.v1",
     +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
     +   "start-five.day-closure.v1",
     +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
       ]
 
     [0m [90m 79 |[39m     [36mconst[39m firstRoot [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
@@ -636,35 +1442,29 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
       at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
-  ● P4-BOOT application composition and hydration contract › keeps service mutations, the exposed repository, the root, and a later app instance on one durable state
-
-    Found multiple elements with text: /One shared durable state/
-
-    [0m [90m 112 |[39m       [33mReact[39m[33m.[39mcreateElement(firstComposition[33m.[39m[33mAppRoot[39m)[33m,[39m
-     [90m 113 |[39m     )[33m;[39m
-    [31m[1m>[22m[39m[90m 114 |[39m     [36mawait[39m waitFor(() [33m=>[39m
-     [90m     |[39m                  [31m[1m^[22m[39m
-     [90m 115 |[39m       expect(firstRoot[33m.[39mgetByText([35m/One shared durable state/[39m))[33m.[39mtoBeTruthy()[33m,[39m
-     [90m 116 |[39m     )[33m;[39m
-     [90m 117 |[39m     [36mawait[39m firstRoot[33m.[39munmount()[33m;[39m[0m
-
-      at Object.<anonymous> (tests/phase4/startFiveApp.contract.test.tsx:114:18)
-      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
-      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
-
   ● P4-BOOT application composition and hydration contract › boots and hydrates locally without invoking an injected network adapter or global fetch
 
     expect(received).toEqual(expected) // deep equality
 
-    - Expected  - 0
-    + Received  + 4
+    - Expected  -  0
+    + Received  + 14
 
       Array [
     +   "start-five.local-backup.restore-journal.v1",
         "start-five.tasks.v1",
     +   "start-five.quadrant-home-preferences.v1",
+    +   "start-five.focus-schedules.v2",
     +   "start-five.day-closure.v1",
     +   "start-five.post-focus-review.v1",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.focus-schedules.v2",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.focus-sessions.v1",
+    +   "start-five.task-drafts.v1",
+    +   "start-five.quadrant-task-layout.v1",
+    +   "start-five.quadrant-task-layout.v1",
       ]
 
     [0m [90m 181 |[39m       })[33m;[39m
@@ -684,8 +1484,8 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
     expect(received).toHaveLength(expected)
 
     Expected length: 2
-    Received length: 6
-    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.day-closure.v1", "start-five.post-focus-review.v1"]
+    Received length: 16
+    Received array:  ["start-five.tasks.v1", "start-five.local-backup.restore-journal.v1", "start-five.tasks.v1", "start-five.quadrant-home-preferences.v1", "start-five.focus-schedules.v2", "start-five.day-closure.v1", "start-five.post-focus-review.v1", "start-five.focus-schedules.v2", "start-five.focus-schedules.v2", "start-five.quadrant-task-layout.v1", …]
 
     [0m [90m 211 |[39m
      [90m 212 |[39m     [36mconst[39m screen [33m=[39m [36mawait[39m render([33mReact[39m[33m.[39mcreateElement(composition[33m.[39m[33mAppRoot[39m))[33m;[39m
@@ -700,6 +1500,24 @@ FAIL tests/phase4/startFiveApp.contract.test.tsx (7.572 s)
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
 
 FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
+  ● GAP-P0-02B persistent public TypeScript and runtime surface › exports the exact persistent backend, constants, and factory signature
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: ""
+    Received: "TS2344 D:/BugCode/4for/start-five-app/tests/gap-p0-02b/__virtual__/persistent-storage-public-surface.ts:29:18 Type 'false' does not satisfy the constraint 'true'.
+    TS2322 D:/BugCode/4for/start-five-app/tests/gap-p0-02b/__virtual__/persistent-storage-public-surface.ts:32:51 Type 'true' is not assignable to type 'false'."
+
+    [0m [90m 114 |[39m     )[33m;[39m
+     [90m 115 |[39m
+    [31m[1m>[22m[39m[90m 116 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
+     [90m     |[39m                                           [31m[1m^[22m[39m
+     [90m 117 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
+     [90m 118 |[39m     expect(compilation[33m.[39memittedFileCount)[33m.[39mtoBe([35m0[39m)[33m;[39m
+     [90m 119 |[39m   })[33m;[39m[0m
+
+      at Object.toBe (tests/gap-p0-02b/persistentPublicSurface.contract.test.ts:116:43)
+
   ● GAP-P0-02B persistent public TypeScript and runtime surface › owns exact runtime namespaces and constructs both adapters with synchronous and deferred zero backend I/O
 
     expect(received).toEqual(expected) // deep equality
@@ -726,6 +1544,67 @@ FAIL tests/gap-p0-02b/persistentPublicSurface.contract.test.ts
       at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
       at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
       at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+FAIL tests/gap-p0-02b/timerBoundary.control.test.ts
+  ● GAP-P0-02B timer ownership and CoreFlow integration boundary › keeps focus service construction side-effect free through deferred microtasks
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 28 |[39m       idGenerator[33m:[39m ids[33m.[39mnext[33m,[39m
+     [90m 29 |[39m     })[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 31 |[39m       [32m'finish'[39m[33m,[39m
+     [90m 32 |[39m       [32m'getActive'[39m[33m,[39m
+     [90m 33 |[39m       [32m'getById'[39m[33m,[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/timerBoundary.control.test.ts:30:41)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● GAP-P0-02B timer ownership and CoreFlow integration boundary › keeps the legacy default controller as a five-minute UI clock with no implicit focus-service I/O
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 128 |[39m       remainingMs[33m:[39m [35m300[39m_000[33m,[39m
+     [90m 129 |[39m     })[33m;[39m
+    [31m[1m>[22m[39m[90m 130 |[39m     expect([33mObject[39m[33m.[39mkeys(focusService)[33m.[39msort())[33m.[39mtoEqual([
+     [90m     |[39m                                              [31m[1m^[22m[39m
+     [90m 131 |[39m       [32m'finish'[39m[33m,[39m
+     [90m 132 |[39m       [32m'getActive'[39m[33m,[39m
+     [90m 133 |[39m       [32m'getById'[39m[33m,[39m[0m
+
+      at Object.toEqual (tests/gap-p0-02b/timerBoundary.control.test.ts:130:46)
 
 FAIL tests/phase4-review4/storageErrorBoundaryAndControls.regression.test.ts
   ● P4-HARDENING-4 narrow error mapping and legal input controls › preserves TASK_STORAGE_WRITE_FAILED for a backend write exception without cache divergence and then recovers
@@ -803,15 +1682,15 @@ FAIL tests/native-scaffold/rootRegistration.contract.test.tsx
 
     TypeError: Cannot read properties of undefined (reading 'StartFiveNotifications')
 
-    [0m [90m 23 |[39m }[33m>[39m[33m;[39m
-     [90m 24 |[39m
-    [31m[1m>[22m[39m[90m 25 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
+    [0m [90m 27 |[39m }[33m>[39m[33m;[39m
+     [90m 28 |[39m
+    [31m[1m>[22m[39m[90m 29 |[39m [36mconst[39m nativeModule [33m=[39m [33mNativeModules[39m[33m.[39m[33mStartFiveNotifications[39m [36mas[39m
      [90m    |[39m                                    [31m[1m^[22m[39m
-     [90m 26 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
-     [90m 27 |[39m   [33m|[39m undefined[33m;[39m
-     [90m 28 |[39m[0m
+     [90m 30 |[39m   [33m|[39m [33mStartFiveNotificationsNativeModule[39m
+     [90m 31 |[39m   [33m|[39m undefined[33m;[39m
+     [90m 32 |[39m[0m
 
-      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:25:36)
+      at Object.StartFiveNotifications (src/platform/nativeTomorrowFirstNotifications.ios.ts:29:36)
       at Object.require (App.tsx:5:1)
       at requireActual (tests/native-scaffold/rootRegistration.contract.test.tsx:101:24)
       at Object.isolateModules (tests/native-scaffold/rootRegistration.contract.test.tsx:92:10)
@@ -820,47 +1699,36 @@ FAIL tests/native-scaffold/rootRegistration.contract.test.tsx
       at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
       at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
 
-FAIL tests/phase4-review5/storageBoundary.control.test.ts
-  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
-
-    expect(received).toHaveLength(expected)
-
-    Expected length: 1
-    Received length: 2
-    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
-
-    [0m [90m 28 |[39m     })[33m;[39m
-     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
-    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
-     [90m    |[39m                                 [31m[1m^[22m[39m
-     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
-     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
-     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
-
-      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
-      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
-      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
-
-FAIL tests/gap-p0-01a/publicTypeFoundation.contract.test.ts (5.114 s)
-  ● GAP-P0-01A-A1 public TypeScript foundation › keeps the legacy CoreAppService public type exact
-
-    expect(received).toBe(expected) // Object.is equality
-
-    Expected: ""
-    Received: "TS2344 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:35:11 Type 'false' does not satisfy the constraint 'true'.
-    TS2322 D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five/tests/gap-p0-01a/__virtual__/legacy-core-service-type.ts:37:15 Type 'true' is not assignable to type 'false'."
-
-    [0m [90m 164 |[39m     )[33m;[39m
-     [90m 165 |[39m
-    [31m[1m>[22m[39m[90m 166 |[39m     expect(diagnosticReport(compilation))[33m.[39mtoBe([32m''[39m)[33m;[39m
-     [90m     |[39m                                           [31m[1m^[22m[39m
-     [90m 167 |[39m     expect(compilation[33m.[39mdiagnostics)[33m.[39mtoEqual([])[33m;[39m
-     [90m 168 |[39m   })[33m;[39m
-     [90m 169 |[39m[0m
-
-      at Object.toBe (tests/gap-p0-01a/publicTypeFoundation.contract.test.ts:166:43)
-
 FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
+  ● GAP-P0-01A-A1 runtime export surface › exports a constructable lifecycle factory with exact own method keys
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 2
+
+    @@ -6,8 +6,10 @@
+        "getQuadrantProjection",
+        "getQueryResult",
+        "getRecommendation",
+        "list",
+        "reschedule",
+    +   "restoreCompleted",
+        "softDelete",
+    +   "undoComplete",
+        "update",
+      ]
+
+    [0m [90m 93 |[39m     }
+     [90m 94 |[39m
+    [31m[1m>[22m[39m[90m 95 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_LIFECYCLE_METHODS[39m)[33m;[39m
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 96 |[39m     [36mfor[39m ([36mconst[39m methodName [36mof[39m [33mEXPECTED_LIFECYCLE_METHODS[39m) {
+     [90m 97 |[39m       expect([36mtypeof[39m [33mReflect[39m[33m.[39m[36mget[39m(service[33m,[39m methodName))[33m.[39mtoBe([32m'function'[39m)[33m;[39m
+     [90m 98 |[39m     }[0m
+
+      at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:95:41)
+
   ● GAP-P0-01A-A1 runtime export surface › keeps the legacy createCoreAppService own method surface exact
 
     expect(received).toEqual(expected) // deep equality
@@ -890,10 +1758,64 @@ FAIL tests/gap-p0-01a/runtimeSurface.contract.test.ts
 
       at Object.toEqual (tests/gap-p0-01a/runtimeSurface.contract.test.ts:112:47)
 
+FAIL tests/gap-p0-02a/runtimeSurface.contract.test.ts
+  ● GAP-P0-02A runtime factory surface › owns one constructable factory, returns exactly seven methods, and performs zero synchronous or microtask construction I/O
 
-Test Suites: 11 failed, 66 passed, 77 total
-Tests:       17 failed, 822 passed, 839 total
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -2,8 +2,9 @@
+        "finish",
+        "getActive",
+        "getById",
+        "interrupt",
+        "listForTask",
+    +   "listHistory",
+        "restore",
+        "start",
+      ]
+
+    [0m [90m 81 |[39m     }
+     [90m 82 |[39m
+    [31m[1m>[22m[39m[90m 83 |[39m     expect([33mObject[39m[33m.[39mkeys(service)[33m.[39msort())[33m.[39mtoEqual([33mEXPECTED_SERVICE_METHODS[39m)[33m;[39m
+     [90m    |[39m                                         [31m[1m^[22m[39m
+     [90m 84 |[39m     [36mfor[39m ([36mconst[39m methodName [36mof[39m [33mEXPECTED_SERVICE_METHODS[39m) {
+     [90m 85 |[39m       expect([36mtypeof[39m [33mReflect[39m[33m.[39m[36mget[39m(service[33m,[39m methodName))[33m.[39mtoBe([32m'function'[39m)[33m;[39m
+     [90m 86 |[39m     }[0m
+
+      at Object.toEqual (tests/gap-p0-02a/runtimeSurface.contract.test.ts:83:41)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+FAIL tests/phase4-review5/storageBoundary.control.test.ts
+  ● P4-HARDENING-5 budget catch excludes real storage failures › preserves TASK_STORAGE_WRITE_FAILED, keeps cache/durable agreement, and permits a later write
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 1
+    Received length: 2
+    Received array:  [{"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"This backend write must fail\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:01:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}, {"key": "start-five.tasks.v1", "value": "{\"schema\":\"start-five.tasks\",\"version\":1,\"tasks\":[{\"id\":\"storage-boundary-baseline\",\"title\":\"Phase 4 review 5 task storage-boundary-baseline\",\"description\":\"Plain durable task storage-boundary-baseline\",\"important\":false,\"urgent\":false,\"status\":\"pending\",\"startAt\":null,\"dueAt\":null,\"createdAt\":\"2026-08-05T03:00:00.000Z\",\"updatedAt\":\"2026-08-05T03:00:00.000Z\",\"startedAt\":null,\"completedAt\":null,\"deletedAt\":null,\"score\":null,\"scoreAwardedAt\":null,\"subtasks\":[]}]}"}]
+
+    [0m [90m 28 |[39m     })[33m;[39m
+     [90m 29 |[39m     expect(backend[33m.[39mraw([32m'start-five.tasks.v1'[39m))[33m.[39mtoBe(durableBefore)[33m;[39m
+    [31m[1m>[22m[39m[90m 30 |[39m     expect(backend[33m.[39msetAttempts)[33m.[39mtoHaveLength([35m1[39m)[33m;[39m
+     [90m    |[39m                                 [31m[1m^[22m[39m
+     [90m 31 |[39m     expect(backend[33m.[39msetCommits)[33m.[39mtoEqual([])[33m;[39m
+     [90m 32 |[39m     expect(backend[33m.[39mremoveAttempts)[33m.[39mtoEqual([])[33m;[39m
+     [90m 33 |[39m     [36mawait[39m expect(repository[33m.[39mlist({includeDeleted[33m:[39m [36mtrue[39m}))[33m.[39mresolves[33m.[39mtoEqual([[0m
+
+      at Object.toHaveLength (tests/phase4-review5/storageBoundary.control.test.ts:30:33)
+      at asyncGeneratorStep (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/.pnpm/@babel+runtime@7.29.7/node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+
+Test Suites: 18 failed, 59 passed, 77 total
+Tests:       32 failed, 807 passed, 839 total
 Snapshots:   0 total
-Time:        96.785 s
+Time:        71.933 s
 Ran all test suites.
 

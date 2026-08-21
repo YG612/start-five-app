@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   Pressable,
-  ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -11,7 +9,11 @@ import {
 import type {TaskLifecycleTaskPatch} from '../application/coreAppService';
 import type {ReceiptHistorySnapshot} from '../application/postFocusReviewService';
 import {useTaskWorkspaceRuntime} from '../app/taskWorkspaceRuntime';
-import {AppBottomSheet} from '../components/AppBottomSheet';
+import {
+  AppBottomSheet,
+  AppBottomSheetScrollView,
+  AppBottomSheetSectionList,
+} from '../components/AppBottomSheet';
 import type {Task} from '../domain/task';
 import {effectiveQuadrantForTask} from '../domain/taskPriority';
 import {
@@ -275,6 +277,8 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
 
   return (
     <AppBottomSheet
+      dirty={mode === 'capture' && title.trim() !== ''}
+      dismissPolicy="confirmDirty"
       onDismissAttempt={() => {
         props.onClose();
         return true;
@@ -292,7 +296,7 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
           </View>
           {notice === null ? null : <Text accessibilityLiveRegion="polite" style={styles.notice}>{notice}</Text>}
           {mode === 'completed' ? (
-            <SectionList
+            <AppBottomSheetSectionList
               contentContainerStyle={styles.body}
               keyExtractor={task => task.id}
               ListEmptyComponent={<Text style={styles.empty}>还没有已完成任务。</Text>}
@@ -318,7 +322,7 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
               stickySectionHeadersEnabled={false}
             />
           ) : (
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <AppBottomSheetScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             {mode === 'capture' ? (
               <View style={styles.section}>
                 <Text style={styles.hint}>只写一句也能保存，稍后再判断重要和紧急。</Text>
@@ -455,7 +459,7 @@ export function TaskOrganizerSheet(props: Props): React.JSX.Element {
                 )}
               </View>
             ) : null}
-          </ScrollView>
+          </AppBottomSheetScrollView>
           )}
       </View>
     </AppBottomSheet>

@@ -19,6 +19,7 @@ import {
   type TrackedFocusReview,
 } from '../domain/postFocusReview';
 import type {Task} from '../domain/task';
+import {dateKeyInTimeZone, systemTimeZone} from '../domain/localDate';
 
 export type PostFocusReviewService = Readonly<{
   subscribe(listener: (active: ActivePostFocusReview | null) => void): () => void;
@@ -47,6 +48,7 @@ type CreatePostFocusReviewServiceOptions = Readonly<{
   focusService: FocusSessionService;
   taskLifecycle: TaskLifecycleService;
   now(): string;
+  currentTimeZone?(): string;
 }>;
 
 function fail(code: string): never {
@@ -160,6 +162,7 @@ export function createPostFocusReviewService(
   options: CreatePostFocusReviewServiceOptions,
 ): PostFocusReviewService {
   const {repository, focusService, taskLifecycle, now} = options;
+  const currentTimeZone = options.currentTimeZone ?? systemTimeZone;
   const listeners = new Set<(active: ActivePostFocusReview | null) => void>();
   let observedActive = false;
   let lastActive: ActivePostFocusReview | null = null;
@@ -407,7 +410,7 @@ export function createPostFocusReviewService(
       ) {
         return fail('POST_FOCUS_REVIEW_SETTLEMENT_CONFLICT');
       }
-      const statsDay = active.settledAt.slice(0, 10);
+      const statsDay = dateKeyInTimeZone(active.settledAt, currentTimeZone());
       const previousReceipts = current.receipts.filter(
         receipt => receipt.receiptId !== active.review.receiptId,
       );
@@ -553,7 +556,7 @@ export function createPostFocusReviewService(
   }
 
   async function getTodaySummary(): Promise<TodayFocusSummary> {
-    const day = canonicalTimestamp(now()).slice(0, 10);
+    const day = dateKeyInTimeZone(canonicalTimestamp(now()), currentTimeZone());
     const store = await repository.read();
     const distinct = new Map<string, FocusReviewReceipt>();
     for (const receipt of store.receipts) {

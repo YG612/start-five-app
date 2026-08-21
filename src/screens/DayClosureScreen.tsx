@@ -16,6 +16,7 @@ import type {
   TomorrowFirstReminderService,
 } from '../application/tomorrowFirstNotifications';
 import {LOCAL_TRIGGER_NOT_FUTURE} from '../application/tomorrowFirstNotifications';
+import {formatFocusSummary} from '../presentation/focusSummary';
 
 const DEFAULT_REMINDER_TIME = '08:00';
 const REMINDER_TIME_ERROR = '提醒时间无效，请重试';
@@ -209,7 +210,7 @@ export function DayClosureScreen({
             <View style={styles.panel}>
               <Text style={styles.summary}>今日完成：{snapshot.completedToday}项</Text>
               <Text style={styles.summary}>
-                今日专注：{snapshot.focusCountToday}次 / {snapshot.focusMinutesToday}分钟
+                今日专注：{formatFocusSummary(snapshot.focusCountToday, snapshot.focusMinutesToday)}
               </Text>
             </View>
             <Text style={styles.sectionTitle}>选择明日第一项</Text>

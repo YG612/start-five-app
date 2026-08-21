@@ -111,6 +111,10 @@ android {
         // optimized JS/Hermes bundle as release.
         internal {
             initWith release
+            // Keep internal QA builds installable beside a production-signed
+            // com.startfive.app package without uninstalling user data.
+            applicationIdSuffix ".internal"
+            versionNameSuffix "-internal"
             signingConfig signingConfigs.debug
             matchingFallbacks = ["release"]
             debuggable false

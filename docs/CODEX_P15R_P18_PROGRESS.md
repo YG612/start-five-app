@@ -4,12 +4,13 @@
 
 ## 基线
 
-- 项目：`D:/CodexData/Workspaces/Codex/2026-07-20/android-ios-app-readme-md-prd/outputs/start-five`
+- 项目：`D:/BugCode/4for/start-five-app`
 - 规格：`docs/CODEX_P15R_P18_UNIFIED_INTERACTION_AND_PAGE_EXPERIENCE_SPEC.md`
 - 截图：`references/current_quick_add.jpg`、`references/current_quick_edit.jpg`
 - Task Repository envelope：version `1`
 - priority/support/growth schema：version `1`
 - backup schema：version `4`（version `1`、`2`、`3` 导入兼容保留）
+- task draft envelope：version `1`
 - P0–P14：40 suites、247/247 tests PASS
 - P14 APK SHA-256：`cd720dd410bfede498d6f9fdaf9f67fcb2b714b87e69577911575797e627270d`
 
@@ -18,15 +19,15 @@
 | ID | 状态 | 真实实现路径 | 备注 |
 | --- | --- | --- | --- |
 | P15R-00 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 有限映射完成 |
-| P15R-01 | DONE | `src/components/AppBottomSheet.tsx`、`src/screens/QuadrantHomeScreen.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 公共 Sheet、统一退出、拖动阈值、导航遮挡 |
+| P15R-01 | REOPENED_USER_FAIL → DONE_AUTO / PENDING_EXTERNAL | `src/components/AppBottomSheet.tsx`、`src/screens/QuadrantHomeScreen.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx`、`src/screens/PostFocusReviewScreen.tsx` | P19 依据用户真机下拉失败重新打开：现已统一全 Sheet 手势、滚动边界、关闭策略和复盘 Sheet；需 DEVICE 复验 |
 | P15R-02 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/app/taskWorkspaceRuntime.tsx` | 固定主按钮、安全退出保存、稳定 draft 幂等键 |
 | P15R-03 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 编辑主次、状态修正、低频动作收纳 |
 | P15R-04 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/domain/taskPriority.ts` | 长按直接拖动与越界取消；DEVICE 待测 |
-| P15R-04B TASK PERSISTENT LAYOUT MODE | DONE_AUTO | `src/components/QuadrantTaskMap.tsx`、`src/domain/quadrantTaskLayout.ts`、`src/data/quadrantTaskLayoutStore.ts` | 1000ms 持续选中、同手势/二次触碰拖动、象限内位置、跨象限提交与 v4 备份完成；DEVICE 待测 |
+| P15R-04B TASK PERSISTENT LAYOUT MODE | DONE_AUTO / PENDING_EXTERNAL | `src/components/QuadrantTaskMap.tsx`、`src/domain/quadrantTaskLayout.ts`、`src/data/quadrantTaskLayoutStore.ts` | 1000ms 持续选中、同手势/二次触碰拖动、象限内位置、跨象限提交与 v4 备份完成；DEVICE 待测 |
 | P15R-05 | DONE | `src/domain/taskDisplay.ts`、`src/screens/QuadrantHomeScreen.tsx` | 紧凑语义标签与拖动态完整标题 |
 | P15R-06 | DONE | `src/screens/QuadrantHomeScreen.tsx` | 重复入口和顶部密度收口 |
 | P15R-07 | DONE_AUTO | `src/screens/QuadrantHomeScreen.tsx`、`src/components/AppBottomSheet.tsx` | 深色选中面与用户语言收口；DEVICE 待测 |
-| P15R-08 | DONE | `src/components/AppBottomSheet.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx` | 同类 Sheet 迁移完成 |
+| P15R-08 | AUDIT_CONFIRMED / DONE_AUTO / PENDING_EXTERNAL | `src/components/AppBottomSheet.tsx`、`src/screens/TaskOrganizerSheet.tsx`、`src/screens/TaskProgressSheet.tsx`、`src/screens/PostFocusReviewScreen.tsx` | P19 全量审计后补齐专注复盘/回执与滚动容器迁移；需 DEVICE 复验 |
 | P15R-09 SOURCE_GATE | DONE | `tests/p15r-core-interaction`、`tests/gap-p0-06r3/taskWorkspaceMutationRecovery.contract.test.tsx` | 自动化、TypeScript、Android lint/build 通过 |
 | P15R-09 RELEASE_GATE | PENDING_EXTERNAL | `docs/CODEX_P15R_P18_PROGRESS.md` | ADB 设备 0；UTEST 未执行 |
 | P15-00 | DONE | `src/screens/QuadrantHomeScreen.tsx`、`src/components/AppPage.tsx`、`src/domain/pageExperience.ts` | 页面角色与现有数据入口映射完成 |
@@ -64,6 +65,11 @@
 | P18-07 | DONE_AUTO | `src/domain/pageExperience.ts`、`src/components/AppPage.tsx`、`tests/p18-settings-reliability/performanceAndAccessibility.test.ts` | 成长聚合 memoized selector 与 5000 任务自动化通过；多尺寸真机视觉 QA 待测 |
 | P18 SOURCE_GATE | DONE | `tests/p18-settings-reliability`、`android/app/build/reports/lint-results-internal.html`、`android/app/build/outputs/apk/internal/app-internal.apk` | P18 定点、P0–P18 合并回归、TypeScript、Android lint/build 全部通过 |
 | P18 RELEASE_GATE | PENDING_EXTERNAL | `docs/P18_DEVICE_UTEST_ACCEPTANCE.md` | `adb devices -l` 返回设备数 0；Android DEVICE / UTEST 与 iOS 验收未执行 |
+| P19-00 GLOBAL_AUDIT | AUDIT_CONFIRMED | `docs/P19_RELEASE_CONVERGENCE_AUDIT.md` | 清点主页面、二级页、Sheet、Dialog、Overlay、系统入口及返回优先级；P0=2、P1=6、P2=2 |
+| P19-01 SHARED_SHEET | DONE_AUTO / PENDING_EXTERNAL | `src/components/AppBottomSheet.tsx`、各 Sheet 调用方 | 滚动边界、全 Sheet 下拉、关闭原因、脏状态、键盘、去重与减少动态自动门禁通过 |
+| P19-02 CORE_RELIABILITY | DONE_AUTO / PENDING_EXTERNAL | `src/data/taskDraftStore.ts`、`src/domain/localDate.ts`、`src/presentation/focusSummary.ts`、根页面与复盘页面 | 进程重启草稿、页面返回、本地归日和不足一分钟口径完成 |
+| P19 SOURCE_GATE | DONE_AUTO | `tests/p19-release-convergence`、Android lint/build | TypeScript、3 suites/6 tests、P15R–P19 18 suites/60 tests、lintInternal、assembleInternal 通过 |
+| P19 RELEASE_GATE | PENDING_EXTERNAL | `docs/P19_DEVICE_UTEST_ACCEPTANCE.md` | 独立 internal 包已在 OnePlus 9R 安装、冷启动并完成基础 Sheet 冒烟；旧包/数据保留；完整 DEVICE、UTEST 与 iOS 待执行 |
 
 ## 数据变化
 
@@ -74,7 +80,7 @@
 - 日程事件幂等键：`focus-schedule-event:${scheduleId}:${localDateKey}:${type}`；启动键：`focus-schedule-start:${scheduleId}:${localDateKey}`。
 - 专注会话存储：key 保持 `start-five.focus-sessions.v1`；envelope version `2`，新增可选 `FocusContextSnapshot`；version `1` 读取与备份恢复兼容保留。
 - 象限首页偏好：version `7`，新增 P18 专注、任务、提醒、无障碍和备份日期偏好；version `1`–`6` 读取迁移保留，旧 `45` 分钟默认迁移为 `50`。
-- 草稿状态：仅 `src/screens/QuadrantHomeScreen.tsx` 内存态，不持久化。
+- 任务草稿：key `start-five.task-drafts.v1`，envelope version `1`，30 天 TTL；单条坏记录隔离；创建/编辑进程重启恢复；正式保存或明确放弃后删除。
 - 创建幂等键：`p15r:${draftId}`；由 `src/app/taskWorkspaceRuntime.tsx` 映射到既有 operation ledger，同一草稿失败重试复用 operationId，成功后释放。
 - P15 页面体验：复用现有任务、计划、专注历史、成长与设置数据；无新增持久化字段、迁移或 schema 版本。
 
@@ -94,21 +100,24 @@
 - 原 P0–P14：40 suites、247/247 tests PASS。
 - P15R–P18 新增：45/45 tests PASS。
 - P0–P18 当前合并回归：54 suites、292/292 tests PASS。
+- P19 定点：4 suites、7/7 tests PASS。
+- P15R–P19 当前定点回归：19 suites、61/61 tests PASS；加原生入口/构建契约为 21 suites、70/70 tests PASS。
 - TypeScript：`tsc --noEmit` PASS。
 - Android `:app:lintInternal`：PASS，`BUILD SUCCESSFUL`。
 - Android `:app:assembleInternal`：PASS，`BUILD SUCCESSFUL`。
+- 全量质量门禁：V2 bootstrap 的 Windows CRLF 误拦截已修复；现已实际运行 77 suites / 839 tests，其中 59 suites、807 tests PASS，18 suites、32 tests 为历史 P0–P4 精确 API/存储契约及过期 lock inventory 失败；未降低或改写冻结校验。
 - JavaScript lint：`package.json` 无 lint script，未声称通过。
-- Android DEVICE / UTEST：`PENDING_EXTERNAL`；`adb devices -l` 返回设备数 `0`。
+- Android DEVICE / UTEST：`PENDING_EXTERNAL`；`com.startfive.app.internal` 已在 OnePlus 9R 安装并通过自动冷启动、前台 Activity、语义树、无致命日志、Sheet 返回与下拉关闭冒烟；完整人工清单未执行。
 - iOS build / DEVICE：`PENDING_MACOS_XCODE`。
 
 ## 构建产物
 
 - APK：`android/app/build/outputs/apk/internal/app-internal.apk`
-- size：`20,232,475` bytes
-- SHA-256：`0020bcb4e4348bfa6009720d8cf673d878adaeb92fa3f0b61a9c4864e8045d17`
-- applicationId：`com.startfive.app`
+- size：`20,246,659` bytes
+- SHA-256：`f8ad0dc4a5b507212494dd4ba1649cdbfbe47b2385f1c9c66af45dc32a9a48d9`
+- applicationId：`com.startfive.app.internal`（正式变体仍为 `com.startfive.app`）
 - versionCode：`1`
-- versionName：`1.0`
+- versionName：`1.0-internal`
 - 签名：debug key，仅供 internal 测试。
 
 ## 2026-08-20 四象限交互可靠性修复
@@ -148,7 +157,9 @@
 
 ## 未完成与风险
 
-- Android 真机 1000ms 持续选中、同手势/二次触碰拖动、滚动竞争、键盘、系统返回、TalkBack、最大字体、通知动作、常亮/反馈和首次用户 UTEST 尚无设备执行；执行脚本见 P15R-04B 指令与 `docs/P18_DEVICE_UTEST_ACCEPTANCE.md`。
+- Android 完整人工交互尚未执行；独立 internal 包已在 OnePlus 9R 通过自动冷启动、页面语义、返回和下拉关闭冒烟，复验清单见 `docs/P19_DEVICE_UTEST_ACCEPTANCE.md`。
+- 全量历史门禁仍有 18 suites / 32 tests 失败，集中在 P0–P4 冻结的精确 API、schema v1、共享存储并发及过期 lock inventory；在未完成独立兼容性修复前不得标记正式发布通过。
+- 首次用户 UTEST 尚未执行，不得标记 `UTEST_PASS` 或 `RELEASE_READY`。
 - iOS 编译、VoiceOver 和真机验证需要 macOS/Xcode。
 - Gradle 9.3.1 报告 deprecated features；当前 lint/build 通过，Gradle 10 升级兼容性未处理。
 - P14-02B 仍为 `BLOCKED_SPEC_GUARD`，本阶段未改动备份合并语义。
