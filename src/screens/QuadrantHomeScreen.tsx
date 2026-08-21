@@ -1278,7 +1278,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const {fontScale} = useWindowDimensions();
   const [tab, setTab] = React.useState<MainTab>('quadrants');
   const [viewMode, setViewMode] = React.useState<ViewMode>('map');
-  const [layoutDragging, setLayoutDragging] = React.useState(false);
+  const [layoutInteractionActive, setLayoutInteractionActive] = React.useState(false);
   const [layoutResetKey, setLayoutResetKey] = React.useState(0);
   const [viewPreferenceLoaded, setViewPreferenceLoaded] = React.useState(false);
   const [listTarget, setListTarget] = React.useState<Quadrant | null>(null);
@@ -1396,7 +1396,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   }, [props.metricClock, props.metricPort, props.metricSessionId]);
 
   const selectTab = React.useCallback((next: MainTab) => {
-    setLayoutDragging(false);
+    setLayoutInteractionActive(false);
     setLayoutResetKey(value => value + 1);
     setTab(next);
   }, []);
@@ -1405,7 +1405,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     mode: TaskOrganizerMode,
     taskId: string | null = null,
   ) => {
-    setLayoutDragging(false);
+    setLayoutInteractionActive(false);
     setLayoutResetKey(value => value + 1);
     setOrganizerTaskId(taskId);
     setOrganizerMode(mode);
@@ -2361,7 +2361,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   const dark = settings.theme === 'dark' ||
     (settings.theme === 'system' && systemScheme === 'dark');
   function openCreate(quadrant?: Quadrant, source = 'quadrant'): void {
-    setLayoutDragging(false);
+    setLayoutInteractionActive(false);
     setLayoutResetKey(value => value + 1);
     pendingSheetMetricRef.current = {
       name: 'task_create_open',
@@ -2399,7 +2399,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     source = 'quadrant',
     initialLayer: TaskPanelLayer = 'action',
   ): void {
-    setLayoutDragging(false);
+    setLayoutInteractionActive(false);
     setLayoutResetKey(value => value + 1);
     pendingSheetMetricRef.current = {
       name: 'task_sheet_open',
@@ -3576,6 +3576,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     originPlacement: QuadrantPlacement;
     targetQuadrant: Quadrant;
     targetPlacement: QuadrantPlacement;
+    targetPlacements: Readonly<Record<string, QuadrantPlacement>>;
   }>): Promise<void> {
     const task = snapshot.tasks.find(candidate => candidate.id === input.taskId);
     if (task === undefined || actionPending) throw new Error('TASK_LAYOUT_COMMIT_UNAVAILABLE');
@@ -3604,7 +3605,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
         semanticUpdated = true;
       }
       try {
-        await props.taskLayoutStore.upsert(task.id, input.targetPlacement);
+        await props.taskLayoutStore.upsertMany(input.targetPlacements);
       } catch (layoutError: unknown) {
         if (semanticUpdated) {
           await updatePriority(task.id, {
@@ -3753,7 +3754,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   });
 
   function selectViewMode(mode: ViewMode): void {
-    setLayoutDragging(false);
+    setLayoutInteractionActive(false);
     setLayoutResetKey(value => value + 1);
     setViewMode(mode);
     setSettings(current => ({
@@ -4146,7 +4147,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
     <View
       accessibilityLabel="先做5分钟应用"
       style={[styles.safeArea, dark && styles.safeAreaDark]}>
-      <ScrollView contentContainerStyle={styles.content} scrollEnabled={!layoutDragging}>
+      <ScrollView contentContainerStyle={styles.content} scrollEnabled={!layoutInteractionActive}>
         {tab === 'quadrants' ? (
           <>
             <PageHeader
@@ -4376,7 +4377,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
                 key={layoutResetKey}
                 onAdd={openCreate}
                 onCommit={commitTaskLayout}
-                onDraggingChange={setLayoutDragging}
+                onDraggingChange={setLayoutInteractionActive}
                 onShowList={showQuadrantList}
                 onTask={openTask}
                 nowInput={priorityNow}
@@ -4420,12 +4421,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
         {tab === 'focus' ? (
           <View style={styles.tabPage}>
-            <PageHeader dark={dark} title="专注" />
-            {focus?.snapshot.state === 'running' ? null : (
-              <View style={styles.pageHeaderAction}>
+            <PageHeader
+              dark={dark}
+              title="专注"
+              trailing={focus?.snapshot.state === 'running' ? undefined : (
                 <Action compact label="安排一段专注" displayLabel="＋ 安排专注" onPress={() => openFocusScheduleEditor()} secondary />
-              </View>
-            )}
+              )}
+            />
             {focus?.snapshot.state === 'running' ? (
               <View style={styles.focusHero}>
                 <Text style={styles.focusLabel}>正在专注</Text>
@@ -5418,7 +5420,7 @@ const styles = StyleSheet.create({
   },
   floatingAddText: {color: '#FFFFFF', fontSize: 30, fontWeight: '500', marginTop: -3},
   headerActions: {gap: 6},
-  headerUtility: {backgroundColor: '#E5F2EE', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7},
+  headerUtility: {minHeight: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E5F2EE', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7},
   headerUtilityText: {color: '#1F675C', fontSize: 11, fontWeight: '900'},
   unsortedBadge: {alignSelf: 'flex-start', backgroundColor: '#FFF5E7', borderColor: '#E7B66D', borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7},
   unsortedBadgeText: {color: '#8A4B08', fontSize: 13, fontWeight: '900'},
@@ -5513,7 +5515,6 @@ const styles = StyleSheet.create({
   navText: {color: '#71817D', fontSize: 14, fontWeight: '800'},
   navTextSelected: {color: '#1F7466'},
   tabPage: {gap: 16},
-  pageHeaderAction: {alignItems: 'flex-end', marginTop: -10},
   pageSection: {gap: 10},
   focusScheduleEditor: {gap: 14, paddingBottom: 28},
   durationGrid: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},

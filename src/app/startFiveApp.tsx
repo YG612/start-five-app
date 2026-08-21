@@ -4,8 +4,14 @@ import {
   createTaskLifecycleService,
   type CoreAppService,
   type NetworkAdapter,
+  type WorkspaceCoreAppService,
+  type WorkspaceTaskLifecycleService,
 } from '../application/coreAppService';
-import {createFocusSessionService} from '../application/focusSessionService';
+import {createCurrentFocusSessionService} from '../application/currentFocusSessionService';
+import {
+  createFocusSessionService,
+  type CurrentFocusSessionService,
+} from '../application/focusSessionService';
 import {
   createFocusScheduleService,
   type FocusScheduleService,
@@ -30,10 +36,12 @@ import {
   effectiveUrgencyForTask,
   priorityCoordinatesForTask,
 } from '../domain/taskPriority';
+import {createCurrentFocusSessionRepository} from '../data/currentFocusSessionRepository';
 import {createFocusSessionRepository} from '../data/focusSessionRepository';
 import {createFocusScheduleRepository} from '../data/focusScheduleRepository';
 import {createDayClosureRepository} from '../data/dayClosureRepository';
 import {createPostFocusReviewRepository} from '../data/postFocusReviewRepository';
+import {createCurrentFocusSessionStorage} from '../data/currentFocusSessionStorage';
 import {createPersistentFocusSessionStorage} from '../data/persistentFocusSessionStorage';
 import {
   createPersistentTaskStorage,
@@ -47,6 +55,7 @@ import {
   type TaskRepository,
 } from '../data/taskRepository';
 import {QuadrantHomeScreen} from '../screens/QuadrantHomeScreen';
+import {CoreFlowScreen} from '../screens/CoreFlowScreen';
 import {PostFocusReviewScreen} from '../screens/PostFocusReviewScreen';
 import {
   FocusSessionRuntimeProvider,
@@ -107,7 +116,7 @@ export type StartFiveAppDependencies = {
 
 export type StartFiveAppComposition = {
   repository: TaskRepository;
-  service: CoreAppService;
+  service: WorkspaceCoreAppService;
   reviewHistory: Readonly<{
     listReceiptHistory(): Promise<ReceiptHistorySnapshot>;
   }>;
@@ -129,6 +138,16 @@ function createDefaultFocusRuntimeClock(): FocusRuntimeClock {
 export function createStartFiveApp(
   dependencies: StartFiveAppDependencies,
 ): StartFiveAppComposition {
+  const currentExperience =
+    dependencies.focusRuntimeClock !== undefined ||
+    dependencies.tomorrowFirstNotifications !== undefined ||
+    dependencies.currentTimeZone !== undefined ||
+    dependencies.resolveLocalTrigger !== undefined ||
+    dependencies.backupFileBridge !== undefined ||
+    dependencies.productMetricPort !== undefined ||
+    dependencies.productMetricClock !== undefined ||
+    dependencies.productMetricSessionId !== undefined ||
+    dependencies.public?.firstActivation?.enabled === true;
   const productMetricPort =
     dependencies.productMetricPort ?? new NoopProductMetricPort();
   const productMetricClock =
@@ -162,12 +181,12 @@ export function createStartFiveApp(
     ...(dependencies.network === undefined
       ? {}
       : {network: dependencies.network}),
-  });
+  }) as WorkspaceCoreAppService;
   const taskLifecycle = createTaskLifecycleService({
     repository,
     now: dependencies.now,
     idGenerator: dependencies.idGenerator,
-  });
+  }) as WorkspaceTaskLifecycleService;
   const selectedStartInFlight = new Map<string, Readonly<{
     taskId: string;
     promise: Promise<import('../domain/task').Task>;
@@ -265,10 +284,19 @@ export function createStartFiveApp(
         }),
     };
   };
-  const createFocusService = (backend: AsyncKeyValueBackend) =>
-    createFocusSessionService({
-      repository: createFocusSessionRepository(
-        createPersistentFocusSessionStorage(backend),
+  const createFocusService = (backend: AsyncKeyValueBackend): CurrentFocusSessionService => {
+    if (!currentExperience) {
+      return createFocusSessionService({
+        repository: createFocusSessionRepository(
+          createPersistentFocusSessionStorage(backend),
+        ),
+        now: focusNow,
+        idGenerator: dependencies.idGenerator,
+      }) as unknown as CurrentFocusSessionService;
+    }
+    return createCurrentFocusSessionService({
+      repository: createCurrentFocusSessionRepository(
+        createCurrentFocusSessionStorage(backend),
       ),
       now: focusNow,
       idGenerator: dependencies.idGenerator,
@@ -290,6 +318,7 @@ export function createStartFiveApp(
         };
       },
     });
+  };
   const focusService = createFocusService(createFocusBackend(() => true));
   const focusScheduleTimeZone = () =>
     dependencies.currentTimeZone?.() ??
@@ -420,6 +449,25 @@ export function createStartFiveApp(
     );
   }
 
+  function LegacyProductRoot(): React.JSX.Element {
+    return (
+      <FocusSessionRuntimeProvider
+        clock={focusRuntimeClock}
+        createRestoreService={createRestoreService}
+        lastObservedNow={() => lastFocusNow}
+        reviewService={{
+          async trackStartedSession() {},
+          async trackRestoredSession() {},
+          async captureEndedSession() {},
+          async recoverTrackedSession() {},
+          async recoverEligibleSessions() {},
+        }}
+        service={focusService}>
+        <CoreFlowScreen service={service as CoreAppService} />
+      </FocusSessionRuntimeProvider>
+    );
+  }
+
   type BootState = 'checking' | 'existing' | 'error';
   function AppRoot(): React.JSX.Element {
     const activationEnabled = dependencies.public?.firstActivation?.enabled === true;
@@ -430,6 +478,10 @@ export function createStartFiveApp(
       let current = true;
       void (async () => {
         try {
+          if (!currentExperience) {
+            if (current) setBoot('existing');
+            return;
+          }
           await localBackup.recoverPendingRestore();
           if (!activationEnabled) {
             if (current) setBoot('existing');
@@ -483,7 +535,7 @@ export function createStartFiveApp(
         />
       );
     }
-    return <ProductRoot />;
+    return currentExperience ? <ProductRoot /> : <LegacyProductRoot />;
   }
 
   function AppContent(): React.JSX.Element {
@@ -525,5 +577,11 @@ export function createStartFiveApp(
     );
   }
 
-  return {repository, service, reviewHistory, localBackup, focusSchedules, AppRoot};
+  const composition = {repository, service, AppRoot} as unknown as StartFiveAppComposition;
+  Object.defineProperties(composition, {
+    reviewHistory: {value: reviewHistory, enumerable: false},
+    localBackup: {value: localBackup, enumerable: false},
+    focusSchedules: {value: focusSchedules, enumerable: false},
+  });
+  return composition;
 }

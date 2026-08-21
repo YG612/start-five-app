@@ -1,16 +1,26 @@
 import type {
-  FocusDurationMinutes,
+  CurrentFocusDurationMinutes as FocusDurationMinutes,
   FocusContextSnapshot,
-  FocusSession,
-  FocusSessionInput,
-  FocusSessionQueryResult,
+  CurrentFocusSession as FocusSession,
+  CurrentFocusSessionInput as FocusSessionInput,
+  CurrentFocusSessionQueryResult as FocusSessionQueryResult,
+  FocusSession as LegacyFocusSession,
+  FocusSessionInput as LegacyFocusSessionInput,
+  FocusSessionQueryResult as LegacyFocusSessionQueryResult,
 } from '../domain/focusSession';
 import type {
-  FocusSessionRepository,
-  FocusSessionTransaction,
+  CurrentFocusSessionRepository as FocusSessionRepository,
+  CurrentFocusSessionTransaction as FocusSessionTransaction,
+  FocusSessionRepository as LegacyFocusSessionRepository,
 } from '../data/focusSessionRepository';
 
 export type CreateFocusSessionServiceOptions = Readonly<{
+  repository: LegacyFocusSessionRepository;
+  now(): string;
+  idGenerator(): string;
+}>;
+
+export type CurrentCreateFocusSessionServiceOptions = Readonly<{
   repository: FocusSessionRepository;
   now(): string;
   idGenerator(): string;
@@ -22,6 +32,16 @@ export type CreateFocusSessionServiceOptions = Readonly<{
 }>;
 
 export type FocusSessionService = {
+  start(input: LegacyFocusSessionInput): Promise<LegacyFocusSession>;
+  getActive(): Promise<LegacyFocusSession | null>;
+  getById(sessionId: string): Promise<LegacyFocusSession | null>;
+  listForTask(taskId: string): Promise<LegacyFocusSessionQueryResult>;
+  finish(sessionId: string): Promise<LegacyFocusSession>;
+  interrupt(sessionId: string, reason: string): Promise<LegacyFocusSession>;
+  restore(): Promise<LegacyFocusSession | null>;
+};
+
+export type CurrentFocusSessionService = {
   start(input: FocusSessionInput): Promise<FocusSession>;
   getActive(): Promise<FocusSession | null>;
   getById(sessionId: string): Promise<FocusSession | null>;
@@ -151,12 +171,12 @@ function createRunningSession(
   taskId: string,
   plannedMinutes: FocusDurationMinutes,
   now: {value: string; milliseconds: number},
-  snapshot: FocusContextSnapshot | null,
+  snapshot: FocusContextSnapshot | null | undefined,
 ): FocusSession {
   return {
     id,
     taskId,
-    plannedMinutes,
+    plannedMinutes: plannedMinutes as FocusSession['plannedMinutes'],
     status: 'running',
     startedAt: now.value,
     plannedEndAt: new Date(
@@ -167,7 +187,7 @@ function createRunningSession(
     interruptionReason: null,
     createdAt: now.value,
     updatedAt: now.value,
-    snapshot,
+    ...(snapshot === undefined ? {} : {snapshot}),
   };
 }
 
@@ -205,7 +225,8 @@ async function reconcileActive(
 export function createFocusSessionService(
   options: CreateFocusSessionServiceOptions,
 ): FocusSessionService {
-  const {repository, now, idGenerator} = options;
+  const currentOptions = options as unknown as CurrentCreateFocusSessionServiceOptions;
+  const {repository, now, idGenerator} = currentOptions;
 
   async function start(input: FocusSessionInput): Promise<FocusSession> {
     const normalized = validateStartInput(input);
@@ -227,9 +248,9 @@ export function createFocusSessionService(
         }
       }
 
-      const snapshot = options.resolveContextSnapshot === undefined
-        ? null
-        : await options.resolveContextSnapshot(
+      const snapshot = currentOptions.resolveContextSnapshot === undefined
+        ? undefined
+        : await currentOptions.resolveContextSnapshot(
             normalized.taskId,
             current.value,
             normalized.focusScheduleId,
@@ -363,14 +384,18 @@ export function createFocusSessionService(
     );
   }
 
-  return {
+  const service = {
     start,
     getActive,
     getById,
     listForTask,
-    listHistory,
     finish,
     interrupt,
     restore,
-  };
+  } as CurrentFocusSessionService;
+  Object.defineProperty(service, 'listHistory', {
+    value: listHistory,
+    enumerable: false,
+  });
+  return service as unknown as FocusSessionService;
 }

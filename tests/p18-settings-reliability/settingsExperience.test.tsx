@@ -1,6 +1,6 @@
 import React from 'react';
 import {fireEvent, render, waitFor} from '@testing-library/react-native';
-import {createStartFiveApp} from '../../src/app/startFiveApp';
+import {createCurrentStartFiveApp as createStartFiveApp} from '../../src/app/currentStartFiveApp';
 import {createQuadrantHomePreferences} from '../../src/data/quadrantHomePreferences';
 import {MutableTomorrowNotifications} from '../gap-p0-13/gapP013TestKit';
 import {

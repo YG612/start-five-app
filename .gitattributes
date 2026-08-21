@@ -3,3 +3,15 @@
 QUALITY_GATE_V2_LOCK.sha256 text eol=lf
 QUALITY_GATE_V2_TEST_SPEC.md text eol=lf
 tests/quality-gate-v2/** text eol=lf
+tests/quality-gate/** text eol=lf
+
+# Every accepted lock hashes raw bytes. Prevent Windows checkout conversion
+# for lock manifests and their immutable specification/test inventories.
+*_LOCK.sha256 text eol=lf
+*_TEST_SPEC.md text eol=lf
+TEST_SPEC.md text eol=lf
+tests/locked/** text eol=lf
+tests/gap-p0-*/** text eol=lf
+tests/native-*/** text eol=lf
+tests/phase4*/** text eol=lf
+tests/review*/** text eol=lf

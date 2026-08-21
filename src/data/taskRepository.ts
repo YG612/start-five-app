@@ -1095,12 +1095,17 @@ async function applyDirectDurableChanges(
   backend: DurableBackend,
   changes: readonly DurableRecordChange[],
 ): Promise<void> {
+  const applied: DurableRecordChange[] = [];
   try {
     for (const change of changes) {
       await applyDurableValue(backend, change.key, change.after);
+      applied.push(change);
     }
   } catch (error: unknown) {
-    await rollbackDurableChanges(backend, changes, null);
+    // Do not compensate the change whose write rejected: ordinary key/value
+    // backends leave its previous value intact. Only writes acknowledged before
+    // the failure can have changed durable state.
+    await rollbackDurableChanges(backend, applied, null);
     throw error;
   }
 }

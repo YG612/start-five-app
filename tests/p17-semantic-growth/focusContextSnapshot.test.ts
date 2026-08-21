@@ -1,13 +1,14 @@
-import {createFocusSessionService} from '../../src/application/focusSessionService';
+import {createCurrentFocusSessionService} from '../../src/application/currentFocusSessionService';
 import {
-  createFocusSessionRepository,
-  validateFocusSessionBackup,
-} from '../../src/data/focusSessionRepository';
+  createCurrentFocusSessionRepository,
+} from '../../src/data/currentFocusSessionRepository';
+import {validateFocusSessionBackup} from '../../src/data/focusSessionBackupValidation';
 import {
-  FOCUS_SESSION_SNAPSHOT_SCHEMA,
-  FOCUS_SESSION_SNAPSHOT_VERSION,
-  FOCUS_SESSION_STORAGE_KEY,
-} from '../../src/data/persistentFocusSessionStorage';
+  CURRENT_FOCUS_SESSION_SNAPSHOT_SCHEMA as FOCUS_SESSION_SNAPSHOT_SCHEMA,
+  CURRENT_FOCUS_SESSION_SNAPSHOT_VERSION as FOCUS_SESSION_SNAPSHOT_VERSION,
+  CURRENT_FOCUS_SESSION_STORAGE_KEY as FOCUS_SESSION_STORAGE_KEY,
+  createCurrentFocusSessionStorage,
+} from '../../src/data/currentFocusSessionStorage';
 import {WorkspaceBackend} from '../gap-p0-06r1/gapP006TestKit';
 import {
   makeLocalBackupHarness,
@@ -34,8 +35,10 @@ const legacySession = {
 describe('P17 FocusContextSnapshot persistence', () => {
   it('captures task meaning once and persists it in the v2 envelope', async () => {
     const backend = new WorkspaceBackend();
-    const service = createFocusSessionService({
-      repository: createFocusSessionRepository(backend),
+    const service = createCurrentFocusSessionService({
+      repository: createCurrentFocusSessionRepository(
+        createCurrentFocusSessionStorage(backend),
+      ),
       now: () => NOW,
       idGenerator: () => 'focus-with-context',
       async resolveContextSnapshot(taskId, _startedAt, focusScheduleId) {
@@ -80,9 +83,9 @@ describe('P17 FocusContextSnapshot persistence', () => {
     });
     await backend.setItem('start-five.focus-sessions.v1', raw);
     expect(validateFocusSessionBackup(raw)).toBe(1);
-    await expect(createFocusSessionRepository(backend).list()).resolves.toEqual([
-      legacySession,
-    ]);
+    await expect(createCurrentFocusSessionRepository(
+      createCurrentFocusSessionStorage(backend),
+    ).list()).resolves.toEqual([legacySession]);
     expect(FOCUS_SESSION_SNAPSHOT_VERSION).toBe(2);
   });
 

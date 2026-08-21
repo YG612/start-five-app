@@ -23,7 +23,7 @@ describe('P15R interaction rules', () => {
 
   it('adapts label density and rejects map releases outside the real bounds', () => {
     expect(compactTaskLabelConfig(2, false)).toMatchObject({numberOfLines: 2, maxWidth: 104});
-    expect(compactTaskLabelConfig(5, false)).toMatchObject({numberOfLines: 1, maxWidth: 84});
+    expect(compactTaskLabelConfig(5, false)).toMatchObject({numberOfLines: 2, maxWidth: 84});
     expect(compactTaskLabelConfig(8, true)).toMatchObject({numberOfLines: 2, maxWidth: 112});
     const bounds = {left: 10, top: 20, width: 200, height: 300};
     expect(isPointInsideMapBounds(110, 170, bounds)).toBe(true);

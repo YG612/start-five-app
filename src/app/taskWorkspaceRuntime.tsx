@@ -7,12 +7,12 @@ import React, {
   useState,
 } from 'react';
 import {
-  type CoreAppService,
+  type WorkspaceCoreAppService,
   type TaskActionRewardResult,
   type TaskCompletionResult,
-  type TaskLifecycleService,
-  type TaskLifecycleTaskInput,
-  type TaskLifecycleTaskPatch,
+  type WorkspaceTaskLifecycleService,
+  type WorkspaceTaskLifecycleTaskInput,
+  type WorkspaceTaskLifecycleTaskPatch,
 } from '../application/coreAppService';
 import type {TaskQuadrantProjection} from '../domain/quadrant';
 import {totalGrowthScore} from '../domain/growth';
@@ -44,8 +44,8 @@ export type TaskWorkspaceRuntime = Readonly<{
   refreshProjection(): Promise<void>;
   refreshAfterDurableCommit(): Promise<void>;
   startSelectedTask(taskId: string): Promise<Task>;
-  createTask(input: TaskLifecycleTaskInput, idempotencyKey?: string): Promise<Task>;
-  updateTask(taskId: string, patch: TaskLifecycleTaskPatch): Promise<Task>;
+  createTask(input: WorkspaceTaskLifecycleTaskInput, idempotencyKey?: string): Promise<Task>;
+  updateTask(taskId: string, patch: WorkspaceTaskLifecycleTaskPatch): Promise<Task>;
   completeTask(taskId: string): Promise<TaskCompletionResult>;
   completeFirstStep(
     taskId: string,
@@ -62,8 +62,8 @@ export type TaskWorkspaceRuntime = Readonly<{
 }>;
 
 type TaskWorkspaceRuntimeProviderProps = Readonly<{
-  service: CoreAppService;
-  lifecycle: TaskLifecycleService;
+  service: WorkspaceCoreAppService;
+  lifecycle: WorkspaceTaskLifecycleService;
   reloadProjection(): Promise<readonly Task[]>;
   restoreCompletedReview(): Promise<unknown>;
   reconcileReminders?(): Promise<void>;
@@ -89,11 +89,30 @@ const EMPTY_SNAPSHOT: TaskWorkspaceSnapshot = {
 const TaskWorkspaceRuntimeContext =
   createContext<TaskWorkspaceRuntime | null>(null);
 
-let workspaceOperationSequence = 0;
+let workspaceRuntimeInstanceSequence = 0;
 
-function nextWorkspaceOperationId(kind: string): string {
-  workspaceOperationSequence += 1;
-  return `task-workspace:${kind}:${workspaceOperationSequence}`;
+export function createWorkspaceOperationSessionId(
+  now: () => number = Date.now,
+  random: () => number = Math.random,
+): string {
+  workspaceRuntimeInstanceSequence += 1;
+  const entropy = (): string => Math.floor(
+    Math.max(0, Math.min(1, random())) * Number.MAX_SAFE_INTEGER,
+  ).toString(36).padStart(11, '0');
+  return [
+    Math.max(0, Math.floor(now())).toString(36),
+    entropy(),
+    entropy(),
+    workspaceRuntimeInstanceSequence.toString(36),
+  ].join('-');
+}
+
+export function workspaceOperationId(
+  sessionId: string,
+  kind: string,
+  sequence: number,
+): string {
+  return `task-workspace:${sessionId}:${kind}:${sequence}`;
 }
 
 function errorMessage(error: unknown): string {
@@ -122,6 +141,11 @@ export function TaskWorkspaceRuntimeProvider({
   const mutationsRef = useRef(new Map<string, Promise<unknown>>());
   const mutationOperationIdsRef = useRef(new Map<string, string>());
   const completedReviewRestoreStartedRef = useRef(false);
+  const operationSessionIdRef = useRef<string | null>(null);
+  const operationSequenceRef = useRef(0);
+  if (operationSessionIdRef.current === null) {
+    operationSessionIdRef.current = createWorkspaceOperationSessionId();
+  }
 
   useEffect(() => {
     mountedRef.current = true;
@@ -248,9 +272,19 @@ export function TaskWorkspaceRuntimeProvider({
         errorText: null,
       }));
     }
-    const operationId =
-      mutationOperationIdsRef.current.get(key) ??
-      nextWorkspaceOperationId(kind);
+    let operationId = mutationOperationIdsRef.current.get(key);
+    if (operationId === undefined) {
+      const operationSessionId = operationSessionIdRef.current;
+      if (operationSessionId === null) {
+        throw new Error('TASK_WORKSPACE_SESSION_UNAVAILABLE');
+      }
+      operationSequenceRef.current += 1;
+      operationId = workspaceOperationId(
+        operationSessionId,
+        kind,
+        operationSequenceRef.current,
+      );
+    }
     mutationOperationIdsRef.current.set(key, operationId);
     let pending: Promise<T>;
     pending = Promise.resolve()
@@ -366,7 +400,7 @@ export function TaskWorkspaceRuntimeProvider({
     },
     completeFirstStep(taskId, nextStep) {
       return runMutation(`complete-first-step:${taskId}`, 'complete-first-step', operationId =>
-        service.completeFirstStep!(
+        service.completeFirstStep(
           taskId,
           nextStep === undefined ? {} : {nextStep},
           {operationId},
@@ -375,7 +409,7 @@ export function TaskWorkspaceRuntimeProvider({
     },
     undoFirstStep(taskId) {
       return runMutation(`undo-first-step:${taskId}`, 'undo-first-step', operationId =>
-        service.undoFirstStep!(taskId, {operationId}),
+        service.undoFirstStep(taskId, {operationId}),
       );
     },
     undoCompleteTask(taskId, restoreStatus) {

@@ -41,7 +41,7 @@ describe('SF-009 accessible local-only core page flow', () => {
       expect(screen.getByText('小步状态：已完成')).toBeTruthy(),
     );
     await fireEvent.press(screen.getByRole('button', {name: '完成任务'}));
-    await waitFor(() => expect(screen.getByText('获得 35 成长值')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('本次积分：35')).toBeTruthy());
 
     expect((await service.getState()).totalScore).toBe(35);
     expect(await repository.list()).toHaveLength(1);

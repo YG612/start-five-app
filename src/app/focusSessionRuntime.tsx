@@ -6,10 +6,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type {FocusSessionService} from '../application/focusSessionService';
+import type {CurrentFocusSessionService} from '../application/focusSessionService';
 import type {PostFocusReviewService} from '../application/postFocusReviewService';
-import type {FocusSession} from '../domain/focusSession';
-import type {FocusDurationMinutes} from '../domain/focusSession';
+import type {
+  CurrentFocusDurationMinutes as FocusDurationMinutes,
+  CurrentFocusSession as FocusSession,
+} from '../domain/focusSession';
 
 type FocusRuntimeState = 'idle' | 'running' | 'finished';
 type AsyncPhase = 'idle' | 'pending' | 'ready' | 'error';
@@ -45,7 +47,7 @@ export type AppFocusSessionRuntime = Readonly<{
 }>;
 
 type FocusSessionRuntimeProviderProps = Readonly<{
-  service: FocusSessionService;
+  service: CurrentFocusSessionService;
   reviewService: Pick<
     PostFocusReviewService,
     | 'trackStartedSession'
@@ -54,7 +56,7 @@ type FocusSessionRuntimeProviderProps = Readonly<{
     | 'recoverTrackedSession'
     | 'recoverEligibleSessions'
   >;
-  createRestoreService(writeIsCurrent: () => boolean): FocusSessionService;
+  createRestoreService(writeIsCurrent: () => boolean): CurrentFocusSessionService;
   clock: FocusRuntimeClock;
   lastObservedNow(): string | null;
   children: React.ReactNode;

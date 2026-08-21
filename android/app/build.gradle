@@ -115,6 +115,7 @@ android {
             // com.startfive.app package without uninstalling user data.
             applicationIdSuffix ".internal"
             versionNameSuffix "-internal"
+            resValue "string", "app_name", "先做5分钟 Internal"
             signingConfig signingConfigs.debug
             matchingFallbacks = ["release"]
             debuggable false

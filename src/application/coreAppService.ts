@@ -139,15 +139,6 @@ export type CoreAppService = {
   ): Promise<Task>;
   chooseRecommended(): Promise<Task | null>;
   startRecommended(operation: OperationOptions): Promise<Task>;
-  completeFirstStep?(
-    taskId: string,
-    input: FirstStepCompletionInput,
-    operation: OperationOptions,
-  ): Promise<TaskActionRewardResult>;
-  undoFirstStep?(
-    taskId: string,
-    operation: OperationOptions,
-  ): Promise<Task>;
   finishStep(
     taskId: string,
     stepId: string,
@@ -160,6 +151,18 @@ export type CoreAppService = {
   getState(): Promise<CoreAppState>;
 };
 
+export type WorkspaceCoreAppService = CoreAppService & {
+  completeFirstStep(
+    taskId: string,
+    input: FirstStepCompletionInput,
+    operation: OperationOptions,
+  ): Promise<TaskActionRewardResult>;
+  undoFirstStep(
+    taskId: string,
+    operation: OperationOptions,
+  ): Promise<Task>;
+};
+
 export type TaskLifecycleTaskInput = {
   title: string;
   description?: string;
@@ -170,6 +173,9 @@ export type TaskLifecycleTaskInput = {
   dueAt?: string | null;
   estimatedMinutes?: number | null;
   firstStep?: string | null;
+};
+
+export type WorkspaceTaskLifecycleTaskInput = TaskLifecycleTaskInput & {
   progress?: TaskProgress;
   placementState?: TaskPlacementState;
 };
@@ -186,6 +192,12 @@ export type TaskLifecycleTaskPatch = Partial<
     | 'dueAt'
     | 'estimatedMinutes'
     | 'firstStep'
+  >
+>;
+
+export type WorkspaceTaskLifecycleTaskPatch = TaskLifecycleTaskPatch & Partial<
+  Pick<
+    Task,
     | 'placementState'
     | 'archivedAt'
     | 'archiveReason'
@@ -244,15 +256,6 @@ export type TaskLifecycleService = {
     taskId: string,
     operation: TaskLifecycleOperationOptions,
   ): Promise<TaskCompletionResult>;
-  restoreCompleted(
-    taskId: string,
-    operation: TaskLifecycleOperationOptions,
-  ): Promise<Task>;
-  undoComplete(
-    taskId: string,
-    restoreStatus: 'pending' | 'in_progress',
-    operation: TaskLifecycleOperationOptions,
-  ): Promise<Task>;
   reschedule(
     taskId: string,
     input: TaskLifecycleRescheduleInput,
@@ -266,6 +269,30 @@ export type TaskLifecycleService = {
   getRecommendation(): Promise<Task | null>;
   getQuadrantProjection(): Promise<TaskQuadrantProjection>;
   getQueryResult(): Promise<TaskLifecycleQueryResult>;
+};
+
+export type WorkspaceTaskLifecycleService = Omit<
+  TaskLifecycleService,
+  'create' | 'update'
+> & {
+  create(
+    input: WorkspaceTaskLifecycleTaskInput,
+    operation: TaskLifecycleOperationOptions,
+  ): Promise<Task>;
+  update(
+    taskId: string,
+    patch: WorkspaceTaskLifecycleTaskPatch,
+    operation: TaskLifecycleOperationOptions,
+  ): Promise<Task>;
+  restoreCompleted(
+    taskId: string,
+    operation: TaskLifecycleOperationOptions,
+  ): Promise<Task>;
+  undoComplete(
+    taskId: string,
+    restoreStatus: 'pending' | 'in_progress',
+    operation: TaskLifecycleOperationOptions,
+  ): Promise<Task>;
 };
 
 type NormalizedLifecycleInput = {
@@ -925,7 +952,7 @@ function normalizePlannedAliases(
 }
 
 function normalizeLifecycleCreateInput(
-  input: TaskLifecycleTaskInput,
+  input: WorkspaceTaskLifecycleTaskInput,
 ): NormalizedLifecycleInput {
   const title = normalizedLifecycleTitle(input.title);
   const description = normalizedLifecycleDescription(input.description);
@@ -976,7 +1003,7 @@ function normalizeLifecycleCreateInput(
 
 function normalizeLifecyclePatch(
   taskId: string,
-  patch: TaskLifecycleTaskPatch,
+  patch: WorkspaceTaskLifecycleTaskPatch,
 ): NormalizedLifecyclePatch {
   const normalized: NormalizedLifecyclePatch = {};
   if (hasOwn(patch, 'title') && patch.title !== undefined) {
@@ -1362,7 +1389,7 @@ export function createTaskLifecycleService(
     );
   }
 
-  const lifecycle: TaskLifecycleService = {
+  const lifecycle: WorkspaceTaskLifecycleService = {
     complete(taskId, operation) {
       const operationId = requireLifecycleOperationId(operation);
       return runTransactionalLifecycleMutation(
@@ -1866,6 +1893,8 @@ export function createTaskLifecycleService(
       );
     },
   };
+  Object.defineProperty(lifecycle, 'undoComplete', {enumerable: false});
+  Object.defineProperty(lifecycle, 'restoreCompleted', {enumerable: false});
   return lifecycle;
 }
 
@@ -2132,7 +2161,7 @@ export function createCoreAppService(
   const operationRegistry =
     dependencies.operationRegistry ?? defaultOperationRegistryFor(repository);
 
-  return {
+  const service: WorkspaceCoreAppService = {
     createTask(input, operation) {
       return runIdempotentMutation(
         operationRegistry,
@@ -2325,4 +2354,7 @@ export function createCoreAppService(
       };
     },
   };
+  Object.defineProperty(service, 'completeFirstStep', {enumerable: false});
+  Object.defineProperty(service, 'undoFirstStep', {enumerable: false});
+  return service;
 }

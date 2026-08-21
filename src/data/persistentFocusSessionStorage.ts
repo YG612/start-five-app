@@ -2,7 +2,7 @@ import type {FocusSessionKeyValueStorage} from './focusSessionRepository';
 
 export const FOCUS_SESSION_STORAGE_KEY = 'start-five.focus-sessions.v1';
 export const FOCUS_SESSION_SNAPSHOT_SCHEMA = 'start-five.focus-sessions';
-export const FOCUS_SESSION_SNAPSHOT_VERSION = 2;
+export const FOCUS_SESSION_SNAPSHOT_VERSION = 1;
 
 export type FocusSessionAsyncKeyValueBackend = {
   getItem(key: string): Promise<string | null>;

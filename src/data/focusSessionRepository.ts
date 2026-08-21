@@ -1,14 +1,31 @@
-import type {FocusContextSnapshot, FocusSession} from '../domain/focusSession';
+import type {
+  CurrentFocusSession as FocusSession,
+  FocusContextSnapshot,
+  FocusSession as LegacyFocusSession,
+} from '../domain/focusSession';
 import {
   FOCUS_SESSION_SNAPSHOT_SCHEMA,
   FOCUS_SESSION_SNAPSHOT_VERSION,
 } from './persistentFocusSessionStorage';
 
 export interface FocusSessionTransaction {
+  load(): Promise<readonly LegacyFocusSession[]>;
+  list(taskId?: string): Promise<readonly LegacyFocusSession[]>;
+  get(sessionId: string): Promise<LegacyFocusSession | null>;
+  save(session: LegacyFocusSession): Promise<LegacyFocusSession>;
+}
+
+export interface CurrentFocusSessionTransaction {
   load(): Promise<readonly FocusSession[]>;
   list(taskId?: string): Promise<readonly FocusSession[]>;
   get(sessionId: string): Promise<FocusSession | null>;
   save(session: FocusSession): Promise<FocusSession>;
+}
+
+export interface CurrentFocusSessionRepository extends CurrentFocusSessionTransaction {
+  transaction<T>(
+    work: (transaction: CurrentFocusSessionTransaction) => Promise<T>,
+  ): Promise<T>;
 }
 
 export interface FocusSessionRepository extends FocusSessionTransaction {
@@ -56,6 +73,10 @@ const SESSION_FIELDS_V2 = [
 
 const ENVELOPE_FIELDS = ['schema', 'sessions', 'version'] as const;
 const SUPPORTED_DURATIONS = new Set([2, 5, 15, 25, 45, 50]);
+const LEGACY_DURATIONS = new Set([2, 5, 15, 25, 50]);
+const CURRENT_STORAGE_MARKER = Symbol.for(
+  'start-five.current-focus-session-storage.v2',
+);
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 class FocusSessionRepositoryError extends Error {
@@ -224,13 +245,16 @@ function isValidContextSnapshot(
   );
 }
 
-function isValidSession(value: unknown): value is FocusSession {
+function isValidSession(
+  value: unknown,
+  currentFormat: boolean,
+): value is FocusSession {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
   if (
     !hasExactKeys(value, SESSION_FIELDS_V1) &&
-    !hasExactKeys(value, SESSION_FIELDS_V2)
+    !(currentFormat && hasExactKeys(value, SESSION_FIELDS_V2))
   ) {
     return false;
   }
@@ -240,7 +264,7 @@ function isValidSession(value: unknown): value is FocusSession {
     !isCanonicalIdentifier(record.id) ||
     !isCanonicalIdentifier(record.taskId) ||
     typeof record.plannedMinutes !== 'number' ||
-    !SUPPORTED_DURATIONS.has(record.plannedMinutes) ||
+    !(currentFormat ? SUPPORTED_DURATIONS : LEGACY_DURATIONS).has(record.plannedMinutes) ||
     !isCanonicalTimestamp(record.startedAt) ||
     !isCanonicalTimestamp(record.plannedEndAt) ||
     !isCanonicalTimestamp(record.createdAt) ||
@@ -299,7 +323,10 @@ function isValidSession(value: unknown): value is FocusSession {
   );
 }
 
-function validateSessions(value: unknown): FocusSession[] {
+function validateSessions(
+  value: unknown,
+  currentFormat: boolean,
+): FocusSession[] {
   if (!Array.isArray(value)) {
     throw codedError('FOCUS_SESSION_SNAPSHOT_INVALID');
   }
@@ -307,7 +334,7 @@ function validateSessions(value: unknown): FocusSession[] {
   const ids = new Set<string>();
   let running = 0;
   for (const candidate of value) {
-    if (!isValidSession(candidate)) {
+    if (!isValidSession(candidate, currentFormat)) {
       throw codedError('FOCUS_SESSION_SNAPSHOT_INVALID');
     }
     if (ids.has(candidate.id)) {
@@ -325,7 +352,10 @@ function validateSessions(value: unknown): FocusSession[] {
   return sessions;
 }
 
-function parseSnapshot(raw: string | null): FocusSession[] {
+function parseSnapshot(
+  raw: string | null,
+  currentFormat: boolean,
+): FocusSession[] {
   if (raw === null) {
     return [];
   }
@@ -344,7 +374,7 @@ function parseSnapshot(raw: string | null): FocusSession[] {
   if (
     envelope.schema !== FOCUS_SESSION_SNAPSHOT_SCHEMA ||
     (envelope.version !== 1 &&
-      envelope.version !== FOCUS_SESSION_SNAPSHOT_VERSION) ||
+      !(currentFormat && envelope.version === 2)) ||
     typeof envelope.schema !== 'string' ||
     typeof envelope.version !== 'number' ||
     !Number.isInteger(envelope.version)
@@ -354,17 +384,16 @@ function parseSnapshot(raw: string | null): FocusSession[] {
   if (!hasExactKeys(parsed, ENVELOPE_FIELDS)) {
     throw codedError('FOCUS_SESSION_SNAPSHOT_INVALID');
   }
-  return validateSessions(envelope.sessions);
+  return validateSessions(envelope.sessions, currentFormat);
 }
 
-export function validateFocusSessionBackup(raw: string | null): number {
-  return parseSnapshot(raw).length;
-}
-
-function serializeSnapshot(sessions: readonly FocusSession[]): string {
+function serializeSnapshot(
+  sessions: readonly FocusSession[],
+  currentFormat: boolean,
+): string {
   return JSON.stringify({
     schema: FOCUS_SESSION_SNAPSHOT_SCHEMA,
-    version: FOCUS_SESSION_SNAPSHOT_VERSION,
+    version: currentFormat ? 2 : FOCUS_SESSION_SNAPSHOT_VERSION,
     sessions,
   });
 }
@@ -377,14 +406,15 @@ function sameSession(left: FocusSession, right: FocusSession): boolean {
 function upsert(
   sessions: FocusSession[],
   captured: FocusSession,
+  currentFormat: boolean,
 ): {saved: FocusSession; changed: boolean} {
-  if (!isValidSession(captured)) {
+  if (!isValidSession(captured, currentFormat)) {
     throw codedError('FOCUS_SESSION_SNAPSHOT_INVALID');
   }
   const index = sessions.findIndex(candidate => candidate.id === captured.id);
   if (index === -1) {
     const next = [...sessions, cloneSession(captured)];
-    validateSessions(next);
+    validateSessions(next, currentFormat);
     sessions.push(cloneSession(captured));
     return {saved: cloneSession(captured), changed: true};
   }
@@ -402,7 +432,7 @@ function upsert(
 
   const next = cloneSessions(sessions);
   next[index] = cloneSession(captured);
-  validateSessions(next);
+  validateSessions(next, currentFormat);
   sessions[index] = cloneSession(captured);
   return {saved: cloneSession(captured), changed: true};
 }
@@ -411,6 +441,11 @@ export function createFocusSessionRepository(
   storage: FocusSessionKeyValueStorage,
   key: string = DEFAULT_FOCUS_SESSION_STORAGE_KEY,
 ): FocusSessionRepository {
+  const currentFormat = Boolean(
+    (storage as FocusSessionKeyValueStorage & {[CURRENT_STORAGE_MARKER]?: true})[
+      CURRENT_STORAGE_MARKER
+    ],
+  );
   const coordinator = coordinatorFor(storage, key);
   let cache: FocusSession[] | null = null;
   let observedRevision = -1;
@@ -419,7 +454,7 @@ export function createFocusSessionRepository(
     if (cache !== null && observedRevision === coordinator.revision) {
       return cache;
     }
-    const loaded = parseSnapshot(await storage.getItem(key));
+    const loaded = parseSnapshot(await storage.getItem(key), currentFormat);
     cache = cloneSessions(loaded);
     observedRevision = coordinator.revision;
     return cache;
@@ -461,11 +496,11 @@ export function createFocusSessionRepository(
     }
     return enqueue(coordinator, async () => {
       const current = cloneSessions(await hydrate());
-      const result = upsert(current, captured);
+      const result = upsert(current, captured, currentFormat);
       if (!result.changed) {
         return result.saved;
       }
-      await storage.setItem(key, serializeSnapshot(current));
+      await storage.setItem(key, serializeSnapshot(current, currentFormat));
       cache = cloneSessions(current);
       coordinator.revision += 1;
       observedRevision = coordinator.revision;
@@ -474,7 +509,7 @@ export function createFocusSessionRepository(
   }
 
   function transaction<T>(
-    work: (transaction: FocusSessionTransaction) => Promise<T>,
+    work: (transaction: CurrentFocusSessionTransaction) => Promise<T>,
   ): Promise<T> {
     const reentrant = rejectReentrantMutation<T>();
     if (reentrant !== null) {
@@ -492,7 +527,7 @@ export function createFocusSessionRepository(
         }
       }
 
-      const surface: FocusSessionTransaction = {
+      const surface: CurrentFocusSessionTransaction = {
         async load() {
           ensureActive();
           return cloneSessions(staged);
@@ -520,7 +555,7 @@ export function createFocusSessionRepository(
         async save(session: FocusSession) {
           ensureActive();
           const captured = captureSession(session);
-          const result = upsert(staged, captured);
+          const result = upsert(staged, captured, currentFormat);
           dirty = dirty || result.changed;
           return cloneSession(result.saved);
         },
@@ -536,7 +571,7 @@ export function createFocusSessionRepository(
         }
         const result = await pending;
         if (dirty) {
-          await storage.setItem(key, serializeSnapshot(staged));
+          await storage.setItem(key, serializeSnapshot(staged, currentFormat));
           cache = cloneSessions(staged);
           coordinator.revision += 1;
           observedRevision = coordinator.revision;
@@ -548,5 +583,5 @@ export function createFocusSessionRepository(
     });
   }
 
-  return {load, list, get, save, transaction};
+  return {load, list, get, save, transaction} as unknown as FocusSessionRepository;
 }

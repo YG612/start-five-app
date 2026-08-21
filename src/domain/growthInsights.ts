@@ -1,5 +1,5 @@
 import type {Task} from './task';
-import type {FocusSession} from './focusSession';
+import type {CurrentFocusSession as FocusSession} from './focusSession';
 import {growthRewardsForTask} from './growth';
 import {effectiveQuadrantForTask, type TaskWithPriority} from './taskPriority';
 

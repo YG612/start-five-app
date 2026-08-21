@@ -16,6 +16,7 @@ type LayoutEnvelope = Readonly<{
 export type QuadrantTaskLayoutStore = Readonly<{
   read(taskIds?: ReadonlySet<string>): Promise<Readonly<Record<string, QuadrantPlacement>>>;
   upsert(taskId: string, placement: QuadrantPlacement): Promise<void>;
+  upsertMany(placements: Readonly<Record<string, QuadrantPlacement>>): Promise<void>;
   remove(taskId: string): Promise<void>;
   removeOrphans(taskIds: ReadonlySet<string>): Promise<void>;
 }>;
@@ -93,6 +94,20 @@ export function createQuadrantTaskLayoutRepository(
       const envelope = await load();
       const records = envelope.records.filter(record => record.taskId !== taskId);
       records.push({taskId, placement: clampPlacement(placement)});
+      await write(records);
+    },
+    async upsertMany(placements) {
+      const entries = Object.entries(placements);
+      if (entries.some(([taskId]) => taskId.trim() === '')) {
+        throw new Error('QUADRANT_LAYOUT_TASK_ID_INVALID');
+      }
+      if (entries.length === 0) return;
+      const envelope = await load();
+      const updatedIds = new Set(entries.map(([taskId]) => taskId));
+      const records = envelope.records.filter(record => !updatedIds.has(record.taskId));
+      for (const [taskId, placement] of entries) {
+        records.push({taskId, placement: clampPlacement(placement)});
+      }
       await write(records);
     },
     async remove(taskId) {

@@ -98,7 +98,11 @@ export function SettingsRow(props: ToneProps & Readonly<{
   const content = (
     <>
       <Text style={[styles.rowLabel, props.dark && styles.textDark]}>{props.label}</Text>
-      <Text style={[styles.rowValue, props.dark && styles.mutedDark]}>
+      <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+        numberOfLines={1}
+        style={[styles.rowValue, props.dark && styles.mutedDark]}>
         {props.value ?? (props.onPress === undefined ? '' : '›')}
       </Text>
     </>
@@ -252,8 +256,8 @@ const styles = StyleSheet.create({
   sectionHeader: {minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
   sectionTitle: {color: APP_PAGE_TOKENS.light.text, fontSize: 18, fontWeight: '900'},
   row: {minHeight: 52, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, borderTopColor: APP_PAGE_TOKENS.light.border, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 12},
-  rowLabel: {flex: 1, color: APP_PAGE_TOKENS.light.text, fontSize: 15, fontWeight: '700'},
-  rowValue: {flexShrink: 1, maxWidth: '48%', color: APP_PAGE_TOKENS.light.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'right'},
+  rowLabel: {flex: 1, alignSelf: 'center', color: APP_PAGE_TOKENS.light.text, fontSize: 15, fontWeight: '700'},
+  rowValue: {flexShrink: 1, alignSelf: 'center', maxWidth: '48%', color: APP_PAGE_TOKENS.light.textMuted, fontSize: 14, lineHeight: 20, textAlign: 'right'},
   metric: {flex: 1, minWidth: 88, gap: 3},
   metricValue: {color: APP_PAGE_TOKENS.light.text, fontSize: 22, fontWeight: '900'},
   metricLabel: {color: APP_PAGE_TOKENS.light.textMuted, fontSize: 12},

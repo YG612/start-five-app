@@ -12,9 +12,11 @@ import {
 } from 'react-native';
 import type {Task} from '../domain/task';
 import type {Quadrant} from '../domain/quadrant';
+import type {ViewStyle} from 'react-native';
 import {
   QUADRANT_HOME_META,
   QUADRANT_MAP_ROWS,
+  QUADRANT_NODE_SLOTS,
   selectVisibleQuadrantTasks,
   projectTaskToQuadrantMap,
 } from '../domain/quadrantHome';
@@ -26,12 +28,15 @@ import {
   TASK_LAYOUT_DRAG_START_SLOP_DP,
   TASK_LAYOUT_LONG_PRESS_MS,
   TASK_LAYOUT_PRE_ARM_SLOP_DP,
+  assignAvailablePlacements,
   clampPlacement,
   constrainTaskCenter,
-  nearestAvailablePlacement,
+  nearestPackingPlacement,
   normalizePointInRect,
+  placementsDiffer,
   pointForPlacement,
   quadrantAtTaskCenter,
+  reflowPackedPlacements,
   taskLayoutReducer,
   type LayoutRect,
   type LayoutSize,
@@ -40,8 +45,55 @@ import {
 } from '../domain/quadrantTaskLayout';
 
 const DEFAULT_NODE_SIZE: LayoutSize = {width: 76, height: 52};
+const DEFAULT_QUADRANT_CONTENT_RECT: LayoutRect = {
+  x: 0,
+  y: 0,
+  width: 152,
+  height: 163,
+};
+const MAP_GRID_RADIUS = 18;
+const MAP_CELL_OUTER_RADIUS = MAP_GRID_RADIUS - 1;
+
+export function selectMapTaskNodes(
+  tasks: readonly Task[],
+  selectedId: string | null,
+  recommendedId: string | null,
+): readonly Task[] {
+  const visible = selectVisibleQuadrantTasks(tasks, selectedId, recommendedId);
+  return tasks.length > QUADRANT_NODE_SLOTS.length
+    ? visible.slice(0, QUADRANT_NODE_SLOTS.length - 1)
+    : visible;
+}
+
+function overflowReservation(
+  contentRect: LayoutRect,
+): Readonly<{placement: QuadrantPlacement; size: LayoutSize}> {
+  return {
+    placement: nearestPackingPlacement({
+      desired: {xRatio: 1, yRatio: 1},
+      contentRect,
+      taskSize: DEFAULT_NODE_SIZE,
+    }),
+    size: DEFAULT_NODE_SIZE,
+  };
+}
 
 type MapBounds = Readonly<{left: number; top: number; width: number; height: number}>;
+
+type MapCellCornerRadii = Readonly<Pick<
+  ViewStyle,
+  'borderTopLeftRadius' | 'borderTopRightRadius' |
+  'borderBottomLeftRadius' | 'borderBottomRightRadius'
+>>;
+
+export function quadrantMapCellCornerRadii(quadrant: Quadrant): MapCellCornerRadii {
+  switch (quadrant) {
+    case 'Q3': return {borderTopLeftRadius: MAP_CELL_OUTER_RADIUS};
+    case 'Q1': return {borderTopRightRadius: MAP_CELL_OUTER_RADIUS};
+    case 'Q4': return {borderBottomLeftRadius: MAP_CELL_OUTER_RADIUS};
+    case 'Q2': return {borderBottomRightRadius: MAP_CELL_OUTER_RADIUS};
+  }
+}
 
 export type QuadrantTaskMapProps = Readonly<{
   actionPending: boolean;
@@ -61,18 +113,19 @@ export type QuadrantTaskMapProps = Readonly<{
     originPlacement: QuadrantPlacement;
     targetQuadrant: Quadrant;
     targetPlacement: QuadrantPlacement;
+    targetPlacements: Readonly<Record<string, QuadrantPlacement>>;
   }>): Promise<void>;
   onDraggingChange(dragging: boolean): void;
 }>;
 
 function contentRectForQuadrant(rect: LayoutRect): LayoutRect {
-  const horizontalInset = Math.min(10, rect.width / 8);
-  const headingHeight = Math.min(58, rect.height * 0.34);
+  const horizontalInset = Math.min(4, rect.width / 16);
+  const headingHeight = Math.min(48, rect.height * 0.28);
   return {
     x: rect.x + horizontalInset,
     y: rect.y + headingHeight,
     width: Math.max(1, rect.width - horizontalInset * 2),
-    height: Math.max(1, rect.height - headingHeight - 9),
+    height: Math.max(1, rect.height - headingHeight - 4),
   };
 }
 
@@ -107,7 +160,7 @@ function LayoutTaskNode(props: Readonly<{
   quadrantTaskCount: number;
   nowInput: string;
   onArm(pageX: number, pageY: number): void;
-  onStartDrag(pageX: number, pageY: number): void;
+  onStartDrag(pageX: number, pageY: number): boolean;
   onDragMove(pageX: number, pageY: number): void;
   onRelease(): void;
   onCancel(): void;
@@ -119,10 +172,10 @@ function LayoutTaskNode(props: Readonly<{
   const startedRef = React.useRef({pageX: 0, pageY: 0});
   const armedThisGestureRef = React.useRef(false);
   const draggingThisGestureRef = React.useRef(false);
-  const suppressPressRef = React.useRef(false);
-  const selectedRef = React.useRef(props.selected);
+  const movedBeforeArmRef = React.useRef(false);
+  const latestPropsRef = React.useRef(props);
   const wobble = React.useRef(new Animated.Value(0)).current;
-  selectedRef.current = props.selected;
+  latestPropsRef.current = props;
 
   const clearTimer = React.useCallback(() => {
     if (timerRef.current !== null) {
@@ -149,67 +202,67 @@ function LayoutTaskNode(props: Readonly<{
   }, [props.dragging, props.reduceMotion, props.selected, wobble]);
 
   const panResponder = React.useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !props.disabled,
-    onMoveShouldSetPanResponder: () => !props.disabled,
+    onStartShouldSetPanResponder: () => !latestPropsRef.current.disabled,
+    onMoveShouldSetPanResponder: () => !latestPropsRef.current.disabled,
     onPanResponderGrant: event => {
+      const current = latestPropsRef.current;
       const {pageX, pageY} = event.nativeEvent;
       startedRef.current = {pageX, pageY};
-      armedThisGestureRef.current = props.selected;
+      armedThisGestureRef.current = current.selected;
       draggingThisGestureRef.current = false;
-      suppressPressRef.current = props.selected;
+      movedBeforeArmRef.current = false;
       clearTimer();
-      if (props.selected) return;
+      if (current.selected) return;
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         armedThisGestureRef.current = true;
-        suppressPressRef.current = true;
-        props.onArm(startedRef.current.pageX, startedRef.current.pageY);
+        latestPropsRef.current.onArm(startedRef.current.pageX, startedRef.current.pageY);
       }, TASK_LAYOUT_LONG_PRESS_MS);
     },
     onPanResponderMove: (_event, gesture) => {
       const travelled = distance(gesture.dx, gesture.dy);
-      if (!armedThisGestureRef.current && !selectedRef.current) {
-        if (travelled > TASK_LAYOUT_PRE_ARM_SLOP_DP) clearTimer();
+      if (!armedThisGestureRef.current && !latestPropsRef.current.selected) {
+        if (travelled > TASK_LAYOUT_PRE_ARM_SLOP_DP) {
+          movedBeforeArmRef.current = true;
+          clearTimer();
+        }
         return;
       }
       if (!draggingThisGestureRef.current && travelled > TASK_LAYOUT_DRAG_START_SLOP_DP) {
-        draggingThisGestureRef.current = true;
-        suppressPressRef.current = true;
-        props.onStartDrag(gesture.moveX, gesture.moveY);
+        const started = latestPropsRef.current.onStartDrag(gesture.moveX, gesture.moveY);
+        if (started) {
+          draggingThisGestureRef.current = true;
+        }
       }
-      if (draggingThisGestureRef.current) props.onDragMove(gesture.moveX, gesture.moveY);
+      if (draggingThisGestureRef.current) {
+        latestPropsRef.current.onDragMove(gesture.moveX, gesture.moveY);
+      }
     },
     onPanResponderRelease: () => {
       clearTimer();
-      if (draggingThisGestureRef.current) props.onRelease();
-      suppressPressRef.current = armedThisGestureRef.current || props.selected;
+      if (draggingThisGestureRef.current) {
+        latestPropsRef.current.onRelease();
+      } else if (!armedThisGestureRef.current &&
+          !movedBeforeArmRef.current &&
+          !latestPropsRef.current.selected) {
+        latestPropsRef.current.onPress();
+      }
       armedThisGestureRef.current = false;
       draggingThisGestureRef.current = false;
-      setTimeout(() => {
-        suppressPressRef.current = false;
-      }, 0);
+      movedBeforeArmRef.current = false;
     },
     onPanResponderTerminate: () => {
       clearTimer();
-      if (draggingThisGestureRef.current) props.onCancel();
+      if (draggingThisGestureRef.current) latestPropsRef.current.onCancel();
       armedThisGestureRef.current = false;
       draggingThisGestureRef.current = false;
-      suppressPressRef.current = true;
-      setTimeout(() => {
-        suppressPressRef.current = false;
-      }, 0);
+      movedBeforeArmRef.current = false;
     },
-    onPanResponderTerminationRequest: () => !armedThisGestureRef.current && !selectedRef.current,
-  }), [
-    clearTimer,
-    props.disabled,
-    props.onArm,
-    props.onCancel,
-    props.onDragMove,
-    props.onRelease,
-    props.onStartDrag,
-    props.selected,
-  ]);
+    // A touch that starts on a task belongs to the task. Page scrolling remains
+    // available from the surrounding map, but the native ScrollView cannot
+    // steal a long-press before its one-second timer fires.
+    onPanResponderTerminationRequest: () => false,
+  }), [clearTimer]);
 
   const point = projectTaskToQuadrantMap(props.task, props.nowInput);
   const meta = QUADRANT_HOME_META[props.quadrant];
@@ -235,8 +288,10 @@ function LayoutTaskNode(props: Readonly<{
           zIndex: 8,
         },
       ]}>
-      <Pressable
+      <Animated.View
+        accessible
         accessibilityActions={[
+          {name: 'activate', label: '打开任务'},
           {name: 'moveQ1', label: '移动到救火区'},
           {name: 'moveQ2', label: '移动到成长区'},
           {name: 'moveQ3', label: '移动到干扰区'},
@@ -251,16 +306,17 @@ function LayoutTaskNode(props: Readonly<{
         accessibilityValue={{
           text: `${props.task.title}，${meta.title}，${dueLabel}，${firstStepLabel}，进度 ${point.progress}%`,
         }}
-        disabled={props.disabled}
-        hitSlop={4}
+        focusable={!props.disabled}
         onAccessibilityAction={event => {
+          if (props.disabled) return;
+          if (event.nativeEvent.actionName === 'activate') {
+            props.onPress();
+            return;
+          }
           const target = ({moveQ1: 'Q1', moveQ2: 'Q2', moveQ3: 'Q3', moveQ4: 'Q4'} as const)[event.nativeEvent.actionName as 'moveQ1'];
           if (target !== undefined) props.onAccessibleMove(target);
         }}
         onLayout={event => props.onLayoutSize(event.nativeEvent.layout)}
-        onPress={() => {
-          if (!suppressPressRef.current) props.onPress();
-        }}
         style={[
           styles.mapNode,
           props.dark && styles.mapNodeDark,
@@ -279,7 +335,7 @@ function LayoutTaskNode(props: Readonly<{
           style={[styles.nodeTitle, props.dark && styles.nodeTitleDark]}>
           {getCompactTaskLabel(props.task.title, props.largeText ? 14 : 22)}
         </Text>
-      </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -296,8 +352,19 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
   const modeRef = React.useRef<TaskLayoutMode>(mode);
   const modeGenerationRef = React.useRef(0);
   const [placements, setPlacements] = React.useState<Readonly<Record<string, QuadrantPlacement>>>({});
-  const [, setLayoutRevision] = React.useState(0);
+  const [layoutRevision, setLayoutRevision] = React.useState(0);
+  const [placementsHydratedKey, setPlacementsHydratedKey] = React.useState('');
+  const autoPlacementPersistingRef = React.useRef(false);
   modeRef.current = mode;
+
+  const taskIdsKey = React.useMemo(
+    () => props.tasks.map(task => task.id).sort().join('\u0000'),
+    [props.tasks],
+  );
+  const taskIds = React.useMemo(
+    () => new Set(taskIdsKey === '' ? [] : taskIdsKey.split('\u0000')),
+    [taskIdsKey],
+  );
 
   const activeTask = mode.status === 'idle'
     ? null
@@ -312,15 +379,101 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
 
   React.useEffect(() => {
     let current = true;
-    const taskIds = new Set(props.tasks.map(task => task.id));
     void props.repository.read(taskIds).then(value => {
-      if (current) setPlacements(value);
+      if (current) {
+        setPlacements(value);
+        setPlacementsHydratedKey(taskIdsKey);
+      }
     }).catch(() => undefined);
     void props.repository.removeOrphans(taskIds).catch(() => undefined);
     return () => {
       current = false;
     };
-  }, [props.repository, props.tasks]);
+  }, [props.repository, taskIds, taskIdsKey]);
+
+  const resolvedPlacements = React.useMemo(() => {
+    const resolved: Record<string, QuadrantPlacement> = {};
+    for (const quadrant of ['Q1', 'Q2', 'Q3', 'Q4'] as const) {
+      const quadrantTasks = props.tasks
+        .filter(task => effectiveQuadrantForTask(task, props.nowInput) === quadrant);
+      const tasks = selectMapTaskNodes(
+        quadrantTasks,
+        mode.status === 'idle' ? null : mode.taskId,
+        props.recommendedId,
+      )
+        .slice()
+        .sort((left, right) =>
+          left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id));
+      const taskIds = new Set(tasks.map(task => task.id));
+      const existing = Object.fromEntries(
+        Object.entries(placements).filter(([taskId]) => taskIds.has(taskId)),
+      );
+      const rect = quadrantRectsRef.current[quadrant];
+      const contentRect = rect === undefined
+        ? DEFAULT_QUADRANT_CONTENT_RECT
+        : contentRectForQuadrant(rect);
+      Object.assign(resolved, assignAvailablePlacements({
+        candidates: tasks.map(task => ({
+          id: task.id,
+          desired: nearestPackingPlacement({
+            desired: fallbackPlacement(task, props.nowInput),
+            contentRect,
+            taskSize: nodeSizesRef.current[task.id] ?? DEFAULT_NODE_SIZE,
+          }),
+          size: nodeSizesRef.current[task.id] ?? DEFAULT_NODE_SIZE,
+        })),
+        existing,
+        contentRect,
+        ...(quadrantTasks.length > QUADRANT_NODE_SLOTS.length
+          ? {reserved: [overflowReservation(contentRect)]}
+          : {}),
+      }));
+    }
+    return resolved;
+  }, [layoutRevision, mode, placements, props.nowInput, props.recommendedId, props.tasks]);
+
+  React.useEffect(() => {
+    if (
+      placementsHydratedKey !== taskIdsKey ||
+      layoutRevision === 0 ||
+      autoPlacementPersistingRef.current
+    ) return;
+    const pendingPlacements = props.tasks.filter(task => {
+      const resolved = resolvedPlacements[task.id];
+      const persisted = placements[task.id];
+      return resolved !== undefined &&
+        (persisted === undefined || placementsDiffer(persisted, resolved));
+    });
+    if (pendingPlacements.length === 0) return;
+    autoPlacementPersistingRef.current = true;
+    void (async () => {
+      const committed: Record<string, QuadrantPlacement> = {};
+      for (const task of pendingPlacements) {
+        const placement = resolvedPlacements[task.id];
+        if (placement !== undefined) committed[task.id] = placement;
+      }
+      try {
+        await props.repository.upsertMany(committed);
+      } catch {
+        // The collision-free in-memory placement remains active. A later
+        // layout/task refresh can retry persistence without moving the cards.
+        return;
+      }
+      if (Object.keys(committed).length > 0) {
+        setPlacements(current => ({...current, ...committed}));
+      }
+    })().finally(() => {
+      autoPlacementPersistingRef.current = false;
+    });
+  }, [
+    layoutRevision,
+    placements,
+    placementsHydratedKey,
+    props.repository,
+    props.tasks,
+    resolvedPlacements,
+    taskIdsKey,
+  ]);
 
   React.useEffect(() => {
     if (mode.status !== 'idle' && !props.tasks.some(task => task.id === mode.taskId)) exitMode();
@@ -345,12 +498,15 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
   const measureMap = React.useCallback(() => {
     gridRef.current?.measureInWindow((left, top, width, height) => {
       if (width <= 0 || height <= 0) return;
-      gridBoundsRef.current = {left, top, width, height};
+      const nextBounds = {left, top, width, height};
       const next: Partial<Record<Quadrant, LayoutRect>> = {};
       let pending = 4;
       const finish = () => {
         pending -= 1;
-        if (pending === 0) {
+        if (pending === 0 && Object.keys(next).length === 4) {
+          // Publish one complete measurement snapshot. Drag startup must never
+          // observe new grid bounds paired with stale or partial quadrant rects.
+          gridBoundsRef.current = nextBounds;
           quadrantRectsRef.current = next;
           setLayoutRevision(value => value + 1);
         }
@@ -380,7 +536,7 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
   }, [measureMap, props.largeText, props.tasks.length]);
 
   function placementFor(task: Task): QuadrantPlacement {
-    return placements[task.id] ?? fallbackPlacement(task, props.nowInput);
+    return resolvedPlacements[task.id] ?? fallbackPlacement(task, props.nowInput);
   }
 
   function positionFor(task: Task, quadrant: Quadrant): Readonly<{left: number; top: number}> {
@@ -410,6 +566,7 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
       originPlacement: placementFor(task),
     };
     modeRef.current = next;
+    props.onDraggingChange(true);
     dispatch({
       type: 'arm',
       taskId: task.id,
@@ -419,14 +576,16 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
     AccessibilityInfo.announceForAccessibility('已选中，可拖动改变位置或象限；点击其他区域退出布局模式。');
   }
 
-  function startDragging(task: Task, pageX: number, pageY: number): void {
+  function startDragging(task: Task, pageX: number, pageY: number): boolean {
     const current = modeRef.current;
-    if (current.status !== 'armed' || current.taskId !== task.id) return;
+    if (current.status !== 'armed' || current.taskId !== task.id) return false;
     const bounds = gridBoundsRef.current;
     const rect = quadrantRectsRef.current[current.originQuadrant];
     if (bounds === null || rect === undefined) {
       measureMap();
-      return;
+      // The node keeps its local gesture in the armed state. A subsequent move
+      // retries startup instead of becoming a dead, locally-dragging gesture.
+      return false;
     }
     const size = nodeSizesRef.current[task.id] ?? DEFAULT_NODE_SIZE;
     const center = constrainTaskCenter(
@@ -453,6 +612,7 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
       candidateQuadrant: current.originQuadrant,
     });
     props.onDraggingChange(true);
+    return true;
   }
 
   function moveDragging(pageX: number, pageY: number): void {
@@ -476,10 +636,43 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
     }
   }
 
+  function packedPlacementsForMove(
+    task: Task,
+    targetQuadrant: Quadrant,
+    desired: QuadrantPlacement,
+  ): Readonly<Record<string, QuadrantPlacement>> {
+    const targetRect = quadrantRectsRef.current[targetQuadrant];
+    if (targetRect === undefined) return {[task.id]: desired};
+    const contentRect = contentRectForQuadrant(targetRect);
+    const targetTasks = props.tasks.filter(candidate =>
+      candidate.id !== task.id &&
+      effectiveQuadrantForTask(candidate, props.nowInput) === targetQuadrant);
+    const visible = selectMapTaskNodes(
+      [...targetTasks, task],
+      task.id,
+      props.recommendedId,
+    );
+    const taskSize = nodeSizesRef.current[task.id] ?? DEFAULT_NODE_SIZE;
+    return reflowPackedPlacements({
+      pinned: {id: task.id, desired, size: taskSize},
+      candidates: visible.map(candidate => ({
+        id: candidate.id,
+        desired: candidate.id === task.id ? desired : placementFor(candidate),
+        size: nodeSizesRef.current[candidate.id] ?? DEFAULT_NODE_SIZE,
+      })),
+      contentRect,
+      ...(targetTasks.length + 1 > QUADRANT_NODE_SLOTS.length
+        ? {reserved: [overflowReservation(contentRect)]}
+        : {}),
+    });
+  }
+
   async function releaseDragging(): Promise<void> {
     const current = modeRef.current;
     if (current.status !== 'dragging') return;
-    props.onDraggingChange(false);
+    // Releasing settles back into the persistent armed layout mode, so keep the
+    // page scroll locked until the user exits by tapping outside the task.
+    props.onDraggingChange(true);
     const targetQuadrant = current.candidateQuadrant;
     const targetRect = targetQuadrant === null ? undefined : quadrantRectsRef.current[targetQuadrant];
     const task = props.tasks.find(candidate => candidate.id === current.taskId);
@@ -495,19 +688,8 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
       y: overlayTopLeftRef.current.y + size.height / 2,
     }, contentRect, size);
     const desired = normalizePointInRect(desiredCenter, contentRect);
-    const occupied = props.tasks
-      .filter(candidate => candidate.id !== current.taskId &&
-        effectiveQuadrantForTask(candidate, props.nowInput) === targetQuadrant)
-      .map(candidate => ({
-        placement: placementFor(candidate),
-        size: nodeSizesRef.current[candidate.id] ?? DEFAULT_NODE_SIZE,
-      }));
-    const targetPlacement = nearestAvailablePlacement({
-      desired,
-      contentRect,
-      taskSize: size,
-      occupied,
-    });
+    const targetPlacements = packedPlacementsForMove(task, targetQuadrant, desired);
+    const targetPlacement = targetPlacements[current.taskId] ?? desired;
     modeRef.current = {status: 'committing', taskId: current.taskId};
     dispatch({type: 'commit'});
     const commitGeneration = modeGenerationRef.current;
@@ -518,9 +700,10 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
         originPlacement: current.originPlacement,
         targetQuadrant,
         targetPlacement,
+        targetPlacements,
       });
       if (commitGeneration !== modeGenerationRef.current) return;
-      setPlacements(value => ({...value, [current.taskId]: targetPlacement}));
+      setPlacements(value => ({...value, ...targetPlacements}));
       const settled: TaskLayoutMode = {
         status: 'armed',
         taskId: current.taskId,
@@ -553,20 +736,27 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
     const targetPlacement = targetQuadrant === originQuadrant
       ? originPlacement
       : {xRatio: 0.5, yRatio: 0.5};
+    const targetPlacements = packedPlacementsForMove(
+      task,
+      targetQuadrant,
+      targetPlacement,
+    );
+    const settledPlacement = targetPlacements[task.id] ?? targetPlacement;
     armTask(task);
     void props.onCommit({
       taskId: task.id,
       originQuadrant,
       originPlacement,
       targetQuadrant,
-      targetPlacement,
+      targetPlacement: settledPlacement,
+      targetPlacements,
     }).then(() => {
-      setPlacements(value => ({...value, [task.id]: targetPlacement}));
+      setPlacements(value => ({...value, ...targetPlacements}));
       dispatch({
         type: 'arm',
         taskId: task.id,
         originQuadrant: targetQuadrant,
-        originPlacement: targetPlacement,
+        originPlacement: settledPlacement,
       });
     }).catch(() => undefined);
   }
@@ -585,7 +775,7 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
               const meta = QUADRANT_HOME_META[quadrant];
               const quadrantTasks = props.tasks.filter(task =>
                 effectiveQuadrantForTask(task, props.nowInput) === quadrant);
-              const visible = selectVisibleQuadrantTasks(
+              const visible = selectMapTaskNodes(
                 quadrantTasks,
                 mode.status === 'idle' ? null : mode.taskId,
                 props.recommendedId,
@@ -599,6 +789,7 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
                   }}
                   style={[
                     styles.mapCell,
+                    quadrantMapCellCornerRadii(quadrant),
                     {backgroundColor: props.dark ? '#18312C' : meta.tint},
                     dragTarget === quadrant && styles.dragTarget,
                   ]}>
@@ -635,10 +826,10 @@ export function QuadrantTaskMap(props: QuadrantTaskMapProps): React.JSX.Element 
                         onAccessibleMove={target => accessibleMove(task, target)}
                         onArm={() => armTask(task)}
                         onCancel={() => {
-                          props.onDraggingChange(false);
                           if (modeRef.current.status === 'dragging') {
                             modeRef.current = taskLayoutReducer(modeRef.current, {type: 'cancel_drag'});
                             dispatch({type: 'cancel_drag'});
+                            props.onDraggingChange(true);
                           }
                         }}
                         onDragMove={moveDragging}
@@ -715,7 +906,7 @@ const styles = StyleSheet.create({
   axis: {color: '#4D625D', fontSize: 12, fontWeight: '800'},
   axisDark: {color: '#B8CCC7'},
   axisRight: {textAlign: 'right'},
-  mapGrid: {height: 430, borderWidth: 1, borderColor: '#A9B9B5', borderRadius: 18, overflow: 'hidden'},
+  mapGrid: {height: 430, borderWidth: 1, borderColor: '#A9B9B5', borderRadius: MAP_GRID_RADIUS, overflow: 'hidden'},
   mapRow: {flex: 1, flexDirection: 'row'},
   mapCell: {flex: 1, borderWidth: StyleSheet.hairlineWidth, borderColor: '#A9B9B5', minHeight: 200, overflow: 'hidden'},
   dragTarget: {borderWidth: 3, borderColor: '#1F7466'},
@@ -743,6 +934,6 @@ const styles = StyleSheet.create({
   dragOverlayDark: {backgroundColor: '#24423C'},
   overlayTitleDark: {color: '#F5FAF8'},
   modeHint: {color: '#244D46', fontSize: 13, fontWeight: '900', textAlign: 'center'},
-  overflowBadge: {position: 'absolute', right: 8, bottom: 8, zIndex: 9, borderRadius: 10, backgroundColor: '#FFFFFF', paddingHorizontal: 8, paddingVertical: 5},
+  overflowBadge: {position: 'absolute', right: 4, bottom: 4, zIndex: 9, width: DEFAULT_NODE_SIZE.width, minHeight: DEFAULT_NODE_SIZE.height, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 5},
   overflowText: {color: '#35534E', fontSize: 11, fontWeight: '800'},
 });

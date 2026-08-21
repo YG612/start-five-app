@@ -5,7 +5,7 @@ import {
   INSIGHT_COOLDOWN_MILLISECONDS,
   selectGrowthInsight,
 } from '../../src/domain/growthInsights';
-import type {FocusSession} from '../../src/domain/focusSession';
+import type {CurrentFocusSession as FocusSession} from '../../src/domain/focusSession';
 import {makeTask} from '../locked/fixtures/taskFactory';
 import {
   QUADRANT_HOME_PREFERENCES_KEY,

@@ -6,6 +6,7 @@ describe('P19 internal Android package isolation', () => {
 
     expect(buildGradle).toMatch(/internal\s*\{[\s\S]*applicationIdSuffix\s+"\.internal"/);
     expect(buildGradle).toMatch(/internal\s*\{[\s\S]*versionNameSuffix\s+"-internal"/);
+    expect(buildGradle).toMatch(/internal\s*\{[\s\S]*resValue\s+"string",\s*"app_name",\s*"先做5分钟 Internal"/);
     expect(buildGradle).toMatch(/defaultConfig\s*\{[\s\S]*applicationId\s+"com\.startfive\.app"/);
   });
 });

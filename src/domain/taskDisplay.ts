@@ -48,6 +48,6 @@ export function compactTaskLabelConfig(
   if (quadrantTaskCount <= 3) {
     return {maxEquivalentChars: 12, maxWidth: 104, numberOfLines: 2};
   }
-  return {maxEquivalentChars: 8, maxWidth: 84, numberOfLines: 1};
+  return {maxEquivalentChars: 10, maxWidth: 84, numberOfLines: 2};
 }
 

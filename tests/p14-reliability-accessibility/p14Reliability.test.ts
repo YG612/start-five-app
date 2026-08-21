@@ -51,7 +51,7 @@ function session(
   return {
     id,
     taskId: 'task',
-    plannedMinutes: minutes,
+    plannedMinutes: minutes as FocusSession['plannedMinutes'],
     status,
     startedAt,
     plannedEndAt,

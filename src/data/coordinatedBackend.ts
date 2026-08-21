@@ -6,9 +6,16 @@ export type CoordinatedBackend = AsyncKeyValueBackend & Readonly<{
   readonly startFiveAtomic?: unknown;
 }>;
 
+const coordinatedBackends = new WeakMap<object, CoordinatedBackend>();
+
 export function createCoordinatedBackend(
   raw: AsyncKeyValueBackend,
 ): CoordinatedBackend {
+  const existing = coordinatedBackends.get(raw);
+  if (existing !== undefined) {
+    return existing;
+  }
+
   let tail = Promise.resolve();
 
   function enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -44,7 +51,7 @@ export function createCoordinatedBackend(
         }
       : undefined;
 
-  return {
+  const coordinated: CoordinatedBackend = {
     raw,
     getItem: key => enqueue(() => raw.getItem(key)),
     setItem: (key, value) => enqueue(() => raw.setItem(key, value)),
@@ -54,4 +61,6 @@ export function createCoordinatedBackend(
       ? {}
       : {startFiveAtomic: coordinatedAtomic}),
   };
+  coordinatedBackends.set(raw, coordinated);
+  return coordinated;
 }

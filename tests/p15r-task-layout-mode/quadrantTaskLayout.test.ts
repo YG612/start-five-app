@@ -2,12 +2,15 @@ import {
   TASK_LAYOUT_DRAG_START_SLOP_DP,
   TASK_LAYOUT_LONG_PRESS_MS,
   TASK_LAYOUT_PRE_ARM_SLOP_DP,
+  assignAvailablePlacements,
   constrainTaskCenter,
   nearestAvailablePlacement,
+  nearestPackingPlacement,
   normalizePointInRect,
   placementsDiffer,
   pointForPlacement,
   quadrantAtTaskCenter,
+  reflowPackedPlacements,
   taskLayoutReducer,
 } from '../../src/domain/quadrantTaskLayout';
 import {
@@ -177,6 +180,107 @@ describe('P15R-04B persistent task layout mode', () => {
     expect(available.yRatio).toBeLessThanOrEqual(1);
   });
 
+  it('places a newly added card with the same anti-overlap logic as dragging', () => {
+    const rect = {x: 0, y: 0, width: 152, height: 163};
+    const placements = assignAvailablePlacements({
+      contentRect: rect,
+      existing: {existing: {xRatio: 0.5, yRatio: 0.35}},
+      candidates: [
+        {id: 'existing', desired: {xRatio: 0.5, yRatio: 0.35}, size: {width: 76, height: 52}},
+        {id: 'new', desired: {xRatio: 0.5, yRatio: 0.35}, size: {width: 76, height: 52}},
+      ],
+    });
+
+    expect(placements.existing).toEqual({xRatio: 0.5, yRatio: 0.35});
+    expect(placements.new).toBeDefined();
+    expect(placementsDiffer(placements.new!, placements.existing!)).toBe(true);
+    const existingCenter = constrainTaskCenter(
+      pointForPlacement(placements.existing!, rect),
+      rect,
+      {width: 76, height: 52},
+    );
+    const newCenter = constrainTaskCenter(
+      pointForPlacement(placements.new!, rect),
+      rect,
+      {width: 76, height: 52},
+    );
+    expect(Math.abs(existingCenter.x - newCenter.x) >= 76 ||
+      Math.abs(existingCenter.y - newCenter.y) >= 52).toBe(true);
+  });
+
+  it('reflows six consecutively added cards when a centered legacy card blocks every free route', () => {
+    const rect = {x: 0, y: 0, width: 152, height: 163};
+    const size = {width: 76, height: 52};
+    const desired = nearestPackingPlacement({
+      desired: {xRatio: 0.6, yRatio: 0.39},
+      contentRect: rect,
+      taskSize: size,
+    });
+    const candidates = Array.from({length: 6}, (_, index) => ({
+      id: `task-${index + 1}`,
+      desired,
+      size,
+    }));
+    const placements = assignAvailablePlacements({
+      contentRect: rect,
+      existing: {
+        'task-1': {xRatio: 0.5, yRatio: 0.5},
+        'task-2': {xRatio: 0.5, yRatio: 0.5},
+      },
+      candidates,
+    });
+
+    const centers = candidates.map(candidate => constrainTaskCenter(
+      pointForPlacement(placements[candidate.id]!, rect),
+      rect,
+      size,
+    ));
+    for (let left = 0; left < centers.length; left += 1) {
+      for (let right = left + 1; right < centers.length; right += 1) {
+        expect(
+          Math.abs(centers[left]!.x - centers[right]!.x) >= size.width ||
+          Math.abs(centers[left]!.y - centers[right]!.y) >= size.height,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('pins the dragged card to its desktop slot and pushes the occupying cards away', () => {
+    const rect = {x: 0, y: 0, width: 152, height: 163};
+    const size = {width: 76, height: 52};
+    const target = nearestPackingPlacement({
+      desired: {xRatio: 0.75, yRatio: 0.5},
+      contentRect: rect,
+      taskSize: size,
+    });
+    const placements = reflowPackedPlacements({
+      contentRect: rect,
+      pinned: {id: 'dragged', desired: target, size},
+      candidates: [
+        {id: 'occupant', desired: target, size},
+        {id: 'dragged', desired: target, size},
+        {id: 'neighbor', desired: {xRatio: 0.25, yRatio: 0.5}, size},
+      ],
+    });
+
+    expect(placements.dragged).toEqual(target);
+    expect(placements.occupant).toBeDefined();
+    expect(placementsDiffer(placements.occupant!, target)).toBe(true);
+    const centers = Object.values(placements).map(placement => constrainTaskCenter(
+      pointForPlacement(placement, rect),
+      rect,
+      size,
+    ));
+    for (let left = 0; left < centers.length; left += 1) {
+      for (let right = left + 1; right < centers.length; right += 1) {
+        expect(
+          Math.abs(centers[left]!.x - centers[right]!.x) >= size.width ||
+          Math.abs(centers[left]!.y - centers[right]!.y) >= size.height,
+        ).toBe(true);
+      }
+    }
+  });
+
   it('persists valid records, isolates one corrupt record and removes orphans', async () => {
     const backend = new WorkspaceBackend();
     await backend.setItem(QUADRANT_TASK_LAYOUT_STORAGE_KEY, JSON.stringify({
@@ -193,8 +297,17 @@ describe('P15R-04B persistent task layout mode', () => {
       valid: {xRatio: 0.25, yRatio: 0.75},
     });
     await repository.upsert('next', {xRatio: 0.5, yRatio: 0.5});
+    await repository.upsertMany({
+      next: {xRatio: 0.25, yRatio: 0.25},
+      another: {xRatio: 0.75, yRatio: 0.75},
+    });
+    await expect(repository.read()).resolves.toEqual({
+      valid: {xRatio: 0.25, yRatio: 0.75},
+      next: {xRatio: 0.25, yRatio: 0.25},
+      another: {xRatio: 0.75, yRatio: 0.75},
+    });
     await repository.removeOrphans(new Set(['next']));
-    await expect(repository.read()).resolves.toEqual({next: {xRatio: 0.5, yRatio: 0.5}});
+    await expect(repository.read()).resolves.toEqual({next: {xRatio: 0.25, yRatio: 0.25}});
   });
 
   it('exports schema v4 and restores task placements with the task identity intact', async () => {

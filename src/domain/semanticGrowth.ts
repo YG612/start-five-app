@@ -1,4 +1,7 @@
-import type {FocusContextSnapshot, FocusSession} from './focusSession';
+import type {
+  FocusContextSnapshot,
+  CurrentFocusSession as FocusSession,
+} from './focusSession';
 import type {Task} from './task';
 import {effectiveQuadrantForTask} from './taskPriority';
 import {normalizeStuckRepairRecord, type TaskWithSupport} from './taskSupport';

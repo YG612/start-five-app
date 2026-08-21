@@ -5,7 +5,7 @@ import {POST_FOCUS_REVIEW_STORAGE_KEY} from '../data/postFocusReviewRepository';
 import type {TaskBackupAdapter} from '../data/taskRepository';
 import {validateDayClosureBackup} from '../data/dayClosureRepository';
 import {validateFirstActivationBackup} from '../data/firstActivationRepository';
-import {validateFocusSessionBackup} from '../data/focusSessionRepository';
+import {validateFocusSessionBackup} from '../data/focusSessionBackupValidation';
 import {
   FOCUS_SCHEDULE_STORAGE_KEY,
   validateFocusScheduleBackup,

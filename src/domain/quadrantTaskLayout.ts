@@ -15,6 +15,12 @@ export type QuadrantTaskLayoutRecord = Readonly<{
   placement: QuadrantPlacement;
 }>;
 
+export type PlacementCandidate = Readonly<{
+  id: string;
+  desired: QuadrantPlacement;
+  size: LayoutSize;
+}>;
+
 export type LayoutRect = Readonly<{
   x: number;
   y: number;
@@ -259,6 +265,186 @@ export function nearestAvailablePlacement(input: Readonly<{
     ),
     input.contentRect,
   );
+}
+
+export function nearestPackingPlacement(input: Readonly<{
+  desired: QuadrantPlacement;
+  contentRect: LayoutRect;
+  taskSize: LayoutSize;
+}>): QuadrantPlacement {
+  const columns = Math.max(
+    1,
+    Math.floor(input.contentRect.width / Math.max(1, input.taskSize.width)),
+  );
+  const rows = Math.max(
+    1,
+    Math.floor(input.contentRect.height / Math.max(1, input.taskSize.height)),
+  );
+  const placements: QuadrantPlacement[] = [];
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const x = columns === 1
+        ? input.contentRect.x + input.contentRect.width / 2
+        : input.contentRect.x + input.taskSize.width / 2 +
+          column * (input.contentRect.width - input.taskSize.width) / (columns - 1);
+      const y = rows === 1
+        ? input.contentRect.y + input.contentRect.height / 2
+        : input.contentRect.y + input.taskSize.height / 2 +
+          row * (input.contentRect.height - input.taskSize.height) / (rows - 1);
+      placements.push(normalizePointInRect({x, y}, input.contentRect));
+    }
+  }
+  const desired = clampPlacement(input.desired);
+  return placements.sort((left, right) => {
+    const leftDistance = (left.xRatio - desired.xRatio) ** 2 +
+      (left.yRatio - desired.yRatio) ** 2;
+    const rightDistance = (right.xRatio - desired.xRatio) ** 2 +
+      (right.yRatio - desired.yRatio) ** 2;
+    return leftDistance - rightDistance ||
+      left.yRatio - right.yRatio ||
+      left.xRatio - right.xRatio;
+  })[0] ?? desired;
+}
+
+export function assignAvailablePlacements(input: Readonly<{
+  candidates: readonly PlacementCandidate[];
+  existing: Readonly<Record<string, QuadrantPlacement>>;
+  contentRect: LayoutRect;
+  reserved?: readonly Readonly<{
+    placement: QuadrantPlacement;
+    size: LayoutSize;
+  }>[];
+  divisions?: number;
+}>): Readonly<Record<string, QuadrantPlacement>> {
+  const sizeById = new Map(input.candidates.map(candidate => [candidate.id, candidate.size]));
+  const place = (
+    existing: Readonly<Record<string, QuadrantPlacement>>,
+  ): Record<string, QuadrantPlacement> => {
+    const resolved: Record<string, QuadrantPlacement> = {};
+    const occupied: Array<Readonly<{
+      placement: QuadrantPlacement;
+      size: LayoutSize;
+    }>> = (input.reserved ?? []).map(item => ({
+      placement: clampPlacement(item.placement),
+      size: item.size,
+    }));
+    for (const candidate of input.candidates) {
+      const placement = existing[candidate.id];
+      if (placement === undefined) continue;
+      const safePlacement = clampPlacement(placement);
+      resolved[candidate.id] = safePlacement;
+      occupied.push({
+        placement: safePlacement,
+        size: sizeById.get(candidate.id) ?? candidate.size,
+      });
+    }
+    for (const candidate of input.candidates) {
+      if (resolved[candidate.id] !== undefined) continue;
+      const placement = nearestAvailablePlacement({
+        desired: candidate.desired,
+        contentRect: input.contentRect,
+        taskSize: candidate.size,
+        occupied,
+        ...(input.divisions === undefined ? {} : {divisions: input.divisions}),
+      });
+      resolved[candidate.id] = placement;
+      occupied.push({placement, size: candidate.size});
+    }
+    return resolved;
+  };
+
+  const hasOverlap = (resolved: Readonly<Record<string, QuadrantPlacement>>): boolean =>
+    input.candidates.some((left, index) => {
+      const leftPlacement = resolved[left.id];
+      if (leftPlacement === undefined) return false;
+      const leftCenter = constrainTaskCenter(
+        pointForPlacement(leftPlacement, input.contentRect),
+        input.contentRect,
+        left.size,
+      );
+      const overlapsReserved = (input.reserved ?? []).some(item => overlaps(
+        leftCenter,
+        left.size,
+        constrainTaskCenter(
+          pointForPlacement(item.placement, input.contentRect),
+          input.contentRect,
+          item.size,
+        ),
+        item.size,
+      ));
+      return overlapsReserved || input.candidates.slice(index + 1).some(right => {
+        const rightPlacement = resolved[right.id];
+        if (rightPlacement === undefined) return false;
+        return overlaps(
+          leftCenter,
+          left.size,
+          constrainTaskCenter(
+            pointForPlacement(rightPlacement, input.contentRect),
+            input.contentRect,
+            right.size,
+          ),
+          right.size,
+        );
+      });
+    });
+
+  const preservingExisting = place(input.existing);
+  // A centered or legacy placement can leave no single-card escape route even
+  // when the quadrant can fit the whole set. Reflow only when overlap remains.
+  return hasOverlap(preservingExisting) ? place({}) : preservingExisting;
+}
+
+export function reflowPackedPlacements(input: Readonly<{
+  pinned: PlacementCandidate;
+  candidates: readonly PlacementCandidate[];
+  contentRect: LayoutRect;
+  reserved?: readonly Readonly<{
+    placement: QuadrantPlacement;
+    size: LayoutSize;
+  }>[];
+  divisions?: number;
+}>): Readonly<Record<string, QuadrantPlacement>> {
+  const packedPinnedPlacement = nearestPackingPlacement({
+    desired: input.pinned.desired,
+    contentRect: input.contentRect,
+    taskSize: input.pinned.size,
+  });
+  const reserved = (input.reserved ?? []).map(item => ({
+    placement: clampPlacement(item.placement),
+    size: item.size,
+  }));
+  const pinnedPlacement = nearestAvailablePlacement({
+    desired: packedPinnedPlacement,
+    contentRect: input.contentRect,
+    taskSize: input.pinned.size,
+    occupied: reserved,
+    ...(input.divisions === undefined ? {} : {divisions: input.divisions}),
+  });
+  const resolved: Record<string, QuadrantPlacement> = {
+    [input.pinned.id]: pinnedPlacement,
+  };
+  const occupied: Array<Readonly<{
+    placement: QuadrantPlacement;
+    size: LayoutSize;
+  }>> = [...reserved, {placement: pinnedPlacement, size: input.pinned.size}];
+  for (const candidate of input.candidates) {
+    if (candidate.id === input.pinned.id) continue;
+    const desired = nearestPackingPlacement({
+      desired: candidate.desired,
+      contentRect: input.contentRect,
+      taskSize: candidate.size,
+    });
+    const placement = nearestAvailablePlacement({
+      desired,
+      contentRect: input.contentRect,
+      taskSize: candidate.size,
+      occupied,
+      ...(input.divisions === undefined ? {} : {divisions: input.divisions}),
+    });
+    resolved[candidate.id] = placement;
+    occupied.push({placement, size: candidate.size});
+  }
+  return resolved;
 }
 
 export function placementsDiffer(

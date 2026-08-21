@@ -1,4 +1,5 @@
-export type FocusDurationMinutes = 2 | 5 | 15 | 25 | 45 | 50;
+export type FocusDurationMinutes = 2 | 5 | 15 | 25 | 50;
+export type CurrentFocusDurationMinutes = FocusDurationMinutes | 45;
 
 export type FocusSessionStatus = 'running' | 'completed' | 'interrupted';
 
@@ -24,13 +25,23 @@ export type FocusSession = Readonly<{
   interruptionReason: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Missing on legacy v1 records; new sessions always write a value. */
-  snapshot?: FocusContextSnapshot | null;
 }>;
+
+export type CurrentFocusSession = Readonly<
+  FocusSession & {
+    /** Missing on legacy v1 records; current sessions persist start context. */
+    snapshot?: FocusContextSnapshot | null;
+  }
+>;
 
 export type FocusSessionInput = Readonly<{
   taskId: string;
   plannedMinutes: FocusDurationMinutes;
+}>;
+
+export type CurrentFocusSessionInput = Readonly<{
+  taskId: string;
+  plannedMinutes: CurrentFocusDurationMinutes;
   focusScheduleId?: string;
 }>;
 
@@ -51,4 +62,10 @@ export type FocusSessionQueryResult = Readonly<{
   taskId: string;
   sessions: readonly FocusSession[];
   activeSession: FocusSession | null;
+}>;
+
+export type CurrentFocusSessionQueryResult = Readonly<{
+  taskId: string;
+  sessions: readonly CurrentFocusSession[];
+  activeSession: CurrentFocusSession | null;
 }>;

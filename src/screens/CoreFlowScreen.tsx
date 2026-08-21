@@ -391,7 +391,7 @@ export function CoreFlowScreen({
     selectedTaskId: string;
     workspaceRecommendationTaskId: string | null;
   }> | null>(null);
-  const hydratedInProgressTaskIdsRef = useRef<readonly string[]>([]);
+  const hydratedFocusEligibleTaskIdsRef = useRef<readonly string[]>([]);
   const taskCompletionBlockedRef = useRef(false);
 
   taskCompletionBlockedRef.current =
@@ -501,8 +501,10 @@ export function CoreFlowScreen({
         if (!isCurrentServiceGeneration(generation)) {
           return;
         }
-        hydratedInProgressTaskIdsRef.current = state.tasks
-          .filter(task => task.status === 'in_progress')
+        hydratedFocusEligibleTaskIdsRef.current = state.tasks
+          .filter(task =>
+            task.status === 'in_progress' || selectNextStep(task) !== null,
+          )
           .map(task => task.id);
         const hydratedActiveTask =
           workspaceSelectedTaskId === null
@@ -532,7 +534,7 @@ export function CoreFlowScreen({
         if (!isCurrentServiceGeneration(generation)) {
           return;
         }
-        hydratedInProgressTaskIdsRef.current = [];
+        hydratedFocusEligibleTaskIdsRef.current = [];
         setErrorText(errorMessage(error));
         setLoaded(true);
       });
@@ -548,7 +550,7 @@ export function CoreFlowScreen({
   useEffect(() => {
     if (loaded) {
       persistentFocusRuntime?.notifyTaskHydrated(
-        hydratedInProgressTaskIdsRef.current,
+        hydratedFocusEligibleTaskIdsRef.current,
       );
     }
   }, [loaded, persistentFocusRuntime]);
@@ -1129,7 +1131,7 @@ export function CoreFlowScreen({
 
             {lastPoints !== null ? (
               <Text accessibilityLiveRegion="polite" style={styles.scoreText}>
-                  获得 {lastPoints} 成长值
+                  本次积分：{lastPoints}
               </Text>
             ) : null}
           </View>
