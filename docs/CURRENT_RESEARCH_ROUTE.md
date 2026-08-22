@@ -25,6 +25,7 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 | R20-01 契约处置 | PASS | `docs/R20_01_CONTRACT_DISPOSITION.md`；KEEP 1、MIGRATE 3、RETIRE 0、ISOLATE 4 |
 | 全量历史质量门 | PASS | authoritative accepted roots 连续两次：77/77 suites、839/839 tests PASS |
 | Android internal 构建 | PASS | `:app:assembleInternal`；APK SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df` |
+| R20-02 Android 设备矩阵 | `IN_PROGRESS / PENDING_DEVICE` | `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`；runner 与 4/4 契约测试完成，当前 ADB 设备数 0 |
 
 ## 2. 先用哪条阅读路线
 
@@ -76,6 +77,7 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 | P15R–P18 | 页面和交互是否围绕核心行动统一 | 四页架构、日程、语义成长、设置、1000ms 持续布局 | 已完成自动门；保持 schema 兼容 |
 | P19 | 能否安全退出、恢复、避免重复提交并进入发布验收 | 统一 Sheet、返回优先级、脏状态、草稿恢复、本地日期、独立 internal 包 | 自动能力已落地；继续设备与用户证据 |
 | R20-01 | 当前契约与历史质量门能否在不弱化断言的前提下统一 | 8 个根因有审计裁决；17 个 accepted roots 全绿 | PASS；下一门为 R20-02 Android 完整设备矩阵 |
+| R20-02 | 当前 Android 包能否通过尺寸、字体、主题、手势、可访问性与生命周期设备矩阵 | 48 组自动采集 runner 和可恢复设备设置边界已落地 | IN_PROGRESS；当前没有 online 设备，不伪造 DEVICE PASS |
 
 ## 4. P19 最新进展学习教程
 
@@ -171,6 +173,8 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 结束结论：R20-01 已关闭；当前主线转入 R20-02，不能把自动回归结果替代设备矩阵。
 
 ### R20-02：Android 完整设备矩阵
+
+状态：`IN_PROGRESS / PENDING_DEVICE`。当前执行记录见 `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`。
 
 以 `docs/P19_DEVICE_UTEST_ACCEPTANCE.md` 为唯一执行表，至少覆盖：
 

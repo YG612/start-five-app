@@ -71,6 +71,7 @@ ios/             iOS 原生工程
 
 - [`docs/CURRENT_RESEARCH_ROUTE.md`](docs/CURRENT_RESEARCH_ROUTE.md)：当前研究路线、最新进展教程、阅读顺序和下一阶段门禁；新读者从这里开始。
 - [`docs/R20_01_CONTRACT_DISPOSITION.md`](docs/R20_01_CONTRACT_DISPOSITION.md)：R20-01 当前契约与历史质量门的逐根因裁决及最终证据。
+- [`docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`](docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md)：R20-02 Android 设备矩阵的真实环境、自动采集工具、已通过门禁和待设备项目。
 - [`docs/P19_RELEASE_CONVERGENCE_AUDIT.md`](docs/P19_RELEASE_CONVERGENCE_AUDIT.md)：P19 全局交互可靠性与发布收口审计。
 - [`docs/P19_DEVICE_UTEST_ACCEPTANCE.md`](docs/P19_DEVICE_UTEST_ACCEPTANCE.md)：Android 完整设备与首次用户测试验收表。
 - [`docs/NEXT_CHAT_HANDOFF.md`](docs/NEXT_CHAT_HANDOFF.md)：阶段交接与当前工作上下文。
