@@ -7,7 +7,7 @@ R20-01 启动 HEAD：`418b785f62c4bc71e48d56317a90d033ffa6d75b`
 
 ## 1. 当前结论
 
-Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。P0–P18 的产品能力、P19 的共享交互可靠性源码和 R20-01 历史契约收口均已落地；当前仍不能标记 `RELEASE_READY`，因为完整 Android 人工验收、iOS 构建与真机、首次用户测试尚未完成。
+Start Five 已从“功能原型”进入“发布前可靠性收口”阶段，当前产品判断为 `INTERNAL_BETA / NOT_RELEASE_READY`。P0–P18 的产品能力、P19 的共享交互可靠性源码和 R20-01 历史契约收口均已落地；当前多视角问题审计已形成 `docs/CURRENT_PRODUCT_RISK_AUDIT.md`。完整 Android 人工验收、iOS 构建与真机、首次用户测试尚未完成，且设置失败闭环、错误诊断、真实指标采集、备份边界和反馈渠道仍需收口。
 
 当前有效状态：
 
@@ -26,6 +26,7 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 | 全量历史质量门 | PASS | authoritative accepted roots 连续两次：77/77 suites、839/839 tests PASS |
 | Android internal 构建 | PASS | `:app:assembleInternal`；APK SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df` |
 | R20-02 Android 设备矩阵 | `IN_PROGRESS / PENDING_DEVICE` | `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`；runner 与 4/4 契约测试完成，当前 ADB 设备数 0 |
+| 当前产品问题审计 | `AUDIT_CONFIRMED` | `docs/CURRENT_PRODUCT_RISK_AUDIT.md`；区分源码确认、设备待验证和用户研究假设 |
 
 ## 2. 先用哪条阅读路线
 
@@ -34,11 +35,12 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 按顺序阅读：
 
 1. 本文：理解阶段位置、证据边界和下一步。
-2. `docs/P19_RELEASE_CONVERGENCE_AUDIT.md`：查看真实界面清单、P0/P1/P2 和共同根因。
-3. `docs/CODEX_P15R_P18_PROGRESS.md`：查看 P15R–P19 的真实路径、schema、测试和 APK。
-4. `docs/P19_DEVICE_UTEST_ACCEPTANCE.md`：理解为什么当前还不能宣称正式发布完成。
+2. `docs/CURRENT_PRODUCT_RISK_AUDIT.md`：查看当前仍存在的问题、研究缺口和优先级。
+3. `docs/P19_RELEASE_CONVERGENCE_AUDIT.md`：查看真实界面清单、P0/P1/P2 和共同根因。
+4. `docs/CODEX_P15R_P18_PROGRESS.md`：查看 P15R–P19 的真实路径、schema、测试和 APK。
+5. `docs/P19_DEVICE_UTEST_ACCEPTANCE.md`：理解为什么当前还不能宣称正式发布完成。
 
-读完应能回答：核心闭环是否存在、P19 修了什么、哪些仅有自动证据、正式发布还缺什么。
+读完应能回答：核心闭环是否存在、P19 修了什么、当前还存在哪些问题、哪些仅有自动证据、正式发布还缺什么。
 
 ### 2.2 六十分钟理解产品研究演进
 
@@ -158,6 +160,8 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段。
 
 以下顺序是门禁，不建议并行引入新产品模块。
 
+`docs/CURRENT_PRODUCT_RISK_AUDIT.md` 中的 P0/P1/P2 不建立第二条阶段主线：设备、字体、拖动、通知和生命周期证据进入 R20-02；iOS 证据进入 R20-03；认知、可发现性和心理安全假设进入 R20-04；定点界面优化进入 R20-05；版本、签名、诊断和反馈治理进入 R20-06。设置静默失败、启动空白态和错误诊断属于进入发布候选前必须关闭的源码可靠性项。
+
 ### R20-01：历史契约兼容性收口
 
 状态：`PASS`（2026-08-22）。完整处置证据见 `docs/R20_01_CONTRACT_DISPOSITION.md`。
@@ -252,7 +256,8 @@ adb devices -l
 
 1. 当前源码、测试和构建产物。
 2. `docs/CURRENT_RESEARCH_ROUTE.md`。
-3. `docs/P19_RELEASE_CONVERGENCE_AUDIT.md`。
-4. `docs/CODEX_P15R_P18_PROGRESS.md`。
-5. 各阶段规格和历史执行指令。
-6. `docs/NEXT_CHAT_HANDOFF.md` 仅保留 P0–P6 历史交接背景，不再代表当前阶段。
+3. `docs/CURRENT_PRODUCT_RISK_AUDIT.md`。
+4. `docs/P19_RELEASE_CONVERGENCE_AUDIT.md`。
+5. `docs/CODEX_P15R_P18_PROGRESS.md`。
+6. 各阶段规格和历史执行指令。
+7. `docs/NEXT_CHAT_HANDOFF.md` 仅保留 P0–P6 历史交接背景，不再代表当前阶段。

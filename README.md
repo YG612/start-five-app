@@ -8,6 +8,8 @@
 
 截至 2026-08-22，P0–P18 产品阶段与 P19 发布前可靠性收口已推进到当前源码基线：
 
+> 当前产品阶段为功能较完整的内部 Beta，尚未达到 `RELEASE_READY`。最新多视角审计确认：设置持久化失败处理、错误诊断、启动空白态、真实指标采集、备份隐私/容量和生产反馈闭环仍需收口；Android 完整设备矩阵、iOS 真机与首次用户测试仍缺外部证据。详见 [`docs/CURRENT_PRODUCT_RISK_AUDIT.md`](docs/CURRENT_PRODUCT_RISK_AUDIT.md)。
+
 - 用四象限承载任务判断，但首页主动作保持为“先做5分钟”。
 - 支持任务创建、编辑、完成、恢复、删除、归档、搜索、筛选与批量整理。
 - 支持长任务步骤、执行计划、周期任务和专注记录。
@@ -70,6 +72,7 @@ ios/             iOS 原生工程
 ## 研究与重构资料
 
 - [`docs/CURRENT_RESEARCH_ROUTE.md`](docs/CURRENT_RESEARCH_ROUTE.md)：当前研究路线、最新进展教程、阅读顺序和下一阶段门禁；新读者从这里开始。
+- [`docs/CURRENT_PRODUCT_RISK_AUDIT.md`](docs/CURRENT_PRODUCT_RISK_AUDIT.md)：当前产品问题、研究缺口、证据分级与 P0/P1/P2 收口顺序。
 - [`docs/R20_01_CONTRACT_DISPOSITION.md`](docs/R20_01_CONTRACT_DISPOSITION.md)：R20-01 当前契约与历史质量门的逐根因裁决及最终证据。
 - [`docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`](docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md)：R20-02 Android 设备矩阵的真实环境、自动采集工具、已通过门禁和待设备项目。
 - [`docs/P19_RELEASE_CONVERGENCE_AUDIT.md`](docs/P19_RELEASE_CONVERGENCE_AUDIT.md)：P19 全局交互可靠性与发布收口审计。
