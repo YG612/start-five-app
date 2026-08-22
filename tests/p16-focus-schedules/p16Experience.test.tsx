@@ -78,6 +78,49 @@ describe('P16 focus schedule experience', () => {
     }
   });
 
+  it('ends focus cleanly when the task has no recordable first step', async () => {
+    const harness = createWorkspaceHarness(
+      new WorkspaceBackend(),
+      new WorkspaceClock(NOW),
+      new WorkspaceIds(['p16-no-step-task', 'p16-no-step-focus']),
+    );
+    const task = await createLifecycleTask(
+      harness,
+      {...TASK_INPUT, title: '发个红包', firstStep: null},
+      'p16:no-step:create',
+    );
+    const screen = await render(<harness.composition.AppRoot />);
+    try {
+      await waitFor(() => expect(screen.getByRole('button', {name: `成长区任务：${task.title}`})).toBeTruthy());
+      await fireEvent.press(screen.getByRole('button', {name: `先做5分钟：${task.title}`}));
+      await flushUiWork();
+      await waitFor(() => expect(screen.getByText('正在专注')).toBeTruthy());
+      expect(screen.getByText('继续当前这一小步')).toBeTruthy();
+
+      const closeGrowthNotice = screen.queryByRole('button', {name: '关闭成长提示'});
+      if (closeGrowthNotice !== null) {
+        await fireEvent.press(closeGrowthNotice);
+        await flushUiWork();
+      }
+      await fireEvent.press(screen.getByRole('button', {name: '这一步完成了'}));
+      await flushUiWork();
+
+      await waitFor(() => expect(screen.getAllByText('这几分钟推进得怎么样？').length).toBeGreaterThan(0));
+      expect(screen.queryByText('步骤记录失败，请重试。')).toBeNull();
+
+      const saved = await harness.composition.repository.getById(task.id);
+      expect(saved).toMatchObject({firstStep: null, firstStepCompletion: null});
+      const rewards = (saved as typeof saved & {
+        growthRewards?: readonly {businessKey: string}[];
+      } | null)?.growthRewards ?? [];
+      expect(rewards).not.toContainEqual(
+        expect.objectContaining({businessKey: `task-first-step:${task.id}`}),
+      );
+    } finally {
+      await screen.unmount();
+    }
+  });
+
   it('runs reduce-distractions quietly, deduplicates a background interruption, and offers the phone-exit rescue', async () => {
     const backend = new WorkspaceBackend();
     const clock = new WorkspaceClock(NOW);
@@ -127,9 +170,15 @@ describe('P16 focus schedule experience', () => {
       expect(screen.getByText('要不要再坚持 2 分钟后再决定？')).toBeTruthy();
       await fireEvent.press(screen.getByRole('button', {name: '再做 2 分钟'}));
       expect(screen.getByText('现在先做')).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', {name: '结束本次专注'}));
+      await flushUiWork();
+      await waitFor(() => expect(screen.getByRole('button', {name: '这一步还没做完'})).toBeTruthy());
+      await fireEvent.press(screen.getByRole('button', {name: '这一步还没做完'}));
+      await flushUiWork();
     } finally {
       appStateSpy.mockRestore();
       await screen.unmount();
     }
   });
+
 });

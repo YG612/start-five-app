@@ -2,7 +2,7 @@
 
 更新时间：2026-08-22（Asia/Shanghai）
 
-审计基线：`main`；R20-01 已关闭，R20-02 设备矩阵准备完成但无 online 设备
+审计基线：`main`；R20-01 已关闭，R20-02 Android 16 模拟器自动矩阵 48/48 通过，真机人工矩阵仍待执行
 
 产品阶段判断：`INTERNAL_BETA / NOT_RELEASE_READY`
 
@@ -35,7 +35,7 @@ Start Five 已经不是静态原型。P0–P19 的四象限任务闭环、专注
 | ID | 级别 | 类型 | 问题 | 用户/项目影响 | 当前证据 |
 | --- | --- | --- | --- | --- | --- |
 | AUD-P0-01 | P0 | `CONFIRMED_SOURCE` | 部分设置先更新 UI，持久化失败被静默吞掉 | 用户可能看到“成功”，重启后设置恢复原值 | `QuadrantHomeScreen.updateSettings` 的写入失败分支未回滚、未提示 |
-| AUD-P0-02 | P0 | `HIGH_RISK_PENDING_DEVICE` | Android 完整尺寸、字体、主题、拖动、Sheet、通知和生命周期矩阵未执行 | 不能确认核心交互在真实手机稳定 | R20-02 runner 已完成；当前 ADB 设备数 0 |
+| AUD-P0-02 | P0 | `HIGH_RISK_PENDING_DEVICE` | Android 模拟器尺寸、字体、主题和动效自动矩阵已通过，但拖动、Sheet、TalkBack、通知和生命周期真机人工矩阵未执行 | 不能确认核心交互在真实手机稳定 | Android 16 x86_64 模拟器 48/48 自动启动证据通过；自动证据不替代真机 |
 | AUD-P0-03 | P0 | `HIGH_RISK_PENDING_DEVICE` | iOS 尚无当前源码构建、VoiceOver 与真机证据 | 不能宣称双平台正式可用 | `PENDING_MACOS_XCODE` |
 | AUD-P0-04 | P0 | `CONFIRMED_SOURCE` | 默认产品指标端口为 No-op | 已设计的开始率、救援和成长指标不会形成真实研究数据 | `startFiveApp` 默认装配 `NoopProductMetricPort`；`App.tsx` 未注入持久化端口 |
 | AUD-P1-01 | P1 | `CONFIRMED_SOURCE` | 用户错误文案丢弃底层原因 | 所有失败趋向“请重试”，无法指导恢复，也难以定位问题 | `presentation/userCopy.ts` 的 `userFacingError` 不保留 reason |
@@ -235,7 +235,7 @@ Android 结果不能替代 iOS 证据，自动语义树也不能替代读屏用�
 1. 修复设置写入静默失败，统一失败回滚和重试。
 2. 建立错误代码、操作上下文和隐私安全的本地诊断日志。
 3. 增加启动加载、超时与恢复界面。
-4. 有设备后执行 R20-02，不用自动测试替代手工拖动、TalkBack、通知和重启。
+4. 使用已生成的 R20-02 自动证据作为基线，在 arm64 真机补齐手工拖动、TalkBack、通知和重启；不以模拟器自动结果替代人工验收。
 5. 在 macOS/Xcode 完成 iOS 构建和基础真机验收。
 6. 配置真实反馈入口。
 

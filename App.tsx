@@ -1,7 +1,10 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {createStartFiveApp} from './src/app/startFiveApp';
-import {resolveIanaLocalTrigger} from './src/application/tomorrowFirstNotifications';
+import {
+  resolveIanaDateTrigger,
+  resolveIanaLocalTrigger,
+} from './src/application/tomorrowFirstNotifications';
 import {createNativeTomorrowFirstNotifications} from './src/platform/nativeTomorrowFirstNotifications';
 import {createNativeBackupFileBridge} from './src/platform/nativeBackupFileBridge';
 
@@ -29,6 +32,11 @@ const {AppRoot} = createStartFiveApp({
         currentTimeZone: () =>
           Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         resolveLocalTrigger: resolveIanaLocalTrigger,
+        resolveFocusScheduleTrigger: input => resolveIanaDateTrigger({
+          localDateKey: input.localDateKey,
+          wallClockTime: input.localTime,
+          timeZone: input.timeZone,
+        }),
       }),
   ...(backupFileBridge === undefined ? {} : {backupFileBridge}),
 });

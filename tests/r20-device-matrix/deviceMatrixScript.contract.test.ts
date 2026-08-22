@@ -29,6 +29,8 @@ describe('R20-02 Android device matrix runner', () => {
     expect(source).toContain("'matrix-results.csv'");
     expect(source).toContain("evidenceType = 'AUTO_CAPTURE_NOT_MANUAL_ACCEPTANCE'");
     expect(source).toContain('manualAcceptanceStillRequired = $true');
+    expect(source).toContain('[int]$CaptureSettleMilliseconds = 1500');
+    expect(source).toContain('Start-Sleep -Milliseconds $CaptureSettleMilliseconds');
   });
 
   test('restores every device setting changed by the matrix', () => {
@@ -39,5 +41,28 @@ describe('R20-02 Android device matrix runner', () => {
     expect(source).toContain("@('settings', 'put', 'global', 'window_animation_scale', $originalWindowAnimation) -AllowFailure");
     expect(source).toContain("@('settings', 'put', 'global', 'transition_animation_scale', $originalTransitionAnimation) -AllowFailure");
     expect(source).toContain("@('settings', 'put', 'global', 'animator_duration_scale', $originalAnimatorDuration) -AllowFailure");
+  });
+
+  test('falls back to persisted UiModeManager values when Android 16 rejects a no-argument night-mode read', () => {
+    expect(source).toContain("@('cmd', 'uimode', 'night') -AllowFailure");
+    expect(source).toContain("Get-SettingValue -Namespace 'secure' -Name 'ui_night_mode'");
+    expect(source).toContain("Get-SettingValue -Namespace 'secure' -Name 'ui_night_mode_custom_type'");
+    expect(source).toContain("'3' {");
+    expect(source).toContain("return 'custom_bedtime'");
+    expect(source).toContain("return 'custom_schedule'");
+    expect(source).not.toContain("else { 'auto' }");
+  });
+
+  test('uses bounded adb child processes instead of treating stderr progress as failure', () => {
+    expect(source).toContain('[int]$TimeoutSeconds = 45');
+    expect(source).toContain('$processInfo = [System.Diagnostics.ProcessStartInfo]::new()');
+    expect(source).toContain('$processInfo.RedirectStandardOutput = $true');
+    expect(source).toContain('$processInfo.RedirectStandardError = $true');
+    expect(source).toContain('$process.StandardOutput.ReadToEndAsync()');
+    expect(source).toContain('$process.StandardError.ReadToEndAsync()');
+    expect(source).toContain('$process.WaitForExit($TimeoutSeconds * 1000)');
+    expect(source).toContain('$process.Kill()');
+    expect(source).toContain('$exitCode = $process.ExitCode');
+    expect(source).toContain("-TimeoutSeconds 180");
   });
 });

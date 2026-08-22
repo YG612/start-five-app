@@ -34,9 +34,10 @@ P14-02B 的“合并式恢复”未做猜测实现：当前数据层还没有覆
 | P15R–P19 当前定点回归 | 19 suites，61/61 tests 通过；含原生入口/构建契约为 21 suites，70/70 tests |
 | R20-01 全量历史质量门 | accepted inventory 连续两次 77/77 suites、839/839 tests 通过 |
 | TypeScript | `tsc --noEmit` 通过（2026-08-22 重跑） |
+| 专注启动、日程保存、恢复与无第一小步结束回归 | P10 + P16 聚合回归 11 suites、48/48 tests 通过 |
 | Android lint | `:app:lintInternal` 通过 |
 | Android Internal 构建 | `:app:assembleInternal` 通过 |
-| Android 设备 | OnePlus 9R 自动冒烟通过；完整人工矩阵与 UTEST 待执行 |
+| Android 设备 | Android 16 x86_64 模拟器 48/48 自动启动证据通过；OnePlus 9R 核心闭环、5 分钟启动及专注日程保存真机通过；专注步骤缺失边界待用户复测，TalkBack 与重启待执行 |
 | iOS 构建/真机 | 待 macOS + Xcode 环境 |
 
 最近验证的 Internal APK：
@@ -44,8 +45,8 @@ P14-02B 的“合并式恢复”未做猜测实现：当前数据层还没有覆
 - versionCode：`1`
 - applicationId：`com.startfive.app.internal`
 - versionName：`1.0-internal`
-- 大小：`20,294,203 bytes`
-- SHA-256：`611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df`
+- 大小：`20,294,875 bytes`
+- SHA-256：`5e84b1ca3ee090d83a3f58e124ec61e6b58d0b8bde6735e58a5b23161b50f7a6`
 
 APK 属于构建产物，不提交进 Git；可从源码重新生成。
 

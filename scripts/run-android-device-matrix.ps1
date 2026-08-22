@@ -7,7 +7,10 @@ param(
 
     [string]$EvidenceRoot,
 
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+
+    [ValidateRange(0, 10000)]
+    [int]$CaptureSettleMilliseconds = 1500
 )
 
 Set-StrictMode -Version Latest
@@ -58,11 +61,65 @@ function Invoke-Adb {
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments,
 
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+
+        [ValidateRange(5, 180)]
+        [int]$TimeoutSeconds = 45
     )
 
-    $output = @(& $adbPath @Arguments 2>&1)
-    $exitCode = $LASTEXITCODE
+    # Windows PowerShell 5.1 wraps native stderr as ErrorRecord objects, so
+    # harmless adb progress can become a terminating PowerShell error. Running
+    # adb as a bounded child process also prevents a single device command from
+    # hanging the entire matrix indefinitely.
+    $process = $null
+    try {
+        $quotedArguments = @($Arguments | ForEach-Object {
+            $value = [string]$_
+            if ($value -notmatch '[\s"]') {
+                return $value
+            }
+            $escaped = $value -replace '(\\*)"', '$1$1\"'
+            $escaped = $escaped -replace '(\\+)$', '$1$1'
+            return '"' + $escaped + '"'
+        })
+        $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $processInfo.FileName = $adbPath
+        $processInfo.Arguments = $quotedArguments -join ' '
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo = $processInfo
+        if (-not $process.Start()) {
+            throw "Could not start adb: adb $($Arguments -join ' ')"
+        }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+
+        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+            $process.Kill()
+            $process.WaitForExit()
+            throw "adb timed out after $TimeoutSeconds seconds: adb $($Arguments -join ' ')"
+        }
+
+        $exitCode = $process.ExitCode
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        $output = @(($stdout, $stderr) |
+            Where-Object { -not [string]::IsNullOrEmpty($_) } |
+            ForEach-Object { $_ -split '\r?\n' } |
+            Where-Object { -not [string]::IsNullOrEmpty($_) })
+    }
+    finally {
+        if ($null -ne $process -and -not $process.HasExited) {
+            $process.Kill()
+            $process.WaitForExit()
+        }
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
+    }
     if (-not $AllowFailure -and $exitCode -ne 0) {
         throw "adb failed with exit code ${exitCode}: adb $($Arguments -join ' ')`n$($output -join [Environment]::NewLine)"
     }
@@ -95,6 +152,39 @@ function Get-SettingValue {
 
     $value = (Invoke-DeviceShell -Arguments @('settings', 'get', $Namespace, $Name)).Output -join ''
     return $value.Trim()
+}
+
+function Get-NightModeValue {
+    # Android's shell help documents a no-argument read, but some Android 16
+    # images reject it as though a mode argument were required. Prefer the
+    # public shell contract and fall back to the persisted UiModeManager
+    # values so the matrix can still restore the exact pre-run mode.
+    $nightResult = Invoke-DeviceShell -Arguments @('cmd', 'uimode', 'night') -AllowFailure
+    $nightOutput = $nightResult.Output -join [Environment]::NewLine
+    $nightMatch = [Regex]::Match(
+        $nightOutput,
+        'Night mode:\s*(yes|no|auto|custom|custom_schedule|custom_bedtime)'
+    )
+    if ($nightResult.ExitCode -eq 0 -and $nightMatch.Success) {
+        return $nightMatch.Groups[1].Value
+    }
+
+    $storedMode = Get-SettingValue -Namespace 'secure' -Name 'ui_night_mode'
+    switch ($storedMode) {
+        '0' { return 'auto' }
+        '1' { return 'no' }
+        '2' { return 'yes' }
+        '3' {
+            $customType = Get-SettingValue -Namespace 'secure' -Name 'ui_night_mode_custom_type'
+            if ($customType -eq '1') {
+                return 'custom_bedtime'
+            }
+            return 'custom_schedule'
+        }
+        default {
+            throw "Could not determine the original night mode. Shell output: $nightOutput; secure ui_night_mode: $storedMode"
+        }
+    }
 }
 
 function Set-SettingValue {
@@ -157,9 +247,7 @@ $originalFontScale = Get-SettingValue -Namespace 'system' -Name 'font_scale'
 $originalWindowAnimation = Get-SettingValue -Namespace 'global' -Name 'window_animation_scale'
 $originalTransitionAnimation = Get-SettingValue -Namespace 'global' -Name 'transition_animation_scale'
 $originalAnimatorDuration = Get-SettingValue -Namespace 'global' -Name 'animator_duration_scale'
-$nightOutput = (Invoke-DeviceShell -Arguments @('cmd', 'uimode', 'night')).Output -join [Environment]::NewLine
-$nightMatch = [Regex]::Match($nightOutput, 'Night mode:\s*(yes|no|auto|custom)')
-$originalNightMode = if ($nightMatch.Success) { $nightMatch.Groups[1].Value } else { 'auto' }
+$originalNightMode = Get-NightModeValue
 
 $environment = [ordered]@{
     runId = $runId
@@ -186,7 +274,7 @@ $environment = [ordered]@{
 $environment | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $EvidenceRoot 'environment.json') -Encoding UTF8
 
 if (-not $SkipInstall) {
-    $install = Invoke-Adb -Arguments @('-s', $Serial, 'install', '-r', $ApkPath)
+    $install = Invoke-Adb -Arguments @('-s', $Serial, 'install', '-r', $ApkPath) -TimeoutSeconds 180
     Write-Utf8Lines -Path (Join-Path $EvidenceRoot 'install.txt') -Lines $install.Output
 }
 
@@ -233,6 +321,7 @@ try {
                     [void](Invoke-DeviceShell -Arguments @('am', 'force-stop', $packageName))
                     $launch = Invoke-DeviceShell -Arguments @('am', 'start', '-W', '-n', $activity)
                     Write-Utf8Lines -Path (Join-Path $caseRoot 'launch.txt') -Lines $launch.Output
+                    Start-Sleep -Milliseconds $CaptureSettleMilliseconds
 
                     $remoteBase = "/sdcard/Download/start-five-r20-$caseId"
                     $dump = Invoke-DeviceShell -Arguments @('uiautomator', 'dump', "$remoteBase.xml") -AllowFailure

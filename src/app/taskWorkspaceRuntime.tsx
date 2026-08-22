@@ -260,6 +260,7 @@ export function TaskWorkspaceRuntimeProvider({
     key: string,
     kind: string,
     work: (operationId: string) => Promise<T>,
+    resolveBeforePostCommit = false,
   ): Promise<T> {
     const existing = mutationsRef.current.get(key);
     if (existing !== undefined) {
@@ -293,25 +294,35 @@ export function TaskWorkspaceRuntimeProvider({
         mutationOperationIdsRef.current.delete(key);
         // The command is already durable. Projection failure is recoverable by
         // refresh and must never turn this command into a replayable mutation.
-        await refreshAfterDurableCommit().catch(() => undefined);
-        if (reconcileReminders !== undefined) {
-          await reconcileReminders()
-            .then(() => {
-              if (mountedRef.current) {
-                setSnapshot(current => ({
-                  ...current,
-                  reminderSyncErrorText: null,
-                }));
-              }
-            })
-            .catch(error => {
-              if (mountedRef.current) {
-                setSnapshot(current => ({
-                  ...current,
-                  reminderSyncErrorText: errorMessage(error),
-                }));
-              }
-            });
+        const postCommit = refreshAfterDurableCommit()
+          .catch(() => undefined)
+          .then(() => {
+            if (reconcileReminders === undefined) return;
+            // Reminder reconciliation is a secondary side effect. A native
+            // scheduler that stalls must not keep an already-durable task
+            // mutation pending or prevent the focus session from starting.
+            void reconcileReminders()
+              .then(() => {
+                if (mountedRef.current) {
+                  setSnapshot(current => ({
+                    ...current,
+                    reminderSyncErrorText: null,
+                  }));
+                }
+              })
+              .catch(error => {
+                if (mountedRef.current) {
+                  setSnapshot(current => ({
+                    ...current,
+                    reminderSyncErrorText: errorMessage(error),
+                  }));
+                }
+              });
+          });
+        if (resolveBeforePostCommit) {
+          void postCommit;
+        } else {
+          await postCommit;
         }
         return task;
       })
@@ -373,6 +384,7 @@ export function TaskWorkspaceRuntimeProvider({
     startSelectedTask(taskId) {
       return runMutation(`start:${taskId}`, 'start', operationId =>
         startSelectedTaskDurably(taskId, operationId),
+        true,
       );
     },
     createTask(input, idempotencyKey) {

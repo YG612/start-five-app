@@ -2,7 +2,7 @@
 
 状态：`R20-02 IN_PROGRESS / PENDING_DEVICE`（历史自动安装/冷启动/基础 Sheet 冒烟已通过；本轮完整矩阵尚无 online 设备）
 
-R20-02 本轮实测（2026-08-22）：ADB `1.0.41` / platform-tools `37.0.0-14910828` 可用，但 `adb devices -l` 返回设备数 0；SDK 没有 Emulator 与 AVD。已新增 `scripts/run-android-device-matrix.ps1`，用于在明确 serial 上自动采集 48 组尺寸/字体/主题/动效证据，并在结束或异常时恢复设备设置；静态安全契约 1 suite、4/4 tests PASS，不存在 serial 的入口 fail-closed PASS。当前真实进度见 `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`。
+R20-02 本轮实测（2026-08-22）：已使用 Android 16 / API 36 x86_64 专用模拟器完成稳定版 48/48 自动启动证据，0 fatal；runner 已补齐 Android 16 夜间模式读取回退、ADB 单命令超时/清理和启动后稳定窗口，聚合回归 7 suites、36/36 tests PASS。该证据只标记为 `AUTO_CAPTURE_NOT_MANUAL_ACCEPTANCE`；arm64 真机手势、TalkBack、通知、后台、杀进程和系统重启仍必须按本文人工执行。当前真实进度见 `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`。
 
 本轮自动设备证据（2026-08-21）：OnePlus 9R / `LE2100` / serial `67110b7a` online；Android 14 / SDK 34；物理分辨率 1080×2400、density 480、fontScale 1.15、三项系统动画倍率均为 1.0。internal 变体改为独立包名 `com.startfive.app.internal`，与设备原有 `com.startfive.app` 并存，不卸载、不清除旧数据。arm64 APK 为 20,246,659 bytes，SHA-256 `f8ad0dc4a5b507212494dd4ba1649cdbfbe47b2385f1c9c66af45dc32a9a48d9`；`adb install -r` PASS。
 

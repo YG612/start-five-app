@@ -102,6 +102,11 @@ export type StartFiveAppDependencies = {
   tomorrowFirstNotifications?: TomorrowFirstNotifications;
   currentTimeZone?(): string;
   resolveLocalTrigger?(input: LocalTriggerInput): string;
+  resolveFocusScheduleTrigger?(input: Readonly<{
+    localDateKey: string;
+    localTime: string;
+    timeZone: string;
+  }>): string;
   backupFileBridge?: BackupFileBridge;
   productMetricPort?: ProductMetricPort;
   productMetricClock?: ProductMetricClock;
@@ -329,6 +334,9 @@ export function createStartFiveApp(
     localTime: string;
     timeZone: string;
   }>): string => {
+    if (dependencies.resolveFocusScheduleTrigger !== undefined) {
+      return dependencies.resolveFocusScheduleTrigger(input);
+    }
     if (dependencies.resolveLocalTrigger !== undefined) {
       return dependencies.resolveLocalTrigger({
         closureDayKey: input.localDateKey,
@@ -558,6 +566,9 @@ export function createStartFiveApp(
         {...(dependencies.resolveLocalTrigger === undefined
           ? {}
           : {resolveLocalTrigger: dependencies.resolveLocalTrigger})}
+        {...(dependencies.resolveFocusScheduleTrigger === undefined
+          ? {}
+          : {resolveFocusScheduleTrigger: dependencies.resolveFocusScheduleTrigger})}
         reviewHistory={reviewHistory}
         service={service}
         {...(tomorrowFirstReminder === undefined

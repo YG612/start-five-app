@@ -7,6 +7,7 @@ import {
   createFocusSchedule,
   nextFocusScheduleOccurrence,
 } from '../../src/domain/focusSchedule';
+import {resolveIanaDateTrigger} from '../../src/application/tomorrowFirstNotifications';
 import type {
   ReminderPermission,
   ReminderReplaceRequest,
@@ -28,12 +29,28 @@ class ScheduleNotifications {
     return this.snapshots.get(taskId) ?? null;
   }
   async replace(request: ReminderReplaceRequest): Promise<void> {
+    if (request.next.intents.some(intent => intent.taskId !== request.next.taskId)) {
+      throw new Error('native reminder snapshot taskId mismatch');
+    }
     this.replacements.push(request);
     this.snapshots.set(request.next.taskId, request.next);
   }
 }
 
 describe('P16 focus schedule model and persistence', () => {
+  it('resolves a focus wall clock on the requested local date', () => {
+    expect(resolveIanaDateTrigger({
+      localDateKey: '2026-08-22',
+      wallClockTime: '20:30',
+      timeZone: 'Asia/Shanghai',
+    })).toBe('2026-08-22T12:30:00.000Z');
+    expect(resolveIanaDateTrigger({
+      localDateKey: '2026-03-08',
+      wallClockTime: '02:30',
+      timeZone: 'America/New_York',
+    })).toBe('2026-03-08T07:00:00.000Z');
+  });
+
   it('normalizes weekly recurrence without pre-generating occurrences', () => {
     const schedule = createFocusSchedule({
       id: 'weekly',
@@ -134,20 +151,22 @@ describe('P16 focus schedule model and persistence', () => {
       resolveLocalTrigger: resolveUtc,
       notifications,
     });
+    const resolvedTask = {
+      taskId: 'task-1',
+      title: '修改论文',
+      firstStep: '打开文档找到 2.1 节。',
+    } as const;
     const schedule = await service.create({
       target: {kind: 'TASK', taskId: 'task-1'},
       durationMinutes: 25,
       recurrence: {kind: 'DAILY', localTime: '20:30', timezone: 'UTC'},
       protectionLevel: 'REMINDER_ONLY',
-    }, {
-      taskId: 'task-1',
-      title: '修改论文',
-      firstStep: '打开文档找到 2.1 节。',
-    });
+    }, resolvedTask);
+    await service.reconcile(schedule, resolvedTask);
     const replacement = notifications.replacements.at(-1)!.next;
     expect(replacement.intents).toHaveLength(1);
     expect(replacement.intents[0]).toMatchObject({
-      taskId: 'task-1',
+      taskId: 'focus-schedule:schedule-1',
       ruleId: 'focus-schedule:schedule-1:2026-03-07',
       triggerAt: '2026-03-07T20:30:00.000Z',
       notificationTitle: '留给“修改论文”25 分钟。',
@@ -169,6 +188,34 @@ describe('P16 focus schedule model and persistence', () => {
     });
     expect(duplicate).toEqual(started);
     expect((await service.listEvents(schedule.id)).filter(event => event.type === 'STARTED')).toHaveLength(1);
+  });
+
+  it('returns a durable save without waiting for reminder reconciliation', async () => {
+    const backend = new WorkspaceBackend();
+    const notifications = new ScheduleNotifications();
+    notifications.replace = () => new Promise<void>(() => undefined);
+    const service = createFocusScheduleService({
+      repository: createFocusScheduleRepository(backend),
+      now: () => NOW,
+      idGenerator: () => 'durable-before-reminder',
+      currentTimeZone: () => 'UTC',
+      resolveLocalTrigger: resolveUtc,
+      notifications,
+    });
+
+    await expect(service.create({
+      target: {kind: 'TASK', taskId: 'task-1'},
+      durationMinutes: 5,
+      recurrence: {kind: 'DAILY', localTime: '20:30', timezone: 'UTC'},
+      protectionLevel: 'REMINDER_ONLY',
+    }, {
+      taskId: 'task-1',
+      title: '修改论文',
+      firstStep: '打开文档',
+    })).resolves.toMatchObject({id: 'durable-before-reminder'});
+    await expect(service.list()).resolves.toEqual([
+      expect.objectContaining({id: 'durable-before-reminder'}),
+    ]);
   });
 
   it('disables a one-time schedule after skip without touching any task deadline', async () => {

@@ -24,8 +24,8 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段，
 | 首次用户测试 | `PENDING_EXTERNAL` | 尚无至少 5 名目标用户的无指导记录 |
 | R20-01 契约处置 | PASS | `docs/R20_01_CONTRACT_DISPOSITION.md`；KEEP 1、MIGRATE 3、RETIRE 0、ISOLATE 4 |
 | 全量历史质量门 | PASS | authoritative accepted roots 连续两次：77/77 suites、839/839 tests PASS |
-| Android internal 构建 | PASS | `:app:assembleInternal`；APK SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df` |
-| R20-02 Android 设备矩阵 | `IN_PROGRESS / PENDING_DEVICE` | `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`；runner 与 4/4 契约测试完成，当前 ADB 设备数 0 |
+| Android internal 构建 | PASS | `:app:assembleInternal`；默认 arm64 APK SHA-256 `c91d56311231797bcc0fa88d3f219995d3802c5d24a51f93c339ecc7f219ca67` |
+| R20-02 Android 设备矩阵 | `IN_PROGRESS / AUTO_EMULATOR_PASS / MANUAL_DEVICE_IN_PROGRESS` | Android 16 x86_64 模拟器 48/48 通过；OnePlus 9R 核心闭环人工通过，专注步骤缺失边界已修复待复测；TalkBack/通知/重启仍待验收 |
 | 当前产品问题审计 | `AUDIT_CONFIRMED` | `docs/CURRENT_PRODUCT_RISK_AUDIT.md`；区分源码确认、设备待验证和用户研究假设 |
 
 ## 2. 先用哪条阅读路线
@@ -79,7 +79,7 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段，
 | P15R–P18 | 页面和交互是否围绕核心行动统一 | 四页架构、日程、语义成长、设置、1000ms 持续布局 | 已完成自动门；保持 schema 兼容 |
 | P19 | 能否安全退出、恢复、避免重复提交并进入发布验收 | 统一 Sheet、返回优先级、脏状态、草稿恢复、本地日期、独立 internal 包 | 自动能力已落地；继续设备与用户证据 |
 | R20-01 | 当前契约与历史质量门能否在不弱化断言的前提下统一 | 8 个根因有审计裁决；17 个 accepted roots 全绿 | PASS；下一门为 R20-02 Android 完整设备矩阵 |
-| R20-02 | 当前 Android 包能否通过尺寸、字体、主题、手势、可访问性与生命周期设备矩阵 | 48 组自动采集 runner 和可恢复设备设置边界已落地 | IN_PROGRESS；当前没有 online 设备，不伪造 DEVICE PASS |
+| R20-02 | 当前 Android 包能否通过尺寸、字体、主题、手势、可访问性与生命周期设备矩阵 | 48 组自动采集 runner 已加固；Android 16 模拟器 48/48 自动证据通过 | IN_PROGRESS；自动模拟器证据不替代真机手势、TalkBack、通知和重启 |
 
 ## 4. P19 最新进展学习教程
 
@@ -178,7 +178,7 @@ Start Five 已从“功能原型”进入“发布前可靠性收口”阶段，
 
 ### R20-02：Android 完整设备矩阵
 
-状态：`IN_PROGRESS / PENDING_DEVICE`。当前执行记录见 `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`。
+状态：`IN_PROGRESS / AUTO_EMULATOR_PASS / PENDING_MANUAL_DEVICE`。当前执行记录见 `docs/R20_02_ANDROID_DEVICE_MATRIX_PROGRESS.md`。
 
 以 `docs/P19_DEVICE_UTEST_ACCEPTANCE.md` 为唯一执行表，至少覆盖：
 
@@ -248,7 +248,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-android-internal.ps1
 adb devices -l
 ```
 
-2026-08-22 本轮已重新执行：完整 accepted inventory 连续两次均为 77/77 suites、839/839 tests PASS；TypeScript PASS；`:app:lintInternal` PASS；`:app:assembleInternal` PASS。新 APK 为 `android/app/build/outputs/apk/internal/app-internal.apk`，大小 `20,294,203 bytes`，SHA-256 `611cda1c846869a1a257f7c44b11ce67aa2d3d5dc235fe0b055c90241a2ef2df`。构建时本轮变更尚未提交，证据类型为 `WORKTREE_BUILD`，不得描述为绑定正式 commit 的发布候选。设备证据仍沿用 `docs/P19_RELEASE_CONVERGENCE_AUDIT.md` 中已明确标注范围的记录，本轮未把构建成功写成真机通过。
+2026-08-22 本轮已重新执行：完整 accepted inventory 连续两次均为 77/77 suites、839/839 tests PASS；TypeScript PASS；`:app:lintInternal` PASS。随后根据 OnePlus 9R 人工验收修复无第一小步时的记录失败、持久化专注被次要后续阻塞后无法显示计时页，以及“安排一段专注”因通知快照 ID 混用而保存失败、后置提醒失败误报、今天被解析到明天的问题。P10 + P16 聚合回归 11 suites、48/48 tests 及 TypeScript 通过，`:app:assembleInternal` PASS；OnePlus 9R 实测点击“先做 5 分钟”进入 `4:58` 计时页，保存“今天 20:30”后显示 `20:30 · 5 分钟` 且系统生成当日 Alarm，0 fatal/ANR。当前 arm64 APK 为 `android/app/build/outputs/apk/internal/app-internal.apk`，大小 `20,294,875 bytes`，SHA-256 `5e84b1ca3ee090d83a3f58e124ec61e6b58d0b8bde6735e58a5b23161b50f7a6`。另以 x86_64 internal APK 在 Android 16 / API 36 模拟器完成稳定版 48/48 自动启动证据，0 fatal，证据目录为 `android/captures/r20-02/20260822-151835-emulator-5554/`。两类构建均为 `WORKTREE_BUILD`；模拟器自动证据不得描述为真机手势、TalkBack、通知或重启通过。
 
 ## 8. 文档权威顺序
 

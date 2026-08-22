@@ -68,6 +68,15 @@ export function createFocusScheduleService(options: Readonly<{
 }>): FocusScheduleService {
   const inFlightStarts = new Map<string, Promise<FocusScheduleEvent>>();
 
+  function reconcileAfterDurableCommit(
+    schedule: FocusSchedule,
+    resolvedTask?: FocusScheduleResolvedTaskInput,
+  ): void {
+    // Notification delivery is recoverable and is reconciled again on restore.
+    // It must not turn an already-durable schedule mutation into a failed save.
+    void reconcile(schedule, resolvedTask).catch(() => undefined);
+  }
+
   async function requireSchedule(id: string): Promise<FocusSchedule> {
     const schedule = await options.repository.getSchedule(id);
     if (schedule === null) throw new Error('FOCUS_SCHEDULE_NOT_FOUND');
@@ -111,13 +120,15 @@ export function createFocusScheduleService(options: Readonly<{
           currentTimeZone: options.currentTimeZone(),
         })
       : null;
-    const resolvedTaskId = typeof resolvedTask === 'string' ? resolvedTask : resolvedTask?.taskId;
     const next = {
       taskId: key,
       generation: (previous?.generation ?? 0) + 1,
       permission,
       intents: occurrence === null || permission !== 'granted' ? [] : [{
-        taskId: resolvedTaskId ?? (schedule.target.kind === 'TASK' ? schedule.target.taskId : key),
+        // The native reminder store owns every intent under snapshot.taskId.
+        // The focus-schedule route resolves its target from scheduleId, so the
+        // durable schedule key (rather than a resolved task ID) belongs here.
+        taskId: key,
         ruleId: `focus-schedule:${schedule.id}:${occurrence.localDateKey}`,
         kind: 'start' as const,
         triggerAt: occurrence.plannedStartAt,
@@ -148,21 +159,21 @@ export function createFocusScheduleService(options: Readonly<{
     async create(draft, resolvedTask) {
       const schedule = createFocusSchedule({id: options.idGenerator(), draft, now: options.now()});
       const saved = await options.repository.saveSchedule(schedule);
-      await reconcile(saved, resolvedTask);
+      reconcileAfterDurableCommit(saved, resolvedTask);
       return saved;
     },
     async update(id, patch, resolvedTask) {
       const saved = await options.repository.saveSchedule(
         updateFocusSchedule(await requireSchedule(id), patch, options.now()),
       );
-      await reconcile(saved, resolvedTask);
+      reconcileAfterDurableCommit(saved, resolvedTask);
       return saved;
     },
     async setEnabled(id, enabled, resolvedTask) {
       const saved = await options.repository.saveSchedule(
         updateFocusSchedule(await requireSchedule(id), {enabled}, options.now()),
       );
-      await reconcile(saved, resolvedTask);
+      reconcileAfterDurableCommit(saved, resolvedTask);
       return saved;
     },
     async remove(id) {
@@ -240,7 +251,7 @@ export function createFocusScheduleService(options: Readonly<{
       });
       await settleOnce(scheduleId);
       const schedule = await requireSchedule(scheduleId);
-      await reconcile(schedule);
+      reconcileAfterDurableCommit(schedule);
       return result;
     },
     async skip(scheduleId, localDateKey, plannedStartAt) {
@@ -250,7 +261,7 @@ export function createFocusScheduleService(options: Readonly<{
       });
       await settleOnce(scheduleId);
       const schedule = await requireSchedule(scheduleId);
-      await reconcile(schedule);
+      reconcileAfterDurableCommit(schedule);
       return result;
     },
     async reschedule(scheduleId, localDateKey, plannedStartAt, rescheduledTo) {
@@ -259,7 +270,7 @@ export function createFocusScheduleService(options: Readonly<{
         type: 'RESCHEDULED', now: options.now(), rescheduledTo,
       });
       const schedule = await requireSchedule(scheduleId);
-      await reconcile(schedule);
+      reconcileAfterDurableCommit(schedule);
       return result;
     },
     async consecutiveSkipCount(scheduleId) {

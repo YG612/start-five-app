@@ -91,6 +91,10 @@ function remainingAt(session: FocusSession, observedNow: string | null): number 
   return Math.max(0, Date.parse(session.plannedEndAt) - Date.parse(observedNow));
 }
 
+function runReviewSideEffect(work: () => Promise<unknown>): void {
+  void Promise.resolve().then(work).catch(() => undefined);
+}
+
 export function FocusSessionRuntimeProvider({
   service,
   reviewService,
@@ -185,14 +189,7 @@ export function FocusSessionRuntimeProvider({
       mountedRef.current && restoreGenerationRef.current === generation;
     void createRestoreService(writeIsCurrent)
       .restore()
-      .then(async active => {
-        if (active === null) {
-          await reviewService.recoverEligibleSessions(
-            Array.from(eligibleTaskIds),
-          );
-        } else {
-          await reviewService.trackRestoredSession(active);
-        }
+      .then(active => {
         if (
           !mountedRef.current ||
           restoreGenerationRef.current !== generation
@@ -203,6 +200,13 @@ export function FocusSessionRuntimeProvider({
         setRestoreError(null);
         if (active !== null && eligibleTaskIds.has(active.taskId)) {
           adoptRunning(active);
+        }
+        if (active === null) {
+          runReviewSideEffect(() => reviewService.recoverEligibleSessions(
+            Array.from(eligibleTaskIds),
+          ));
+        } else {
+          runReviewSideEffect(() => reviewService.trackRestoredSession(active));
         }
       })
       .catch(error => {
@@ -236,8 +240,7 @@ export function FocusSessionRuntimeProvider({
     lifecycleInFlightRef.current = {kind: 'finish', promise: pending};
     setLifecyclePending(true);
     void pending
-      .then(async finished => {
-        await reviewService.captureEndedSession(finished);
+      .then(finished => {
         if (
           !mountedRef.current ||
           snapshotRef.current.activeSession?.id !== active.id
@@ -245,6 +248,7 @@ export function FocusSessionRuntimeProvider({
           return;
         }
         commitLifecycleResult(finished);
+        runReviewSideEffect(() => reviewService.captureEndedSession(finished));
       })
       .catch(error => {
         if (
@@ -344,11 +348,11 @@ export function FocusSessionRuntimeProvider({
           plannedMinutes,
           ...(focusScheduleId === undefined ? {} : {focusScheduleId}),
         })
-        .then(async started => {
-          await reviewService.trackStartedSession(started);
+        .then(started => {
           if (mountedRef.current) {
             adoptRunning(started);
           }
+          runReviewSideEffect(() => reviewService.trackStartedSession(started));
           return started;
         })
         .finally(() => {
@@ -369,11 +373,11 @@ export function FocusSessionRuntimeProvider({
       }
       const pending = service
         .interrupt(active.id, reason)
-        .then(async interrupted => {
-          await reviewService.captureEndedSession(interrupted);
+        .then(interrupted => {
           if (mountedRef.current) {
             commitLifecycleResult(interrupted);
           }
+          runReviewSideEffect(() => reviewService.captureEndedSession(interrupted));
           return interrupted;
         })
         .finally(() => {

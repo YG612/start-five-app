@@ -207,6 +207,11 @@ type QuadrantHomeScreenProps = Readonly<{
   now(): string;
   currentTimeZone?(): string;
   resolveLocalTrigger?(input: LocalTriggerInput): string;
+  resolveFocusScheduleTrigger?(input: Readonly<{
+    localDateKey: string;
+    localTime: string;
+    timeZone: string;
+  }>): string;
   preferences: QuadrantHomePreferences;
   taskLayoutStore: QuadrantTaskLayoutStore;
   taskDrafts: TaskDraftStore;
@@ -2790,13 +2795,17 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
   function focusScheduleDraftForSave(): FocusScheduleDraft {
     const zone = props.currentTimeZone?.() ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
-    const dateKey = priorityNow.slice(0, 10);
-    const startsAt = props.resolveLocalTrigger?.({
-      closureDayKey: dateKey,
-      wallClockTime: focusScheduleDraft.localTime,
+    const dateKey = dateKeyInTimeZone(priorityNow, zone);
+    const startsAt = props.resolveFocusScheduleTrigger?.({
+      localDateKey: dateKey,
+      localTime: focusScheduleDraft.localTime,
       timeZone: zone,
-      now: props.now(),
-    }) ?? new Date(`${dateKey}T${focusScheduleDraft.localTime}:00`).toISOString();
+    }) ?? props.resolveLocalTrigger?.({
+        closureDayKey: dateKey,
+        wallClockTime: focusScheduleDraft.localTime,
+        timeZone: zone,
+        now: props.now(),
+      }) ?? new Date(`${dateKey}T${focusScheduleDraft.localTime}:00`).toISOString();
     const recurrence = focusScheduleDraft.timing === 'today'
       ? {kind: 'ONCE' as const, startsAt}
       : focusScheduleDraft.timing === 'daily'
@@ -2840,7 +2849,7 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       ? Promise.resolve()
       : props.notifications.getPermission().then(permission =>
           permission === 'not_determined' ? props.notifications!.requestPermission().then(() => undefined) : undefined,
-        );
+        ).catch(() => undefined);
     void requestPermission.then(() => {
       const draftForSave = focusScheduleDraftForSave();
       const target = draftForSave.target;
@@ -2862,7 +2871,8 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
       recordMetric('focus_schedule_saved', {source: editingFocusScheduleId === null ? 'create' : 'edit'});
       setFocusScheduleEditorOpen(false);
       setEditingFocusScheduleId(null);
-      return refreshFocusSchedules().then(() => schedule);
+      // Projection refresh is recoverable; the schedule is already durable.
+      return refreshFocusSchedules().catch(() => undefined).then(() => schedule);
     }).catch(reason => {
       setFocusScheduleError(userFacingError(reason, '专注时段保存失败，输入已保留。'));
     }).finally(() => setFocusSchedulePending(false));
@@ -3038,6 +3048,10 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
 
   function completePostFocusStep(task: Task): void {
     if ((task.steps?.length ?? 0) === 0) {
+      if (task.firstStep == null || task.firstStep.trim() === '') {
+        setPostFocusTaskId(null);
+        return;
+      }
       void runtime.completeFirstStep(task.id, null)
         .then(() => setPostFocusTaskId(null))
         .catch(reason => setActionError(userFacingError(reason, '步骤记录失败，请重试。')));
@@ -3059,6 +3073,13 @@ export function QuadrantHomeScreen(props: QuadrantHomeScreenProps): React.JSX.El
   function completeCurrentFocusStep(): void {
     const task = activeFocusTask;
     if (task === null) return;
+    if (
+      (task.steps?.length ?? 0) === 0 &&
+      (task.firstStep == null || task.firstStep.trim() === '')
+    ) {
+      interruptCurrentFocus('这一步完成了');
+      return;
+    }
     const finish = (task.steps?.length ?? 0) === 0
       ? runtime.completeFirstStep(task.id, null).then(() => undefined)
       : (() => {

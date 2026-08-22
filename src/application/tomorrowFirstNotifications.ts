@@ -757,3 +757,79 @@ export function resolveIanaLocalTrigger(input: LocalTriggerInput): string {
   }
   throw new Error(LOCAL_TRIGGER_NOT_FUTURE);
 }
+
+/** Resolves one exact local calendar date for focus schedules. */
+export function resolveIanaDateTrigger(input: Readonly<{
+  localDateKey: string;
+  wallClockTime: string;
+  timeZone: string;
+}>): string {
+  validateWallClockTime(input.wallClockTime);
+  validateTimeZone(input.timeZone);
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.localDateKey);
+  if (dateMatch === null) throw new Error('TOMORROW_FIRST_DAY_INVALID');
+  const year = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  const day = Number(dateMatch[3]);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day, 12));
+  if (
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() + 1 !== month ||
+    calendarDate.getUTCDate() !== day
+  ) {
+    throw new Error('TOMORROW_FIRST_DAY_INVALID');
+  }
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: input.timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+  type LocalFields = Readonly<{
+    year: number; month: number; day: number; hour: number; minute: number;
+  }>;
+  const partsAt = (milliseconds: number): LocalFields => {
+    const values = Object.fromEntries(
+      formatter.formatToParts(new Date(milliseconds))
+        .filter(part => part.type !== 'literal')
+        .map(part => [part.type, part.value]),
+    );
+    return {
+      year: Number(values.year), month: Number(values.month), day: Number(values.day),
+      hour: Number(values.hour), minute: Number(values.minute),
+    };
+  };
+  const localDayCenter = Date.UTC(year, month - 1, day, 12);
+  const possibleOffsets = new Set<number>();
+  for (const sampleHours of [-36, -24, -12, 0, 12, 24, 36]) {
+    const sample = localDayCenter + sampleHours * 3_600_000;
+    const local = partsAt(sample);
+    possibleOffsets.add((Date.UTC(
+      local.year, local.month - 1, local.day, local.hour, local.minute,
+    ) - Math.floor(sample / 60_000) * 60_000) / 60_000);
+  }
+  const occurrences = (localHour: number, localMinute: number): number[] => {
+    const localAsUtc = Date.UTC(year, month - 1, day, localHour, localMinute);
+    return [...possibleOffsets]
+      .map(offset => localAsUtc - offset * 60_000)
+      .filter(candidate => {
+        const actual = partsAt(candidate);
+        return actual.year === year && actual.month === month && actual.day === day &&
+          actual.hour === localHour && actual.minute === localMinute;
+      })
+      .sort((left, right) => left - right)
+      .filter((candidate, index, values) => index === 0 || candidate !== values[index - 1]);
+  };
+  const [hourText = '', minuteText = ''] = input.wallClockTime.split(':');
+  const desiredHour = Number(hourText);
+  const desiredMinute = Number(minuteText);
+  const exact = occurrences(desiredHour, desiredMinute)[0];
+  if (exact !== undefined) return new Date(exact).toISOString();
+  for (let localAdvance = 1; localAdvance <= 180; localAdvance += 1) {
+    const totalMinutes = desiredHour * 60 + desiredMinute + localAdvance;
+    const localHour = Math.floor(totalMinutes / 60);
+    if (localHour >= 24) break;
+    const compensated = occurrences(localHour, totalMinutes % 60)[0];
+    if (compensated !== undefined) return new Date(compensated).toISOString();
+  }
+  throw new Error(LOCAL_TRIGGER_NOT_FUTURE);
+}
